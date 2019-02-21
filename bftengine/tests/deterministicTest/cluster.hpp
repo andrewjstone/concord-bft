@@ -31,24 +31,24 @@ struct TestClusterConfig {
 // A TestCluster represents a collection of replicas, and their communication
 // links implemented via TestCommunication.
 class TestCluster {
-public:
-   explicit TestCluster(TestClusterConfig config): cluster_config_{config} {
+   public:
+      explicit TestCluster(TestClusterConfig config): cluster_config_{config} {
 
-      for (uint16_t i = 0; i < config.num_replicas; i++) {
-         replicas_.push_back(Replica(CreateReplicaConfig(config, i)));
+         for (uint16_t i = 0; i < config.num_replicas; i++) {
+            replicas_.push_back(Replica(CreateReplicaConfig(config, i)));
+         }
       }
-   }
 
-   TestClusterConfig GetConfig() {
-      return cluster_config_;
-   }
+      TestClusterConfig GetConfig() {
+         return cluster_config_;
+      }
 
-private:
-   static bftEngine::ReplicaConfig CreateReplicaConfig(
-         TestClusterConfig config, uint16_t id);
+   private:
+      static bftEngine::ReplicaConfig CreateReplicaConfig(
+            TestClusterConfig config, uint16_t id);
 
-   TestClusterConfig cluster_config_;
-   std::vector<Replica> replicas_;
+      TestClusterConfig cluster_config_;
+      std::vector<Replica> replicas_;
 };
 
 } // namespace DeterministicTest
