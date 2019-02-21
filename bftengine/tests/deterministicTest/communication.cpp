@@ -13,9 +13,11 @@
 #include <unordered_map>
 #include <vector>
 #include "ICommunication.hpp"
-#include "TestCommunication.hpp"
+#include "communication.hpp"
 
 using namespace std;
+
+namespace DeterministicTest {
 
 bftEngine::ConnectionStatus TestCommunication::getCurrentConnectionStatus(
       const NodeNum node) const {
@@ -35,3 +37,5 @@ int TestCommunication::sendAsyncMessage(const NodeNum dest,
    mailboxes_.at(dest).push_back(Msg{message, messageLength});
    return 0;
 }
+
+} // namespace DeterministicTest

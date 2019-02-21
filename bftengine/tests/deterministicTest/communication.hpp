@@ -14,7 +14,10 @@
 #include <vector>
 #include "ICommunication.hpp"
 
-using namespace std;
+#ifndef BFTENGINE_TESTS_REPLICA_COMMUNICATION_H
+#define BFTENGINE_TESTS_REPLICA_COMMUNICATION_H
+
+namespace DeterministicTest {
 
 typedef struct Msg {
    const char *const buf;
@@ -24,8 +27,7 @@ typedef struct Msg {
 // This is a test implementation of ICommunication
 class TestCommunication : public bftEngine::ICommunication {
 
-   static constexpr int kMaxMsgSize = 1024*1024;
-
+public:
    int getMaxMessageSize() override {
       return kMaxMsgSize;
    }
@@ -66,9 +68,10 @@ class TestCommunication : public bftEngine::ICommunication {
    ~TestCommunication() {}
 
    private:
+      static constexpr int kMaxMsgSize = 1024*1024;
       bool running_;
       bftEngine::IReceiver* receiver_;
-      unordered_map<NodeNum, bool> connected_;
+      std::unordered_map<NodeNum, bool> connected_;
 
       // Invariant: Every entry in connected_ must have a corresponding entry in
       // mailboxes_. We keep connected_ and mailboxes_ separate, since we want
@@ -77,5 +80,9 @@ class TestCommunication : public bftEngine::ICommunication {
       // a real network, so messages may be sitting in an intermediate router,
       // or on the nic endpoint and may still possibly get delivered even though
       // the senders connection closed.
-      unordered_map<NodeNum, vector<msg>> mailboxes_;
+      std::unordered_map<NodeNum, std::vector<msg>> mailboxes_;
 };
+
+} // Namespace DeterministicTest
+
+#endif // BFTENGINE_TESTS_REPLICA_COMMUNICATION_H

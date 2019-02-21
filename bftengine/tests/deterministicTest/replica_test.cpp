@@ -12,7 +12,8 @@
 
 #include "gtest/gtest.h"
 #include "ICommunication.hpp"
-#include "TestCommunication.hpp"
+#include "communication.hpp"
+#include "cluster.hpp"
 
 TEST(callbacks, initialize) {
    ASSERT_TRUE(true);
