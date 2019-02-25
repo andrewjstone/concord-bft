@@ -28,8 +28,8 @@
 #include "threshsign/ThresholdSignaturesSchemes.h"
 #include "KeyfileIOUtils.hpp"
 
-using bftEngine::PlainUdpConfig;
 using bftEngine::PlainTcpConfig;
+using bftEngine::PlainUdpConfig;
 using bftEngine::ReplicaConfig;
 using BLS::Relic::BlsThresholdFactory;
 using std::pair;
@@ -48,16 +48,14 @@ const uint16_t basePort = 3710;
 // inputReplicaKeyfile is used to read the keys for this replica, and default
 // values are loaded for non-cryptographic configuration parameters.
 void getReplicaConfig(uint16_t replicaId, ReplicaConfig* outConfig) {
-  
   std::string keyfileName = "private_replica_" + std::to_string(replicaId);
   std::ifstream keyfile(keyfileName);
   if (!keyfile.is_open()) {
     throw std::runtime_error("Unable to read replica keyfile.");
   }
-  
+
   bool succ = inputReplicaKeyfile(keyfile, keyfileName, *outConfig);
-  if (!succ)
-    throw std::runtime_error("Unable to parse replica keyfile.");
+  if (!succ) throw std::runtime_error("Unable to parse replica keyfile.");
 
   // set non-cryptographic configuration
 
@@ -67,18 +65,17 @@ void getReplicaConfig(uint16_t replicaId, ReplicaConfig* outConfig) {
 
 // Create a UDP communication configuration for the node (replica or client)
 // with index `id`.
-PlainUdpConfig getUDPConfig(
-    uint16_t id, int numOfClientProxies, int numOfReplicas) {
+PlainUdpConfig getUDPConfig(uint16_t id, int numOfClientProxies,
+                            int numOfReplicas) {
   std::string ip = "127.0.0.1";
-  uint16_t port = basePort + id*2;
+  uint16_t port = basePort + id * 2;
   uint32_t bufLength = 64000;
 
   // Create a map of where the port for each node is.
-  std::unordered_map <NodeNum, NodeInfo> nodes;
+  std::unordered_map<NodeNum, NodeInfo> nodes;
   for (int i = 0; i < (numOfReplicas + numOfClientProxies); i++)
-    nodes.insert({
-      i,
-      NodeInfo{ip, (uint16_t)(basePort + i*2), i < numOfReplicas} });
+    nodes.insert(
+        {i, NodeInfo{ip, (uint16_t)(basePort + i * 2), i < numOfReplicas}});
 
   PlainUdpConfig retVal(ip, port, bufLength, nodes, id);
   return retVal;
@@ -86,18 +83,18 @@ PlainUdpConfig getUDPConfig(
 
 // Create a UDP communication configuration for the node (replica or client)
 // with index `id`.
-PlainTcpConfig getTCPConfig(
-    uint16_t id, int numOfClientProxies, int numOfReplicas) {
+PlainTcpConfig getTCPConfig(uint16_t id, int numOfClientProxies,
+                            int numOfReplicas) {
   std::string ip = "127.0.0.1";
-  uint16_t port = basePort + id*2;
+  uint16_t port = basePort + id * 2;
   uint32_t bufLength = 64000;
 
   // Create a map of where the port for each node is.
-  std::unordered_map <NodeNum, NodeInfo> nodes;
+  std::unordered_map<NodeNum, NodeInfo> nodes;
   for (int i = 0; i < (numOfReplicas + numOfClientProxies); i++)
-    nodes.insert({i,
-                  NodeInfo{ip, (uint16_t)(basePort + i*2), i < numOfReplicas}});
+    nodes.insert(
+        {i, NodeInfo{ip, (uint16_t)(basePort + i * 2), i < numOfReplicas}});
 
-  PlainTcpConfig retVal(ip, port, bufLength, nodes, numOfReplicas -1, id);
+  PlainTcpConfig retVal(ip, port, bufLength, nodes, numOfReplicas - 1, id);
   return retVal;
 }

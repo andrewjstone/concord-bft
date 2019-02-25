@@ -77,9 +77,8 @@ class ViewsManager {
     PrepareFullMsg* prepareFull;
   };
   ViewChangeMsg* exitFromCurrentView(
-    SeqNum currentLastStable,
-    SeqNum currentLastExecuted,
-    const std::vector<PrevViewInfo>& prevViewInfo);
+      SeqNum currentLastStable, SeqNum currentLastExecuted,
+      const std::vector<PrevViewInfo>& prevViewInfo);
   // TODO(GG): prevViewInfo is defined and used in a confusing way (becuase it
   // contains both executed and non-executed items) - TODO: improve by using two
   // different arguments
@@ -88,15 +87,13 @@ class ViewsManager {
   // Can be used when we don't have an active view
   ///////////////////////////////////////////////////////////////////////////
 
-  bool tryToEnterView(ViewNum v,
-                      SeqNum currentLastStable,
+  bool tryToEnterView(ViewNum v, SeqNum currentLastStable,
                       SeqNum currentLastExecuted,
                       std::vector<PrePrepareMsg*>* outPrePrepareMsgsOfView);
 
   bool addPotentiallyMissingPP(PrePrepareMsg* p, SeqNum currentLastStable);
 
   PrePrepareMsg* getPrePrepare(SeqNum s);
-
 
   // TODO(GG): we should also handle large Requests
 
@@ -107,7 +104,6 @@ class ViewsManager {
 
  protected:
   bool inView() const { return (stat == Stat::IN_VIEW); }
-
 
   bool tryMoveToPendingViewAsPrimary(ViewNum v);
   bool tryMoveToPendingViewAsNonPrimary(ViewNum v);
@@ -135,17 +131,11 @@ class ViewsManager {
   // Types
   ///////////////////////////////////////////////////////////////////////////
 
-  enum class Stat {
-    NO_VIEW,
-    PENDING,
-    PENDING_WITH_RESTRICTIONS,
-    IN_VIEW
-      };
+  enum class Stat { NO_VIEW, PENDING, PENDING_WITH_RESTRICTIONS, IN_VIEW };
 
   ///////////////////////////////////////////////////////////////////////////
   // Member variables
   ///////////////////////////////////////////////////////////////////////////
-
 
   Stat stat;
 
@@ -156,7 +146,7 @@ class ViewsManager {
   // for each replica it holds the latest ViewChangeMsg message
   ViewChangeMsg** viewChangeMessages;
   // for each replica it holds the latest NewViewMsg message
-  NewViewMsg**  newViewMessages;
+  NewViewMsg** newViewMessages;
 
   // holds PrePrepareMsg messages from last view
   // messages are added when we leave a view
@@ -165,30 +155,26 @@ class ViewsManager {
   // not empty, only if inView==false
   std::map<SeqNum, PrePrepareMsg*> collectionOfPrePrepareMsgs;
 
-
   ///////////////////////////////////////////////////////////////////////////
   // If inView=false, these members refere to the current pending view
   // Otherwise, they refer to the current active view
   ///////////////////////////////////////////////////////////////////////////
 
   ViewChangeMsg** viewChangeMsgsOfPendingView;
-  NewViewMsg*     newViewMsgOfOfPendingView;  // (null for v==0)
+  NewViewMsg* newViewMsgOfOfPendingView;  // (null for v==0)
 
   SeqNum minRestrictionOfPendingView;
   SeqNum maxRestrictionOfPendingView;
   ViewChangeSafetyLogic::Restriction restrictionsOfPendingView[kWorkWindowSize];
   PrePrepareMsg* prePrepareMsgsOfRestrictions[kWorkWindowSize];
 
-
-
   SeqNum lowerBoundStableForPendingView;  // monotone increasing
-
 
   ///////////////////////////////////////////////////////////////////////////
   // for debug
   ///////////////////////////////////////////////////////////////////////////
   SeqNum debugHighestKnownStable;
-  ViewNum  debugHighestViewNumberPassedByClient;
+  ViewNum debugHighestViewNumberPassedByClient;
 };
 
 }  // namespace impl

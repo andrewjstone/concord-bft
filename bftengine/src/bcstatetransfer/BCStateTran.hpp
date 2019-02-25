@@ -30,8 +30,8 @@
 #include "Messages.hpp"
 #include "STDigest.hpp"
 
-using std::set;
 using std::map;
+using std::set;
 using std::string;
 
 namespace bftEngine {
@@ -40,8 +40,8 @@ namespace impl {
 
 class BCStateTran : public IStateTransfer {
  public:
-  BCStateTran(const bool persistentDataStore,
-              const Config& config, IAppState* const stateApi);
+  BCStateTran(const bool persistentDataStore, const Config& config,
+              IAppState* const stateApi);
 
   ~BCStateTran() override;
 
@@ -124,8 +124,6 @@ class BCStateTran : public IStateTransfer {
   const uint32_t sourceReplicaReplacementTimeoutMilli_;
   const uint32_t fetchRetransmissionTimeoutMilli_;
 
-
-
   const uint32_t maxVBlockSize_;
   const uint32_t maxItemSize_;
   const uint32_t maxNumOfChunksInAppBlock_;
@@ -175,7 +173,6 @@ class BCStateTran : public IStateTransfer {
 
   string stateName(FetchingState fs);
 
-
   FetchingState getFetchingState() const;
   bool isFetching() const;
 
@@ -188,7 +185,8 @@ class BCStateTran : public IStateTransfer {
   void sendAskForCheckpointSummariesMsg();
 
   void sendFetchBlocksMsg(uint64_t firstRequiredBlock,
-    uint64_t lastRequiredBlock, int16_t lastKnownChunkInLastRequiredBlock);
+                          uint64_t lastRequiredBlock,
+                          int16_t lastKnownChunkInLastRequiredBlock);
 
   void sendFetchResPagesMsg(int16_t lastKnownChunkInLastRequiredBlock);
 
@@ -200,8 +198,7 @@ class BCStateTran : public IStateTransfer {
                  uint16_t replicaId);
   bool onMessage(const CheckpointSummaryMsg* m, uint32_t msgLen,
                  uint16_t replicaId);
-  bool onMessage(const FetchBlocksMsg* m, uint32_t msgLen,
-                 uint16_t replicaId);
+  bool onMessage(const FetchBlocksMsg* m, uint32_t msgLen, uint16_t replicaId);
   bool onMessage(const FetchResPagesMsg* m, uint32_t msgLen,
                  uint16_t replicaId);
   bool onMessage(const RejectFetchingMsg* m, uint32_t msgLen,
@@ -221,8 +218,8 @@ class BCStateTran : public IStateTransfer {
       if (checkpointNum != rhs.checkpointNum)
         return (checkpointNum < rhs.checkpointNum);
       else
-        return
-          (lastCheckpointKnownToRequester < rhs.lastCheckpointKnownToRequester);
+        return (lastCheckpointKnownToRequester <
+                rhs.lastCheckpointKnownToRequester);
     }
   };
 
@@ -233,7 +230,6 @@ class BCStateTran : public IStateTransfer {
   void setVBlockInCache(const DescOfVBlockForResPages& desc, char* vBlock);
   char* createVBlock(const DescOfVBlockForResPages& desc);
 
-
   ///////////////////////////////////////////////////////////////////////////
   // The following is only used when the state is
   // FetchingState::GettingCheckpointSummaries
@@ -243,7 +239,8 @@ class BCStateTran : public IStateTransfer {
   uint16_t retransmissionNumberOfAskForCheckpointSummariesMsg = 0;
 
   typedef MsgsCertificate<CheckpointSummaryMsg, false, false, true,
-                          CheckpointSummaryMsg> CheckpointSummaryMsgCert;
+                          CheckpointSummaryMsg>
+      CheckpointSummaryMsgCert;
 
   // map from checkpintNum to CheckpointSummaryMsgCert
   map<uint64_t, CheckpointSummaryMsgCert*> summariesCerts;
@@ -254,7 +251,6 @@ class BCStateTran : public IStateTransfer {
   void clearInfoAboutGettingCheckpointSummary();
 
   void verifyEmptyInfoAboutGettingCheckpointSummary();
-
 
   ///////////////////////////////////////////////////////////////////////////
   // The following is only used when the state is GettingMissingBlocks
@@ -293,8 +289,8 @@ class BCStateTran : public IStateTransfer {
                   char* block, uint32_t blockSize) const;
 
   bool checkVirtualBlockOfResPages(
-                  const STDigest& expectedDigestOfResPagesDescriptor,
-                  char* vblock, uint32_t vblockSize) const;
+      const STDigest& expectedDigestOfResPagesDescriptor, char* vblock,
+      uint32_t vblockSize) const;
 
   uint16_t selectSourceReplica();
 
@@ -311,17 +307,16 @@ class BCStateTran : public IStateTransfer {
   // Compute digests
   ///////////////////////////////////////////////////////////////////////////
 
-  static void computeDigestOfPage(
-             const uint32_t pageId, const uint64_t checkpointNumber,
-             const char* page, STDigest& outDigest);
+  static void computeDigestOfPage(const uint32_t pageId,
+                                  const uint64_t checkpointNumber,
+                                  const char* page, STDigest& outDigest);
 
   static void computeDigestOfPagesDescriptor(
-             const DataStore::ResPagesDescriptor* pagesDesc,
-             STDigest& outDigest);
+      const DataStore::ResPagesDescriptor* pagesDesc, STDigest& outDigest);
 
-  static void computeDigestOfBlock(
-             const uint64_t blockNum, const char* block,
-             const uint32_t blockSize, STDigest* outDigest);
+  static void computeDigestOfBlock(const uint64_t blockNum, const char* block,
+                                   const uint32_t blockSize,
+                                   STDigest* outDigest);
 };
 
 //////////////////////////////////////////////////////////////////////////////
