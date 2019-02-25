@@ -114,3 +114,4 @@ add_subdirectory(bftengine/tests)
 
 # Dependencies as submodules
 add_subdirectory(deps/gtest)
+add_subdirectory(deps/rapidcheck)
