@@ -80,6 +80,8 @@ Please run
 [cpplint](https://github.com/google/styleguide/tree/gh-pages/cpplint)
 against your changes, to ensure adherence to the guidelines.
 
+Before commit, please also run: `scripts/format-code.sh .` from the top level directory.
+
 ## Reporting Bugs and Creating Issues
 
 When opening a new issue, try to roughly follow the commit message format conventions above.
