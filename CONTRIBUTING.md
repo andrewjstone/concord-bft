@@ -80,7 +80,8 @@ Please run
 [cpplint](https://github.com/google/styleguide/tree/gh-pages/cpplint)
 against your changes, to ensure adherence to the guidelines.
 
-Before commit, please also run: `scripts/format-code.sh .` from the top level directory.
+Before commit, please also run: `scripts/format-code.sh .` from the top level directory. Note that
+we use clang-format 6.0 for formatting. Other versions may not work.
 
 ## Reporting Bugs and Creating Issues
 
