@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -18,11 +19,14 @@
 namespace bftEngine {
 namespace impl {
 
-PartialCommitProofMsg::PartialCommitProofMsg(ReplicaId senderId, ViewNum v,
-                                             SeqNum s, CommitPath commitPath,
+PartialCommitProofMsg::PartialCommitProofMsg(ReplicaId senderId,
+                                             ViewNum v,
+                                             SeqNum s,
+                                             CommitPath commitPath,
                                              Digest& digest,
                                              IThresholdSigner* thresholdSigner)
-    : MessageBase(senderId, MsgCode::PartialCommitProof,
+    : MessageBase(senderId,
+                  MsgCode::PartialCommitProof,
                   sizeof(PartialCommitProofMsgHeader) +
                       thresholdSigner->requiredLengthForSignedData()) {
   uint16_t thresholSignatureLength =
@@ -33,7 +37,8 @@ PartialCommitProofMsg::PartialCommitProofMsg(ReplicaId senderId, ViewNum v,
   b()->commitPath = commitPath;
   b()->thresholSignatureLength = thresholSignatureLength;
 
-  thresholdSigner->signData((const char*)(&(digest)), sizeof(Digest),
+  thresholdSigner->signData((const char*)(&(digest)),
+                            sizeof(Digest),
                             body() + sizeof(PartialCommitProofMsgHeader),
                             thresholSignatureLength);
 }

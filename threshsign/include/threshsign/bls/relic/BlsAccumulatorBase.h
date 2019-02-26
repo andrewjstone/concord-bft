@@ -45,7 +45,8 @@ class BlsAccumulatorBase
 
  public:
   BlsAccumulatorBase(const std::vector<BlsPublicKey>& vks,
-                     NumSharesType reqSigners, NumSharesType totalSigners,
+                     NumSharesType reqSigners,
+                     NumSharesType totalSigners,
                      bool withShareVerification);
   virtual ~BlsAccumulatorBase() {}
 

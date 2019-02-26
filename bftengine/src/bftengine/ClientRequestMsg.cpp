@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -35,10 +36,13 @@ uint32_t getRequestSizeTemp(const char* request)  // TODO(GG): change - TBD
 
 // class ClientRequestMsg
 
-ClientRequestMsg::ClientRequestMsg(NodeIdType sender, bool isReadOnly,
-                                   uint64_t reqSeqNum, uint32_t requestLength,
+ClientRequestMsg::ClientRequestMsg(NodeIdType sender,
+                                   bool isReadOnly,
+                                   uint64_t reqSeqNum,
+                                   uint32_t requestLength,
                                    const char* request)
-    : MessageBase(sender, MsgCode::Request,
+    : MessageBase(sender,
+                  MsgCode::Request,
                   (sizeof(ClientRequestMsgHeader) + requestLength)) {
   // TODO(GG): asserts
 
@@ -61,10 +65,13 @@ ClientRequestMsg::ClientRequestMsg(NodeIdType sender)
 }
 
 ClientRequestMsg::ClientRequestMsg(ClientRequestMsgHeader* body)
-    : MessageBase(getSender(body), (MessageBase::Header*)body,
-                  compRequestMsgSize(body), false) {}
+    : MessageBase(getSender(body),
+                  (MessageBase::Header*)body,
+                  compRequestMsgSize(body),
+                  false) {}
 
-void ClientRequestMsg::set(ReqId reqSeqNum, uint32_t requestLength,
+void ClientRequestMsg::set(ReqId reqSeqNum,
+                           uint32_t requestLength,
                            bool isReadOnly) {
   Assert(requestLength > 0);
   Assert(requestLength <=

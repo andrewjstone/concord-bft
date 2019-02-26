@@ -28,15 +28,18 @@ using std::endl;
 namespace BLS {
 namespace Relic {
 
-class ThresholdBlsTest
-    : public ThresholdViabilityTest<G1T, BlsPublicParameters,
-                                    BlsAccumulatorBase, BlsThresholdSigner,
-                                    BlsThresholdVerifier> {
+class ThresholdBlsTest : public ThresholdViabilityTest<G1T,
+                                                       BlsPublicParameters,
+                                                       BlsAccumulatorBase,
+                                                       BlsThresholdSigner,
+                                                       BlsThresholdVerifier> {
  protected:
   bool useMultisig;
 
  public:
-  ThresholdBlsTest(const BlsPublicParameters& params, int n, int k,
+  ThresholdBlsTest(const BlsPublicParameters& params,
+                   int n,
+                   int k,
                    bool useMultisig)
       : ThresholdViabilityTest(params, n, k), useMultisig(useMultisig) {
     verifiesShares = true;

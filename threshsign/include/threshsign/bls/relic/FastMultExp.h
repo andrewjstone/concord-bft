@@ -29,11 +29,16 @@ namespace Relic {
  * Signatures"
  */
 template <class GT>
-GT fastMultExp(const VectorOfShares& s, const std::vector<GT>& a,
-               const std::vector<BNT>& e, int maxBits);
+GT fastMultExp(const VectorOfShares& s,
+               const std::vector<GT>& a,
+               const std::vector<BNT>& e,
+               int maxBits);
 template <class GT>
-GT fastMultExp(const VectorOfShares& s, ShareID first, int count,
-               const std::vector<GT>& a, const std::vector<BNT>& e,
+GT fastMultExp(const VectorOfShares& s,
+               ShareID first,
+               int count,
+               const std::vector<GT>& a,
+               const std::vector<BNT>& e,
                int maxBits);
 
 /**
@@ -43,7 +48,8 @@ GT fastMultExp(const VectorOfShares& s, ShareID first, int count,
  * NOTE: Slower than fastMultExp above.
  */
 template <class GT>
-GT fastMultExpTwo(const VectorOfShares& s, const std::vector<GT>& a,
+GT fastMultExpTwo(const VectorOfShares& s,
+                  const std::vector<GT>& a,
                   const std::vector<BNT>& e);
 
 }  // namespace Relic

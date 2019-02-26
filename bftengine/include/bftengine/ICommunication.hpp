@@ -25,7 +25,8 @@ class IReceiver {
   // Invoked when a new message is received
   // Notice that the memory pointed by message may be freed immediately
   // after the execution of this method.
-  virtual void onNewMessage(const NodeNum sourceNode, const char *const message,
+  virtual void onNewMessage(const NodeNum sourceNode,
+                            const char *const message,
                             const size_t messageLength) = 0;
 
   // Invoked when the known status of a connection is changed.

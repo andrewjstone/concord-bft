@@ -49,8 +49,11 @@ typedef BNT (*PreFunc)(const BNT&);
 
 #define CALL_MEMBER_FN(object, ptrToMember) ((object).*(ptrToMember))
 
-void benchmarkModulo(const BNT& fieldOrder, int numIters, AveragingTimer& t,
-                     PreFunc preFunc, ModFunc modFunc) {
+void benchmarkModulo(const BNT& fieldOrder,
+                     int numIters,
+                     AveragingTimer& t,
+                     PreFunc preFunc,
+                     ModFunc modFunc) {
   BNT u;
   if (preFunc != nullptr) {
     u = preFunc(fieldOrder);
@@ -127,14 +130,23 @@ void benchModulo(const BNT& fieldOrder, int bigNumIters) {
 
   // Just benchmarks BNT::SlowModulo
   benchmarkModulo(fieldOrder, bigNumIters, tSlowMod, nullptr, nullptr);
-  benchmarkModulo(fieldOrder, bigNumIters, tFastModMonty,
-                  BNT::FastModuloPreMonty, &BNT::FastModuloMonty);
-  benchmarkModulo(fieldOrder, bigNumIters, tFastModBarrt,
-                  BNT::FastModuloPreBarrett, &BNT::FastModuloBarrett);
+  benchmarkModulo(fieldOrder,
+                  bigNumIters,
+                  tFastModMonty,
+                  BNT::FastModuloPreMonty,
+                  &BNT::FastModuloMonty);
+  benchmarkModulo(fieldOrder,
+                  bigNumIters,
+                  tFastModBarrt,
+                  BNT::FastModuloPreBarrett,
+                  &BNT::FastModuloBarrett);
   // Pmers is too slow, so we don't want to waste time.
   if (bigNumIters < 100 * 1000 + 1)
-    benchmarkModulo(fieldOrder, bigNumIters, tFastModPmers,
-                    BNT::FastModuloPrePmers, &BNT::FastModuloPmers);
+    benchmarkModulo(fieldOrder,
+                    bigNumIters,
+                    tFastModPmers,
+                    BNT::FastModuloPrePmers,
+                    &BNT::FastModuloPmers);
   else
     loginfo << "Not running PMERS modular reduction benchmarks cause they're "
                "too slow"

@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -19,7 +20,8 @@
 namespace bftEngine {
 namespace impl {
 
-ViewChangeMsg::ViewChangeMsg(ReplicaId srcReplicaId, ViewNum newView,
+ViewChangeMsg::ViewChangeMsg(ReplicaId srcReplicaId,
+                             ViewNum newView,
                              SeqNum lastStableSeq)
     : MessageBase(srcReplicaId, MsgCode::ViewChange, maxExternalMessageSize) {
   b()->genReplicaId = srcReplicaId;
@@ -37,13 +39,15 @@ void ViewChangeMsg::setNewViewNumber(ViewNum newView) {
 void ViewChangeMsg::getMsgDigest(Digest& outDigest) const {
   size_t bodySize = b()->locationAfterLast;
   if (bodySize == 0) bodySize = sizeof(ViewChangeMsgHeader);
-  DigestUtil::compute(body(), bodySize, (char*)outDigest.content(),
-                      sizeof(Digest));
+  DigestUtil::compute(
+      body(), bodySize, (char*)outDigest.content(), sizeof(Digest));
 }
 
-void ViewChangeMsg::addElement(const ReplicasInfo& repInfo, SeqNum seqNum,
+void ViewChangeMsg::addElement(const ReplicasInfo& repInfo,
+                               SeqNum seqNum,
                                const Digest& prePrepreDigest,
-                               ViewNum originView, bool hasPreparedCertificate,
+                               ViewNum originView,
+                               bool hasPreparedCertificate,
                                ViewNum certificateView,
                                uint16_t certificateSigLength,
                                const char* certificateSig) {
@@ -130,9 +134,11 @@ bool ViewChangeMsg::ToActualMsgType(const ReplicasInfo& repInfo,
   if (t->idOfGeneratedReplica() == repInfo.myId()) return false;
 
   // check signature
-  bool sigOkay = repInfo.mySigManager().verifySig(
-      t->idOfGeneratedReplica(), t->body(), dataLength, t->body() + dataLength,
-      sigLen);
+  bool sigOkay = repInfo.mySigManager().verifySig(t->idOfGeneratedReplica(),
+                                                  t->body(),
+                                                  dataLength,
+                                                  t->body() + dataLength,
+                                                  sigLen);
   if (!sigOkay) return false;
 
   // check elements in message

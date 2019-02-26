@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -47,7 +48,8 @@ class ReqMissingDataMsg : public MessageBase {
   void setFullCommitIsMissing() { b()->flags |= 0x80; }
   void setSlowPathHasStarted() { b()->flags |= 0x100; }
 
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, MessageBase* inMsg,
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              MessageBase* inMsg,
                               ReqMissingDataMsg*& outMsg);
 
  protected:

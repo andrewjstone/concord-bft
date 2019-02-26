@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -37,14 +38,17 @@ class NullStateTransfer : public IStateTransfer {
 
   virtual uint32_t numberOfReservedPages() const override;
   virtual uint32_t sizeOfReservedPage() const override;
-  virtual bool loadReservedPage(uint32_t reservedPageId, uint32_t copyLength,
+  virtual bool loadReservedPage(uint32_t reservedPageId,
+                                uint32_t copyLength,
                                 char* outReservedPage) const override;
-  virtual void saveReservedPage(uint32_t reservedPageId, uint32_t copyLength,
+  virtual void saveReservedPage(uint32_t reservedPageId,
+                                uint32_t copyLength,
                                 const char* inReservedPage) override;
   virtual void zeroReservedPage(uint32_t reservedPageId) override;
 
   virtual void onTimer() override;
-  virtual void handleStateTransferMessage(char* msg, uint32_t msgLen,
+  virtual void handleStateTransferMessage(char* msg,
+                                          uint32_t msgLen,
                                           uint16_t senderId) override;
 
   virtual ~NullStateTransfer();

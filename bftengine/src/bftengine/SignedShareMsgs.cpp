@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -24,8 +25,11 @@ namespace impl {
 SignedShareBase::SignedShareBase(ReplicaId sender, int16_t type, size_t msgSize)
     : MessageBase(sender, type, msgSize) {}
 
-SignedShareBase* SignedShareBase::create(int16_t type, ViewNum v, SeqNum s,
-                                         ReplicaId senderId, Digest& digest,
+SignedShareBase* SignedShareBase::create(int16_t type,
+                                         ViewNum v,
+                                         SeqNum s,
+                                         ReplicaId senderId,
+                                         Digest& digest,
                                          IThresholdSigner* thresholdSigner) {
   const size_t sigLen = thresholdSigner->requiredLengthForSignedData();
   size_t size = sizeof(SignedShareBaseHeader) + sigLen;
@@ -39,14 +43,19 @@ SignedShareBase* SignedShareBase::create(int16_t type, ViewNum v, SeqNum s,
   Digest tmpDigest;
   Digest::calcCombination(digest, v, s, tmpDigest);
 
-  thresholdSigner->signData((const char*)(&(tmpDigest)), sizeof(Digest),
-                            m->body() + sizeof(SignedShareBaseHeader), sigLen);
+  thresholdSigner->signData((const char*)(&(tmpDigest)),
+                            sizeof(Digest),
+                            m->body() + sizeof(SignedShareBaseHeader),
+                            sigLen);
 
   return m;
 }
 
-SignedShareBase* SignedShareBase::create(int16_t type, ViewNum v, SeqNum s,
-                                         ReplicaId senderId, const char* sig,
+SignedShareBase* SignedShareBase::create(int16_t type,
+                                         ViewNum v,
+                                         SeqNum s,
+                                         ReplicaId senderId,
+                                         const char* sig,
                                          uint16_t sigLen) {
   size_t size = sizeof(SignedShareBaseHeader) + sigLen;
 
@@ -61,7 +70,8 @@ SignedShareBase* SignedShareBase::create(int16_t type, ViewNum v, SeqNum s,
   return m;
 }
 
-bool SignedShareBase::ToActualMsgType(const ReplicasInfo& repInfo, int16_t type,
+bool SignedShareBase::ToActualMsgType(const ReplicasInfo& repInfo,
+                                      int16_t type,
                                       MessageBase* inMsg,
                                       SignedShareBase*& outMsg) {
   Assert(inMsg->type() == type);
@@ -87,7 +97,10 @@ bool SignedShareBase::ToActualMsgType(const ReplicasInfo& repInfo, int16_t type,
 ///////////////////////////////////////////////////////////////////////////////
 
 PreparePartialMsg* PreparePartialMsg::create(
-    ViewNum v, SeqNum s, ReplicaId senderId, Digest& ppDigest,
+    ViewNum v,
+    SeqNum s,
+    ReplicaId senderId,
+    Digest& ppDigest,
     IThresholdSigner* thresholdSigner) {
   return (PreparePartialMsg*)SignedShareBase::create(
       MsgCode::PreparePartial, v, s, senderId, ppDigest, thresholdSigner);
@@ -97,8 +110,8 @@ bool PreparePartialMsg::ToActualMsgType(const ReplicasInfo& repInfo,
                                         MessageBase* inMsg,
                                         PreparePartialMsg*& outMsg) {
   SignedShareBase* pOutMsg = nullptr;
-  bool r = SignedShareBase::ToActualMsgType(repInfo, MsgCode::PreparePartial,
-                                            inMsg, pOutMsg);
+  bool r = SignedShareBase::ToActualMsgType(
+      repInfo, MsgCode::PreparePartial, inMsg, pOutMsg);
   if (!r) return false;
 
   if (repInfo.myId() != repInfo.primaryOfView(pOutMsg->viewNumber()))
@@ -113,18 +126,18 @@ bool PreparePartialMsg::ToActualMsgType(const ReplicasInfo& repInfo,
 // PrepareFullMsg
 ///////////////////////////////////////////////////////////////////////////////
 
-PrepareFullMsg* PrepareFullMsg::create(ViewNum v, SeqNum s, ReplicaId senderId,
-                                       const char* sig, uint16_t sigLen) {
-  return (PrepareFullMsg*)SignedShareBase::create(MsgCode::PrepareFull, v, s,
-                                                  senderId, sig, sigLen);
+PrepareFullMsg* PrepareFullMsg::create(
+    ViewNum v, SeqNum s, ReplicaId senderId, const char* sig, uint16_t sigLen) {
+  return (PrepareFullMsg*)SignedShareBase::create(
+      MsgCode::PrepareFull, v, s, senderId, sig, sigLen);
 }
 
 bool PrepareFullMsg::ToActualMsgType(const ReplicasInfo& repInfo,
                                      MessageBase* inMsg,
                                      PrepareFullMsg*& outMsg) {
   SignedShareBase* pOutMsg = nullptr;
-  bool r = SignedShareBase::ToActualMsgType(repInfo, MsgCode::PrepareFull,
-                                            inMsg, pOutMsg);
+  bool r = SignedShareBase::ToActualMsgType(
+      repInfo, MsgCode::PrepareFull, inMsg, pOutMsg);
   if (r) outMsg = (PrepareFullMsg*)pOutMsg;
   return r;
 }
@@ -133,7 +146,8 @@ bool PrepareFullMsg::ToActualMsgType(const ReplicasInfo& repInfo,
 // CommitPartialMsg
 ///////////////////////////////////////////////////////////////////////////////
 
-CommitPartialMsg* CommitPartialMsg::create(ViewNum v, SeqNum s,
+CommitPartialMsg* CommitPartialMsg::create(ViewNum v,
+                                           SeqNum s,
                                            ReplicaId senderId,
                                            Digest& ppDoubleDigest,
                                            IThresholdSigner* thresholdSigner) {
@@ -145,8 +159,8 @@ bool CommitPartialMsg::ToActualMsgType(const ReplicasInfo& repInfo,
                                        MessageBase* inMsg,
                                        CommitPartialMsg*& outMsg) {
   SignedShareBase* pOutMsg = nullptr;
-  bool r = SignedShareBase::ToActualMsgType(repInfo, MsgCode::CommitPartial,
-                                            inMsg, pOutMsg);
+  bool r = SignedShareBase::ToActualMsgType(
+      repInfo, MsgCode::CommitPartial, inMsg, pOutMsg);
   if (!r) return false;
 
   if (repInfo.myId() != repInfo.primaryOfView(pOutMsg->viewNumber()))
@@ -161,18 +175,18 @@ bool CommitPartialMsg::ToActualMsgType(const ReplicasInfo& repInfo,
 // CommitFullMsg
 ///////////////////////////////////////////////////////////////////////////////
 
-CommitFullMsg* CommitFullMsg::create(ViewNum v, SeqNum s, int16_t senderId,
-                                     const char* sig, uint16_t sigLen) {
-  return (CommitFullMsg*)SignedShareBase::create(MsgCode::CommitFull, v, s,
-                                                 senderId, sig, sigLen);
+CommitFullMsg* CommitFullMsg::create(
+    ViewNum v, SeqNum s, int16_t senderId, const char* sig, uint16_t sigLen) {
+  return (CommitFullMsg*)SignedShareBase::create(
+      MsgCode::CommitFull, v, s, senderId, sig, sigLen);
 }
 
 bool CommitFullMsg::ToActualMsgType(const ReplicasInfo& repInfo,
                                     MessageBase* inMsg,
                                     CommitFullMsg*& outMsg) {
   SignedShareBase* pOutMsg = nullptr;
-  bool r = SignedShareBase::ToActualMsgType(repInfo, MsgCode::CommitFull, inMsg,
-                                            pOutMsg);
+  bool r = SignedShareBase::ToActualMsgType(
+      repInfo, MsgCode::CommitFull, inMsg, pOutMsg);
   if (r) outMsg = (CommitFullMsg*)pOutMsg;
   return r;
 }

@@ -65,7 +65,8 @@ void getReplicaConfig(uint16_t replicaId, ReplicaConfig* outConfig) {
 
 // Create a UDP communication configuration for the node (replica or client)
 // with index `id`.
-PlainUdpConfig getUDPConfig(uint16_t id, int numOfClientProxies,
+PlainUdpConfig getUDPConfig(uint16_t id,
+                            int numOfClientProxies,
                             int numOfReplicas) {
   std::string ip = "127.0.0.1";
   uint16_t port = basePort + id * 2;
@@ -83,7 +84,8 @@ PlainUdpConfig getUDPConfig(uint16_t id, int numOfClientProxies,
 
 // Create a UDP communication configuration for the node (replica or client)
 // with index `id`.
-PlainTcpConfig getTCPConfig(uint16_t id, int numOfClientProxies,
+PlainTcpConfig getTCPConfig(uint16_t id,
+                            int numOfClientProxies,
                             int numOfReplicas) {
   std::string ip = "127.0.0.1";
   uint16_t port = basePort + id * 2;

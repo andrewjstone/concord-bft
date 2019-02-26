@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -85,7 +86,8 @@ class SeqNumInfo {
   void setTimeOfLastInfoRequest(Time t);
 
   void onCompletionOfPrepareSignaturesProcessing(
-      SeqNum seqNumber, ViewNum viewNumber,
+      SeqNum seqNumber,
+      ViewNum viewNumber,
       const std::set<ReplicaId>& replicasWithBadSigs);
   void onCompletionOfPrepareSignaturesProcessing(SeqNum seqNumber,
                                                  ViewNum viewNumber,
@@ -96,7 +98,8 @@ class SeqNumInfo {
                                                     bool isValid);
 
   void onCompletionOfCommitSignaturesProcessing(
-      SeqNum seqNumber, ViewNum viewNumber,
+      SeqNum seqNumber,
+      ViewNum viewNumber,
       const std::set<uint16_t>& replicasWithBadSigs) {
     commitMsgsCollector->onCompletionOfSignaturesProcessing(
         seqNumber, viewNumber, replicasWithBadSigs);
@@ -122,16 +125,24 @@ class SeqNumInfo {
    public:
     // external messages
     static PrepareFullMsg* createCombinedSignatureMsg(
-        void* context, SeqNum seqNumber, ViewNum viewNumber,
-        const char* const combinedSig, uint16_t combinedSigLen);
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        const char* const combinedSig,
+        uint16_t combinedSigLen);
 
     // internal messages
     static InternalMessage* createInterCombinedSigFailed(
-        void* context, SeqNum seqNumber, ViewNum viewNumber,
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
         std::set<uint16_t> replicasWithBadSigs);
     static InternalMessage* createInterCombinedSigSucceeded(
-        void* context, SeqNum seqNumber, ViewNum viewNumber,
-        const char* combinedSig, uint16_t combinedSigLen);
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        const char* combinedSig,
+        uint16_t combinedSigLen);
     static InternalMessage* createInterVerifyCombinedSigResult(
         void* context, SeqNum seqNumber, ViewNum viewNumber, bool isValid);
 
@@ -146,16 +157,24 @@ class SeqNumInfo {
    public:
     // external messages
     static CommitFullMsg* createCombinedSignatureMsg(
-        void* context, SeqNum seqNumber, ViewNum viewNumber,
-        const char* const combinedSig, uint16_t combinedSigLen);
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        const char* const combinedSig,
+        uint16_t combinedSigLen);
 
     // internal messages
     static InternalMessage* createInterCombinedSigFailed(
-        void* context, SeqNum seqNumber, ViewNum viewNumber,
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
         std::set<uint16_t> replicasWithBadSigs);
     static InternalMessage* createInterCombinedSigSucceeded(
-        void* context, SeqNum seqNumber, ViewNum viewNumber,
-        const char* combinedSig, uint16_t combinedSigLen);
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        const char* combinedSig,
+        uint16_t combinedSigLen);
     static InternalMessage* createInterVerifyCombinedSigResult(
         void* context, SeqNum seqNumber, ViewNum viewNumber, bool isValid);
 
@@ -170,10 +189,12 @@ class SeqNumInfo {
 
   PrePrepareMsg* prePrepareMsg;
 
-  CollectorOfThresholdSignatures<PreparePartialMsg, PrepareFullMsg,
+  CollectorOfThresholdSignatures<PreparePartialMsg,
+                                 PrepareFullMsg,
                                  ExFuncForPrepareCollector>*
       prepareSigCollector;
-  CollectorOfThresholdSignatures<CommitPartialMsg, CommitFullMsg,
+  CollectorOfThresholdSignatures<CommitPartialMsg,
+                                 CommitFullMsg,
                                  ExFuncForCommitCollector>* commitMsgsCollector;
 
   PartialProofsSet* partialProofsSet;  // TODO(GG): replace with an instance of

@@ -38,7 +38,8 @@ class BlsThresholdAccumulator : public BlsAccumulatorBase {
 
  public:
   BlsThresholdAccumulator(const std::vector<BlsPublicKey>& vks,
-                          NumSharesType reqSigners, NumSharesType totalSigners,
+                          NumSharesType reqSigners,
+                          NumSharesType totalSigners,
                           bool withShareVerification);
   virtual ~BlsThresholdAccumulator() {}
 

@@ -89,7 +89,9 @@ Status ReplicaImp::get(Slice key, Slice& outValue) const {
   return getInternal(lastBlock, key, outValue, dummy);
 }
 
-Status ReplicaImp::get(BlockId readVersion, Slice key, Slice& outValue,
+Status ReplicaImp::get(BlockId readVersion,
+                       Slice key,
+                       Slice& outValue,
                        BlockId& outBlock) const {
   // TODO(GG): check legality of operation (the method should be invocked from
   // the replica's internal thread)
@@ -112,8 +114,10 @@ Status ReplicaImp::getBlockData(BlockId blockId,
   return Status::OK();
 }
 
-Status ReplicaImp::mayHaveConflictBetween(Slice key, BlockId fromBlock,
-                                          BlockId toBlock, bool& outRes) const {
+Status ReplicaImp::mayHaveConflictBetween(Slice key,
+                                          BlockId fromBlock,
+                                          BlockId toBlock,
+                                          bool& outRes) const {
   // TODO(GG): add assert or print warning if fromBlock==0 (all keys have a
   // conflict in block 0)
 
@@ -154,7 +158,8 @@ bool ReplicaImp::hasBlock(uint64_t blockId) {
   return m_bcDbAdapter->hasBlockId(blockId);
 }
 
-bool ReplicaImp::getBlock(uint64_t blockId, char* outBlock,
+bool ReplicaImp::getBlock(uint64_t blockId,
+                          char* outBlock,
                           uint32_t* outBlockSize) {
   bool found = false;
   Slice blockRaw;
@@ -178,7 +183,8 @@ bool ReplicaImp::getPrevDigestFromBlock(
 
   if (s.ok()) {
     blockHeader* header = (blockHeader*)blockRaw.data;
-    memcpy(outPrevBlockDigest, &header->prevBlockDigest,
+    memcpy(outPrevBlockDigest,
+           &header->prevBlockDigest,
            sizeof(StateTransferDigest));
     return true;
   } else {
@@ -212,8 +218,8 @@ Status ReplicaImp::addBlockInternal(const SetOfKeyValuePairs& updates,
     Status s = m_bcDbAdapter->getBlockById(lastBlock, prevBlock, found);
     assert(s.ok() && found);
 
-    computeBlockDigest(lastBlock, prevBlock.data, prevBlock.size,
-                       &digestOfPrev);
+    computeBlockDigest(
+        lastBlock, prevBlock.data, prevBlock.size, &digestOfPrev);
   }
 
   BlockId block = lastBlock + 1;
@@ -242,7 +248,8 @@ Status ReplicaImp::addBlockInternal(const SetOfKeyValuePairs& updates,
   lastBlock++;
 
   for (SetOfKeyValuePairs::iterator it = updatesInNewBlock.begin();
-       it != updatesInNewBlock.end(); ++it) {
+       it != updatesInNewBlock.end();
+       ++it) {
     const KeyValuePair& kvPair = *it;
     Status s = m_bcDbAdapter->updateKey(kvPair.first, block, kvPair.second);
     if (!s.ok()) {
@@ -258,7 +265,9 @@ Status ReplicaImp::addBlockInternal(const SetOfKeyValuePairs& updates,
   return Status::OK();
 }
 
-Status ReplicaImp::getInternal(BlockId readVersion, Slice key, Slice& outValue,
+Status ReplicaImp::getInternal(BlockId readVersion,
+                               Slice key,
+                               Slice& outValue,
                                BlockId& outBlock) const {
   Status s =
       m_bcDbAdapter->getKeyByReadVersion(readVersion, key, outValue, outBlock);
@@ -356,24 +365,33 @@ Slice ReplicaImp::getBlockInternal(BlockId blockId) const {
   }
 }
 
-bool ReplicaImp::executeCommand(uint16_t clientId, bool readOnly,
-                                uint32_t requestSize, const char* request,
-                                uint32_t maxReplySize, char* outReply,
+bool ReplicaImp::executeCommand(uint16_t clientId,
+                                bool readOnly,
+                                uint32_t requestSize,
+                                const char* request,
+                                uint32_t maxReplySize,
+                                char* outReply,
                                 uint32_t& outActualReplySize) {
   // TODO(GG): verify command .....
 
   Slice cmdContent(request, requestSize);
   if (readOnly) {
     size_t replySize = 0;
-    bool ret = m_cmdHandler->executeReadOnlyCommand(
-        cmdContent, *this, maxReplySize, outReply,
-        replySize);  // TODO(GG): ret vals
+    bool ret =
+        m_cmdHandler->executeReadOnlyCommand(cmdContent,
+                                             *this,
+                                             maxReplySize,
+                                             outReply,
+                                             replySize);  // TODO(GG): ret vals
     outActualReplySize = replySize;
     return ret;
   } else {
     size_t replySize = 0;
-    bool ret = m_cmdHandler->executeCommand(cmdContent, *this, *this,
-                                            maxReplySize, outReply,
+    bool ret = m_cmdHandler->executeCommand(cmdContent,
+                                            *this,
+                                            *this,
+                                            maxReplySize,
+                                            outReply,
                                             replySize);  // TODO(GG): ret vals
     outActualReplySize = replySize;
     return ret;
@@ -393,7 +411,8 @@ Status ReplicaImp::StorageWrapperForIdleMode::get(Slice key,
 }
 
 Status ReplicaImp::StorageWrapperForIdleMode::get(BlockId readVersion,
-                                                  Slice key, Slice& outValue,
+                                                  Slice key,
+                                                  Slice& outValue,
                                                   BlockId& outBlock) const {
   if (rep->getReplicaStatus() != IReplica::RepStatus::Ready)
     return Status::IllegalOperation("");
@@ -458,8 +477,8 @@ KeyValuePair ReplicaImp::StorageIterator::first(BlockId readVersion,
                                                 bool& isEnd) {
   Key key;
   Value value;
-  Status s = rep->getBcDbAdapter()->first(m_iter, readVersion, actualVersion,
-                                          isEnd, key, value);
+  Status s = rep->getBcDbAdapter()->first(
+      m_iter, readVersion, actualVersion, isEnd, key, value);
   if (s.IsNotFound()) {
     isEnd = true;
     m_current = KeyValuePair();
@@ -508,13 +527,14 @@ makes better sense. The world in Block 5 did not include k1, that's perfectly
 OK.
 */
 // Note: key,readVersion must exist in map already
-KeyValuePair ReplicaImp::StorageIterator::next(BlockId readVersion, Key key,
+KeyValuePair ReplicaImp::StorageIterator::next(BlockId readVersion,
+                                               Key key,
                                                BlockId& actualVersion,
                                                bool& isEnd) {
   Key nextKey;
   Value nextValue;
-  Status s = rep->getBcDbAdapter()->next(m_iter, readVersion, nextKey,
-                                         nextValue, actualVersion, isEnd);
+  Status s = rep->getBcDbAdapter()->next(
+      m_iter, readVersion, nextKey, nextValue, actualVersion, isEnd);
   if (s.IsNotFound()) {
     isEnd = true;
     m_current = KeyValuePair();
@@ -560,7 +580,8 @@ Status ReplicaImp::StorageIterator::freeInternalIterator() {
 }
 
 Slice ReplicaImp::createBlockFromUpdates(
-    const SetOfKeyValuePairs& updates, SetOfKeyValuePairs& outUpdatesInNewBlock,
+    const SetOfKeyValuePairs& updates,
+    SetOfKeyValuePairs& outUpdatesInNewBlock,
     StateTransferDigest digestOfPrev) {
   // TODO(GG): overflow handling ....
 
@@ -602,8 +623,8 @@ Slice ReplicaImp::createBlockFromUpdates(
       // value
       header->entries[idx].valOffset = currentOffset;
       header->entries[idx].valSize = (int16_t)kvPair.second.size;
-      memcpy(blockBuffer + currentOffset, kvPair.second.data,
-             kvPair.second.size);
+      memcpy(
+          blockBuffer + currentOffset, kvPair.second.data, kvPair.second.size);
       Slice newVal(blockBuffer + currentOffset, kvPair.second.size);
 
       currentOffset += (int16_t)kvPair.second.size;
@@ -652,18 +673,27 @@ SetOfKeyValuePairs ReplicaImp::fetchBlockData(Slice block) {
   return retVal;
 }
 
-int RequestsHandlerImp::execute(uint16_t clientId, bool readOnly,
-                                uint32_t requestSize, const char* request,
-                                uint32_t maxReplySize, char* outReply,
+int RequestsHandlerImp::execute(uint16_t clientId,
+                                bool readOnly,
+                                uint32_t requestSize,
+                                const char* request,
+                                uint32_t maxReplySize,
+                                char* outReply,
                                 uint32_t& outActualReplySize) {
   ReplicaImp* r = m_Executor;
 
-  bool ret = r->executeCommand(clientId, readOnly, requestSize, request,
-                               maxReplySize, outReply, outActualReplySize);
+  bool ret = r->executeCommand(clientId,
+                               readOnly,
+                               requestSize,
+                               request,
+                               maxReplySize,
+                               outReply,
+                               outActualReplySize);
   return ret ? 0 : 1;
 }
 
-IReplica* createReplica(const ReplicaConfig& c, bftEngine::ICommunication* comm,
+IReplica* createReplica(const ReplicaConfig& c,
+                        bftEngine::ICommunication* comm,
                         ICommandsHandler* _cmdHandler) {
   IDBClient* _db = new InMemoryDBClient();
 
@@ -711,8 +741,8 @@ IReplica* createReplica(const ReplicaConfig& c, bftEngine::ICommunication* comm,
   RequestsHandlerImp* reqHandler = new RequestsHandlerImp();
   reqHandler->m_Executor = r;
 
-  Replica* replica = Replica::createNewReplica(&replicaConfig, reqHandler,
-                                               stateTransfer, comm, nullptr);
+  Replica* replica = Replica::createNewReplica(
+      &replicaConfig, reqHandler, stateTransfer, comm, nullptr);
 
   r->m_replica = replica;
   r->maxBlockSize = c.maxBlockSize;

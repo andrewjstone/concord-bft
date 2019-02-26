@@ -42,7 +42,8 @@ class BlsThresholdSigner : public IThresholdSigner {
       sigTmp;  // temporary storage for hashing message (avoids allocations)
 
  public:
-  BlsThresholdSigner(const BlsPublicParameters& params, ShareID id,
+  BlsThresholdSigner(const BlsPublicParameters& params,
+                     ShareID id,
                      const BNT& sk);
   virtual ~BlsThresholdSigner() {}
 
@@ -51,7 +52,9 @@ class BlsThresholdSigner : public IThresholdSigner {
     return sigSize + static_cast<int>(sizeof(id));
   }
 
-  virtual void signData(const char* hash, int hashLen, char* outSig,
+  virtual void signData(const char* hash,
+                        int hashLen,
+                        char* outSig,
                         int outSigLen);
 
  public:

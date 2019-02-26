@@ -59,11 +59,17 @@
  *         include I/O issues or disagreement of numReplicas with f and c.
  */
 bool outputReplicaKeyfile(
-    uint16_t replicaID, uint16_t numReplicas, uint16_t f, uint16_t c,
-    std::ostream& output, const std::string& outputFilename,
+    uint16_t replicaID,
+    uint16_t numReplicas,
+    uint16_t f,
+    uint16_t c,
+    std::ostream& output,
+    const std::string& outputFilename,
     const std::vector<std::pair<std::string, std::string>>& rsaKeys,
-    const Cryptosystem& execSys, const Cryptosystem& slowSys,
-    const Cryptosystem& commitSys, const Cryptosystem& optSys);
+    const Cryptosystem& execSys,
+    const Cryptosystem& slowSys,
+    const Cryptosystem& commitSys,
+    const Cryptosystem& optSys);
 
 /**
  * Read in a keyfile for the current replica that was output with
@@ -89,5 +95,6 @@ bool outputReplicaKeyfile(
  *         output to config, and false otherwise. Reasons for failure may
  *         include I/O issues or invalid formatting or contents of the keyfile.
  */
-bool inputReplicaKeyfile(std::istream& input, const std::string& inputFilename,
+bool inputReplicaKeyfile(std::istream& input,
+                         const std::string& inputFilename,
                          bftEngine::ReplicaConfig& config);

@@ -53,7 +53,10 @@ inline bool operator==(const Slice& a, const Slice& b) {
 
 inline bool operator!=(const Slice& a, const Slice& b) { return !(a == b); }
 
-bool copyToAndAdvance(char* _buf, size_t* _offset, size_t _maxOffset,
-                      char* _src, size_t _srcSize);
+bool copyToAndAdvance(char* _buf,
+                      size_t* _offset,
+                      size_t _maxOffset,
+                      char* _src,
+                      size_t _srcSize);
 
 }  // namespace SimpleKVBC

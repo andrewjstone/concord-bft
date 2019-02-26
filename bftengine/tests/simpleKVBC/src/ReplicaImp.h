@@ -40,12 +40,16 @@ class ReplicaImp : public IReplica,
   // ILocalKeyValueStorageReadOnly methods
 
   virtual Status get(Slice key, Slice& outValue) const override;
-  virtual Status get(BlockId readVersion, Slice key, Slice& outValue,
+  virtual Status get(BlockId readVersion,
+                     Slice key,
+                     Slice& outValue,
                      BlockId& outBlock) const override;
   virtual BlockId getLastBlock() const override;
   virtual Status getBlockData(BlockId blockId,
                               SetOfKeyValuePairs& outBlockData) const override;
-  Status mayHaveConflictBetween(Slice key, BlockId fromBlock, BlockId toBlock,
+  Status mayHaveConflictBetween(Slice key,
+                                BlockId fromBlock,
+                                BlockId toBlock,
                                 bool& outRes) const override;
   virtual ILocalKeyValueStorageReadOnlyIterator* getSnapIterator()
       const override;
@@ -62,11 +66,13 @@ class ReplicaImp : public IReplica,
   virtual uint64_t getLastReachableBlockNum() override;
   virtual uint64_t getLastBlockNum() override;
   virtual bool hasBlock(uint64_t blockId) override;
-  virtual bool getBlock(uint64_t blockId, char* outBlock,
+  virtual bool getBlock(uint64_t blockId,
+                        char* outBlock,
                         uint32_t* outBlockSize) override;
   virtual bool getPrevDigestFromBlock(
       uint64_t blockId, StateTransferDigest* outPrevBlockDigest) override;
-  virtual bool putBlock(uint64_t blockId, char* block,
+  virtual bool putBlock(uint64_t blockId,
+                        char* block,
                         uint32_t blockSize) override;
 
  protected:
@@ -76,14 +82,20 @@ class ReplicaImp : public IReplica,
   // methods
   Status addBlockInternal(const SetOfKeyValuePairs& updates,
                           BlockId& outBlockId);
-  Status getInternal(BlockId readVersion, Slice key, Slice& outValue,
+  Status getInternal(BlockId readVersion,
+                     Slice key,
+                     Slice& outValue,
                      BlockId& outBlock) const;
   void insertBlockInternal(BlockId blockId, Slice block);
   Slice getBlockInternal(BlockId blockId) const;
   BlockchainDBAdapter* getBcDbAdapter() const { return m_bcDbAdapter; }
-  bool executeCommand(uint16_t clientId, bool readOnly, uint32_t requestSize,
-                      const char* request, uint32_t maxReplySize,
-                      char* outReply, uint32_t& outActualReplySize);
+  bool executeCommand(uint16_t clientId,
+                      bool readOnly,
+                      uint32_t requestSize,
+                      const char* request,
+                      uint32_t maxReplySize,
+                      char* outReply,
+                      uint32_t& outActualReplySize);
 
   // consts
   const ICommandsHandler* m_cmdHandler;
@@ -121,12 +133,16 @@ class ReplicaImp : public IReplica,
    public:
     StorageWrapperForIdleMode(const ReplicaImp* r);
     virtual Status get(Slice key, Slice& outValue) const;
-    virtual Status get(BlockId readVersion, Slice key, Slice& outValue,
+    virtual Status get(BlockId readVersion,
+                       Slice key,
+                       Slice& outValue,
                        BlockId& outBlock) const;
     virtual BlockId getLastBlock() const;
     virtual Status getBlockData(BlockId blockId,
                                 SetOfKeyValuePairs& outBlockData) const;
-    Status mayHaveConflictBetween(Slice key, BlockId fromBlock, BlockId toBlock,
+    Status mayHaveConflictBetween(Slice key,
+                                  BlockId fromBlock,
+                                  BlockId toBlock,
                                   bool& outRes) const;
     virtual ILocalKeyValueStorageReadOnlyIterator* getSnapIterator() const;
     virtual Status freeSnapIterator(
@@ -148,7 +164,8 @@ class ReplicaImp : public IReplica,
     virtual void setReadVersion(BlockId _readVersion) {
       readVersion = _readVersion;
     }
-    virtual KeyValuePair first(BlockId readVersion, BlockId& actualVersion,
+    virtual KeyValuePair first(BlockId readVersion,
+                               BlockId& actualVersion,
                                bool& isEnd) override;
     virtual KeyValuePair first() override {
       BlockId block = m_currentBlock;
@@ -157,7 +174,9 @@ class ReplicaImp : public IReplica,
       return first(block, dummy, dummy2);
     }  // TODO(SG): Not implemented originally!
     virtual KeyValuePair seekAtLeast(
-        BlockId readVersion, Key key, BlockId& actualVersion,
+        BlockId readVersion,
+        Key key,
+        BlockId& actualVersion,
         bool& isEnd) override;  // Assumes lexicographical ordering of the keys,
                                 // seek the first element k >= key
     virtual KeyValuePair seekAtLeast(Key key) override {
@@ -167,7 +186,9 @@ class ReplicaImp : public IReplica,
       return seekAtLeast(block, key, dummy, dummy2);
     }  // TODO(SG): Not implemented originally!
     virtual KeyValuePair next(
-        BlockId readVersion, Key key, BlockId& actualVersion,
+        BlockId readVersion,
+        Key key,
+        BlockId& actualVersion,
         bool& isEnd) override;  // Proceed to next element and return it
     virtual KeyValuePair next() override {
       BlockId block = m_currentBlock;
@@ -211,8 +232,12 @@ class ReplicaImp : public IReplica,
 class RequestsHandlerImp : public bftEngine::RequestsHandler {
  public:
   ReplicaImp* m_Executor;
-  int execute(uint16_t clientId, bool readOnly, uint32_t requestSize,
-              const char* request, uint32_t maxReplySize, char* outReply,
+  int execute(uint16_t clientId,
+              bool readOnly,
+              uint32_t requestSize,
+              const char* request,
+              uint32_t maxReplySize,
+              char* outReply,
               uint32_t& outActualReplySize) override;
 };
 

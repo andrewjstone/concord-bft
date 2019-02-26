@@ -53,7 +53,8 @@ class ThresholdAccumulatorBase : public IThresholdAccumulator {
 
  public:
   ThresholdAccumulatorBase(const std::vector<VerificationKey>& vks,
-                           NumSharesType reqSigners, NumSharesType totalSigners)
+                           NumSharesType reqSigners,
+                           NumSharesType totalSigners)
       : expectedDigest(nullptr),
         expectedDigestLen(0),
         reqSigners(reqSigners),

@@ -173,7 +173,8 @@ void InMemoryDataStore::setLastRequiredBlock(uint64_t i) {
 
 uint64_t InMemoryDataStore::getLastRequiredBlock() { return lastRequiredBlock; }
 
-void InMemoryDataStore::setPendingResPage(uint32_t inPageId, const char* inPage,
+void InMemoryDataStore::setPendingResPage(uint32_t inPageId,
+                                          const char* inPage,
                                           uint32_t inPageLen) {
   assert(inPageLen <= sizeOfReservedPage_);
 
@@ -198,7 +199,8 @@ bool InMemoryDataStore::hasPendingResPage(uint32_t inPageId) {
   return (pendingPages.count(inPageId) > 0);
 }
 
-void InMemoryDataStore::getPendingResPage(uint32_t inPageId, char* outPage,
+void InMemoryDataStore::getPendingResPage(uint32_t inPageId,
+                                          char* outPage,
                                           uint32_t pageLen) {
   assert(pageLen <= sizeOfReservedPage_);
 
@@ -248,7 +250,8 @@ void InMemoryDataStore::associatePendingResPageWithCheckpoint(
   pendingPages.erase(pendingPos);
 }
 
-void InMemoryDataStore::setResPage(uint32_t inPageId, uint64_t inCheckpoint,
+void InMemoryDataStore::setResPage(uint32_t inPageId,
+                                   uint64_t inCheckpoint,
                                    const STDigest& inPageDigest,
                                    const char* inPage) {
   // create key, and make sure that we don't already have this element
@@ -266,21 +269,30 @@ void InMemoryDataStore::setResPage(uint32_t inPageId, uint64_t inCheckpoint,
   pages[key] = val;
 }
 
-void InMemoryDataStore::getResPage(uint32_t inPageId, uint64_t inCheckpoint,
+void InMemoryDataStore::getResPage(uint32_t inPageId,
+                                   uint64_t inCheckpoint,
                                    uint64_t* outActualCheckpoint) {
   getResPage(inPageId, inCheckpoint, outActualCheckpoint, nullptr, nullptr, 0);
 }
 
-void InMemoryDataStore::getResPage(uint32_t inPageId, uint64_t inCheckpoint,
-                                   uint64_t* outActualCheckpoint, char* outPage,
+void InMemoryDataStore::getResPage(uint32_t inPageId,
+                                   uint64_t inCheckpoint,
+                                   uint64_t* outActualCheckpoint,
+                                   char* outPage,
                                    uint32_t copylength) {
-  getResPage(inPageId, inCheckpoint, outActualCheckpoint, nullptr, outPage,
+  getResPage(inPageId,
+             inCheckpoint,
+             outActualCheckpoint,
+             nullptr,
+             outPage,
              copylength);
 }
 
-void InMemoryDataStore::getResPage(uint32_t inPageId, uint64_t inCheckpoint,
+void InMemoryDataStore::getResPage(uint32_t inPageId,
+                                   uint64_t inCheckpoint,
                                    uint64_t* outActualCheckpoint,
-                                   STDigest* outPageDigest, char* outPage,
+                                   STDigest* outPageDigest,
+                                   char* outPage,
                                    uint32_t copylength) {
   assert(copylength <= sizeOfReservedPage_);
 

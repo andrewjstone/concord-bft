@@ -83,29 +83,39 @@ class DataStore {
   // reserved pages
   //////////////////////////////////////////////////////////////////////////
 
-  virtual void setPendingResPage(uint32_t inPageId, const char* inPage,
+  virtual void setPendingResPage(uint32_t inPageId,
+                                 const char* inPage,
                                  uint32_t pageLen) = 0;
   virtual bool hasPendingResPage(uint32_t inPageId) = 0;
-  virtual void getPendingResPage(uint32_t inPageId, char* outPage,
+  virtual void getPendingResPage(uint32_t inPageId,
+                                 char* outPage,
                                  uint32_t pageLen) = 0;
   virtual uint32_t numOfAllPendingResPage() = 0;
   virtual set<uint32_t> getNumbersOfPendingResPages() = 0;
   virtual void deleteAllPendingPages() = 0;
 
   virtual void associatePendingResPageWithCheckpoint(
-      uint32_t inPageId, uint64_t inCheckpoint,
+      uint32_t inPageId,
+      uint64_t inCheckpoint,
       const STDigest& inPageDigest) = 0;
 
-  virtual void setResPage(uint32_t inPageId, uint64_t inCheckpoint,
-                          const STDigest& inPageDigest, const char* inPage) = 0;
-  virtual void getResPage(uint32_t inPageId, uint64_t inCheckpoint,
+  virtual void setResPage(uint32_t inPageId,
+                          uint64_t inCheckpoint,
+                          const STDigest& inPageDigest,
+                          const char* inPage) = 0;
+  virtual void getResPage(uint32_t inPageId,
+                          uint64_t inCheckpoint,
                           uint64_t* outActualCheckpoint) = 0;
-  virtual void getResPage(uint32_t inPageId, uint64_t inCheckpoint,
-                          uint64_t* outActualCheckpoint, char* outPage,
-                          uint32_t copylength) = 0;
-  virtual void getResPage(uint32_t inPageId, uint64_t inCheckpoint,
+  virtual void getResPage(uint32_t inPageId,
+                          uint64_t inCheckpoint,
                           uint64_t* outActualCheckpoint,
-                          STDigest* outPageDigest, char* outPage,
+                          char* outPage,
+                          uint32_t copylength) = 0;
+  virtual void getResPage(uint32_t inPageId,
+                          uint64_t inCheckpoint,
+                          uint64_t* outActualCheckpoint,
+                          STDigest* outPageDigest,
+                          char* outPage,
                           uint32_t copylength) = 0;
 
   virtual void deleteCoveredResPageInSmallerCheckpoints(

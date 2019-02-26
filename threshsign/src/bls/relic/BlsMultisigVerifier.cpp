@@ -27,10 +27,12 @@ namespace BLS {
 namespace Relic {
 
 BlsMultisigVerifier::BlsMultisigVerifier(
-    const BlsPublicParameters& params, NumSharesType reqSigners,
-    NumSharesType numSigners, const std::vector<BlsPublicKey>& verifKeys)
-    : BlsThresholdVerifier(params, G2T::Identity(), reqSigners, numSigners,
-                           verifKeys) {
+    const BlsPublicParameters& params,
+    NumSharesType reqSigners,
+    NumSharesType numSigners,
+    const std::vector<BlsPublicKey>& verifKeys)
+    : BlsThresholdVerifier(
+          params, G2T::Identity(), reqSigners, numSigners, verifKeys) {
   assertEqual(
       verifKeys.size(),
       static_cast<std::vector<BlsPublicKey>::size_type>(numSigners + 1));
@@ -54,8 +56,8 @@ IThresholdAccumulator* BlsMultisigVerifier::newAccumulator(
             << endl;
   }
 
-  return new BlsMultisigAccumulator(vks, reqSigners, numSigners,
-                                    withShareVerification);
+  return new BlsMultisigAccumulator(
+      vks, reqSigners, numSigners, withShareVerification);
 }
 
 /**
@@ -74,8 +76,10 @@ int BlsMultisigVerifier::requiredLengthForSignedData() const {
   return sigSize;
 }
 
-bool BlsMultisigVerifier::verify(const char* msg, int msgLen,
-                                 const char* sigBuf, int sigLen) const {
+bool BlsMultisigVerifier::verify(const char* msg,
+                                 int msgLen,
+                                 const char* sigBuf,
+                                 int sigLen) const {
   // Parse the signer IDs from sigBuf and adjust the PK
   if (reqSigners != numSigners) {
     if (sigLen != requiredLengthForSignedData()) {
@@ -101,8 +105,8 @@ bool BlsMultisigVerifier::verify(const char* msg, int msgLen,
 
   // Once the PK is set in 'pk' can call parent BlsThresholdVerifier to verify
   // the sig
-  return BlsThresholdVerifier::verify(msg, msgLen, sigBuf,
-                                      params.getSignatureSize());
+  return BlsThresholdVerifier::verify(
+      msg, msgLen, sigBuf, params.getSignatureSize());
 }
 
 } /* namespace Relic */

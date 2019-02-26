@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -82,8 +83,8 @@ bool SeqNumInfo::addMsg(PrePrepareMsg* m) {
 
   // set expected
   Digest tmpDigest;
-  Digest::calcCombination(m->digestOfRequests(), m->viewNumber(),
-                          m->seqNumber(), tmpDigest);
+  Digest::calcCombination(
+      m->digestOfRequests(), m->viewNumber(), m->seqNumber(), tmpDigest);
   prepareSigCollector->setExpected(m->seqNumber(), m->viewNumber(), tmpDigest);
 
   if (firstSeenFromPrimary == MinTime)  // TODO(GG): remove condition - TBD
@@ -107,8 +108,8 @@ bool SeqNumInfo::addSelfMsg(PrePrepareMsg* m) {
 
   // set expected
   Digest tmpDigest;
-  Digest::calcCombination(m->digestOfRequests(), m->viewNumber(),
-                          m->seqNumber(), tmpDigest);
+  Digest::calcCombination(
+      m->digestOfRequests(), m->viewNumber(), m->seqNumber(), tmpDigest);
   prepareSigCollector->setExpected(m->seqNumber(), m->viewNumber(), tmpDigest);
 
   if (firstSeenFromPrimary == MinTime)  // TODO(GG): remove condition - TBD
@@ -164,8 +165,8 @@ bool SeqNumInfo::addSelfCommitPartialMsgAndDigest(CommitPartialMsg* m,
 
   // set expected
   Digest tmpDigest;
-  Digest::calcCombination(commitDigest, m->viewNumber(), m->seqNumber(),
-                          tmpDigest);
+  Digest::calcCombination(
+      commitDigest, m->viewNumber(), m->seqNumber(), tmpDigest);
   commitMsgsCollector->setExpected(m->seqNumber(), m->viewNumber(), tmpDigest);
 
   // add msg
@@ -270,14 +271,17 @@ bool SeqNumInfo::slowPathStarted() { return slowPathHasStarted; }
 void SeqNumInfo::setTimeOfLastInfoRequest(Time t) { timeOfLastInfoRequest = t; }
 
 void SeqNumInfo::onCompletionOfPrepareSignaturesProcessing(
-    SeqNum seqNumber, ViewNum viewNumber,
+    SeqNum seqNumber,
+    ViewNum viewNumber,
     const std::set<ReplicaId>& replicasWithBadSigs) {
-  prepareSigCollector->onCompletionOfSignaturesProcessing(seqNumber, viewNumber,
-                                                          replicasWithBadSigs);
+  prepareSigCollector->onCompletionOfSignaturesProcessing(
+      seqNumber, viewNumber, replicasWithBadSigs);
 }
 
 void SeqNumInfo::onCompletionOfPrepareSignaturesProcessing(
-    SeqNum seqNumber, ViewNum viewNumber, const char* combinedSig,
+    SeqNum seqNumber,
+    ViewNum viewNumber,
+    const char* combinedSig,
     uint16_t combinedSigLen) {
   prepareSigCollector->onCompletionOfSignaturesProcessing(
       seqNumber, viewNumber, combinedSig, combinedSigLen);
@@ -301,7 +305,9 @@ class CombinedSigFailedInternalMsg : public InternalMessage {
   const std::set<uint16_t> replicasWithBadSigs;
 
  public:
-  CombinedSigFailedInternalMsg(InternalReplicaApi* rep, SeqNum s, ViewNum v,
+  CombinedSigFailedInternalMsg(InternalReplicaApi* rep,
+                               SeqNum s,
+                               ViewNum v,
                                std::set<uint16_t>& repsWithBadSigs)
       : replica{rep},
         seqNumber{s},
@@ -322,8 +328,11 @@ class CombinedSigSucceededInternalMsg : public InternalMessage {
   const uint16_t combinedSigLen;
 
  public:
-  CombinedSigSucceededInternalMsg(InternalReplicaApi* rep, SeqNum s, ViewNum v,
-                                  const char* sig, uint16_t sigLen)
+  CombinedSigSucceededInternalMsg(InternalReplicaApi* rep,
+                                  SeqNum s,
+                                  ViewNum v,
+                                  const char* sig,
+                                  uint16_t sigLen)
       : replica{rep}, seqNumber{s}, view{v}, combinedSigLen{sigLen} {
     char* p = (char*)std::malloc(sigLen);
     memcpy(p, sig, sigLen);
@@ -335,8 +344,8 @@ class CombinedSigSucceededInternalMsg : public InternalMessage {
   }
 
   virtual void handle() override {
-    replica->onPrepareCombinedSigSucceeded(seqNumber, view, combinedSig,
-                                           combinedSigLen);
+    replica->onPrepareCombinedSigSucceeded(
+        seqNumber, view, combinedSig, combinedSigLen);
   }
 };
 
@@ -348,8 +357,10 @@ class VerifyCombinedSigResultInternalMsg : public InternalMessage {
   const bool isValid;
 
  public:
-  VerifyCombinedSigResultInternalMsg(InternalReplicaApi* rep, SeqNum s,
-                                     ViewNum v, bool result)
+  VerifyCombinedSigResultInternalMsg(InternalReplicaApi* rep,
+                                     SeqNum s,
+                                     ViewNum v,
+                                     bool result)
       : replica{rep}, seqNumber{s}, view{v}, isValid{result} {}
 
   virtual void handle() override {
@@ -366,8 +377,10 @@ class CombinedCommitSigSucceededInternalMsg : public InternalMessage {
   const uint16_t combinedSigLen;
 
  public:
-  CombinedCommitSigSucceededInternalMsg(InternalReplicaApi* rep, SeqNum s,
-                                        ViewNum v, const char* sig,
+  CombinedCommitSigSucceededInternalMsg(InternalReplicaApi* rep,
+                                        SeqNum s,
+                                        ViewNum v,
+                                        const char* sig,
                                         uint16_t sigLen)
       : replica{rep}, seqNumber{s}, view{v}, combinedSigLen{sigLen} {
     char* p = (char*)std::malloc(sigLen);
@@ -380,8 +393,8 @@ class CombinedCommitSigSucceededInternalMsg : public InternalMessage {
   }
 
   virtual void handle() override {
-    replica->onCommitCombinedSigSucceeded(seqNumber, view, combinedSig,
-                                          combinedSigLen);
+    replica->onCommitCombinedSigSucceeded(
+        seqNumber, view, combinedSig, combinedSigLen);
   }
 };
 
@@ -393,7 +406,8 @@ class CombinedCommitSigFailedInternalMsg : public InternalMessage {
   const std::set<uint16_t> replicasWithBadSigs;
 
  public:
-  CombinedCommitSigFailedInternalMsg(InternalReplicaApi* rep, SeqNum s,
+  CombinedCommitSigFailedInternalMsg(InternalReplicaApi* rep,
+                                     SeqNum s,
                                      ViewNum v,
                                      std::set<uint16_t>& repsWithBadSigs)
       : replica{rep},
@@ -414,8 +428,10 @@ class VerifyCombinedCommitSigResultInternalMsg : public InternalMessage {
   const bool isValid;
 
  public:
-  VerifyCombinedCommitSigResultInternalMsg(InternalReplicaApi* rep, SeqNum s,
-                                           ViewNum v, bool result)
+  VerifyCombinedCommitSigResultInternalMsg(InternalReplicaApi* rep,
+                                           SeqNum s,
+                                           ViewNum v,
+                                           bool result)
       : replica{rep}, seqNumber{s}, view{v}, isValid{result} {}
 
   virtual void handle() override {
@@ -429,38 +445,48 @@ class VerifyCombinedCommitSigResultInternalMsg : public InternalMessage {
 
 PrepareFullMsg*
 SeqNumInfo::ExFuncForPrepareCollector::createCombinedSignatureMsg(
-    void* context, SeqNum seqNumber, ViewNum viewNumber,
-    const char* const combinedSig, uint16_t combinedSigLen) {
+    void* context,
+    SeqNum seqNumber,
+    ViewNum viewNumber,
+    const char* const combinedSig,
+    uint16_t combinedSigLen) {
   InternalReplicaApi* r = (InternalReplicaApi*)context;
-  return PrepareFullMsg::create(viewNumber, seqNumber,
-                                r->getReplicasInfo().myId(), combinedSig,
+  return PrepareFullMsg::create(viewNumber,
+                                seqNumber,
+                                r->getReplicasInfo().myId(),
+                                combinedSig,
                                 combinedSigLen);
 }
 
 InternalMessage*
 SeqNumInfo::ExFuncForPrepareCollector::createInterCombinedSigFailed(
-    void* context, SeqNum seqNumber, ViewNum viewNumber,
+    void* context,
+    SeqNum seqNumber,
+    ViewNum viewNumber,
     std::set<uint16_t> replicasWithBadSigs) {
   InternalReplicaApi* r = (InternalReplicaApi*)context;
-  return new CombinedSigFailedInternalMsg(r, seqNumber, viewNumber,
-                                          replicasWithBadSigs);
+  return new CombinedSigFailedInternalMsg(
+      r, seqNumber, viewNumber, replicasWithBadSigs);
 }
 
 InternalMessage*
 SeqNumInfo::ExFuncForPrepareCollector::createInterCombinedSigSucceeded(
-    void* context, SeqNum seqNumber, ViewNum viewNumber,
-    const char* combinedSig, uint16_t combinedSigLen) {
+    void* context,
+    SeqNum seqNumber,
+    ViewNum viewNumber,
+    const char* combinedSig,
+    uint16_t combinedSigLen) {
   InternalReplicaApi* r = (InternalReplicaApi*)context;
-  return new CombinedSigSucceededInternalMsg(r, seqNumber, viewNumber,
-                                             combinedSig, combinedSigLen);
+  return new CombinedSigSucceededInternalMsg(
+      r, seqNumber, viewNumber, combinedSig, combinedSigLen);
 }
 
 InternalMessage*
 SeqNumInfo::ExFuncForPrepareCollector::createInterVerifyCombinedSigResult(
     void* context, SeqNum seqNumber, ViewNum viewNumber, bool isValid) {
   InternalReplicaApi* r = (InternalReplicaApi*)context;
-  return new VerifyCombinedSigResultInternalMsg(r, seqNumber, viewNumber,
-                                                isValid);
+  return new VerifyCombinedSigResultInternalMsg(
+      r, seqNumber, viewNumber, isValid);
 }
 
 uint16_t SeqNumInfo::ExFuncForPrepareCollector::numberOfRequiredSignatures(
@@ -493,38 +519,48 @@ IncomingMsgsStorage& SeqNumInfo::ExFuncForPrepareCollector::incomingMsgsStorage(
 ///////////////////////////////////////////////////////////////////////////////
 
 CommitFullMsg* SeqNumInfo::ExFuncForCommitCollector::createCombinedSignatureMsg(
-    void* context, SeqNum seqNumber, ViewNum viewNumber,
-    const char* const combinedSig, uint16_t combinedSigLen) {
+    void* context,
+    SeqNum seqNumber,
+    ViewNum viewNumber,
+    const char* const combinedSig,
+    uint16_t combinedSigLen) {
   InternalReplicaApi* r = (InternalReplicaApi*)context;
-  return CommitFullMsg::create(viewNumber, seqNumber,
-                               r->getReplicasInfo().myId(), combinedSig,
+  return CommitFullMsg::create(viewNumber,
+                               seqNumber,
+                               r->getReplicasInfo().myId(),
+                               combinedSig,
                                combinedSigLen);
 }
 
 InternalMessage*
 SeqNumInfo::ExFuncForCommitCollector::createInterCombinedSigFailed(
-    void* context, SeqNum seqNumber, ViewNum viewNumber,
+    void* context,
+    SeqNum seqNumber,
+    ViewNum viewNumber,
     std::set<uint16_t> replicasWithBadSigs) {
   InternalReplicaApi* r = (InternalReplicaApi*)context;
-  return new CombinedCommitSigFailedInternalMsg(r, seqNumber, viewNumber,
-                                                replicasWithBadSigs);
+  return new CombinedCommitSigFailedInternalMsg(
+      r, seqNumber, viewNumber, replicasWithBadSigs);
 }
 
 InternalMessage*
 SeqNumInfo::ExFuncForCommitCollector::createInterCombinedSigSucceeded(
-    void* context, SeqNum seqNumber, ViewNum viewNumber,
-    const char* combinedSig, uint16_t combinedSigLen) {
+    void* context,
+    SeqNum seqNumber,
+    ViewNum viewNumber,
+    const char* combinedSig,
+    uint16_t combinedSigLen) {
   InternalReplicaApi* r = (InternalReplicaApi*)context;
-  return new CombinedCommitSigSucceededInternalMsg(r, seqNumber, viewNumber,
-                                                   combinedSig, combinedSigLen);
+  return new CombinedCommitSigSucceededInternalMsg(
+      r, seqNumber, viewNumber, combinedSig, combinedSigLen);
 }
 
 InternalMessage*
 SeqNumInfo::ExFuncForCommitCollector::createInterVerifyCombinedSigResult(
     void* context, SeqNum seqNumber, ViewNum viewNumber, bool isValid) {
   InternalReplicaApi* r = (InternalReplicaApi*)context;
-  return new VerifyCombinedCommitSigResultInternalMsg(r, seqNumber, viewNumber,
-                                                      isValid);
+  return new VerifyCombinedCommitSigResultInternalMsg(
+      r, seqNumber, viewNumber, isValid);
 }
 
 uint16_t SeqNumInfo::ExFuncForCommitCollector::numberOfRequiredSignatures(
@@ -562,10 +598,12 @@ void SeqNumInfo::init(SeqNumInfo& i, void* d) {
   i.replica = r;
 
   i.prepareSigCollector =
-      new CollectorOfThresholdSignatures<PreparePartialMsg, PrepareFullMsg,
+      new CollectorOfThresholdSignatures<PreparePartialMsg,
+                                         PrepareFullMsg,
                                          ExFuncForPrepareCollector>(context);
   i.commitMsgsCollector =
-      new CollectorOfThresholdSignatures<CommitPartialMsg, CommitFullMsg,
+      new CollectorOfThresholdSignatures<CommitPartialMsg,
+                                         CommitFullMsg,
                                          ExFuncForCommitCollector>(context);
   i.partialProofsSet = new PartialProofsSet((InternalReplicaApi*)r);
   i.partialExecProofsSet = new PartialExecProofsSet((InternalReplicaApi*)r);

@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -61,7 +62,9 @@ class SimpleOperationsScheduler {
   ~SimpleOperationsScheduler();
 
   void clear();
-  bool add(uint64_t id, Time time, void (*opFunc)(uint64_t, Time, void*),
+  bool add(uint64_t id,
+           Time time,
+           void (*opFunc)(uint64_t, Time, void*),
            void* param);
   bool remove(uint64_t id);
 
@@ -84,7 +87,8 @@ class SimpleOperationsScheduler {
 class Timer {
  public:
   Timer(SimpleOperationsScheduler& operationsScheduler,
-        uint16_t timePeriodMilli, void (*opFunc)(Time, void*),
+        uint16_t timePeriodMilli,
+        void (*opFunc)(Time, void*),
         void* param = nullptr);
   ~Timer();
 

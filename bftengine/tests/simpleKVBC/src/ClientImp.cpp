@@ -52,16 +52,21 @@ Status ClientImp::stop() {
 
 bool ClientImp::isRunning() { return (bftClient_ != nullptr); }
 
-Status ClientImp::invokeCommandSynch(const Slice command, bool isReadOnly,
+Status ClientImp::invokeCommandSynch(const Slice command,
+                                     bool isReadOnly,
                                      Slice& outReply) {
   if (!isRunning()) return Status::IllegalOperation("todo");
 
   uint32_t replySize = 0;
 
-  bftClient_->sendRequest(isReadOnly, command.data, command.size,
+  bftClient_->sendRequest(isReadOnly,
+                          command.data,
+                          command.size,
                           seqGen_->generateUniqueSequenceNumberForRequest(),
                           bftEngine::SimpleClient::INFINITE_TIMEOUT,
-                          config_.maxReplySize, replyBuf_, replySize);
+                          config_.maxReplySize,
+                          replyBuf_,
+                          replySize);
 
   char* p = (char*)std::malloc(replySize);
   memcpy(p, replyBuf_, replySize);

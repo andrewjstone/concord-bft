@@ -150,8 +150,10 @@ class Cryptosystem {
    *                                      and/or subtype of cryptosystem
    *                                      selected are not met.
    */
-  Cryptosystem(const std::string& sysType, const std::string& sysSubtype,
-               uint16_t sysNumSigners, uint16_t sysThreshold);
+  Cryptosystem(const std::string& sysType,
+               const std::string& sysSubtype,
+               uint16_t sysNumSigners,
+               uint16_t sysThreshold);
 
   /**
    * Destructor for Cryptosystem.

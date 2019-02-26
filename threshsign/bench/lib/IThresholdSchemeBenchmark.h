@@ -56,7 +56,9 @@ class IThresholdSchemeBenchmark {
   bool hasShareVerify;
 
  public:
-  IThresholdSchemeBenchmark(const IPublicParameters& p, int k, int n,
+  IThresholdSchemeBenchmark(const IPublicParameters& p,
+                            int k,
+                            int n,
                             int msgSize = 64);
   virtual ~IThresholdSchemeBenchmark();
 

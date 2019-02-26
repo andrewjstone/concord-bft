@@ -36,8 +36,10 @@ class BlsThresholdVerifier : public IThresholdVerifier {
   const NumSharesType reqSigners, numSigners;
 
  public:
-  BlsThresholdVerifier(const BlsPublicParameters& params, const G2T& pk,
-                       NumSharesType reqSigners, NumSharesType numSigners,
+  BlsThresholdVerifier(const BlsPublicParameters& params,
+                       const G2T& pk,
+                       NumSharesType reqSigners,
+                       NumSharesType numSigners,
                        const std::vector<BlsPublicKey>& verifKeys);
 
   virtual ~BlsThresholdVerifier();
@@ -63,7 +65,9 @@ class BlsThresholdVerifier : public IThresholdVerifier {
 
   virtual void release(IThresholdAccumulator* acc) { delete acc; }
 
-  virtual bool verify(const char* msg, int msgLen, const char* sig,
+  virtual bool verify(const char* msg,
+                      int msgLen,
+                      const char* sig,
                       int sigLen) const;
 
   virtual int requiredLengthForSignedData() const {

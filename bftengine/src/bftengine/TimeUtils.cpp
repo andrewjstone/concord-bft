@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -45,7 +46,8 @@ SimpleOperationsScheduler::~SimpleOperationsScheduler() {}
 
 void SimpleOperationsScheduler::clear() { _items.clear(); }
 
-bool SimpleOperationsScheduler::add(uint64_t id, Time time,
+bool SimpleOperationsScheduler::add(uint64_t id,
+                                    Time time,
                                     void (*opFunc)(uint64_t, Time, void*),
                                     void* param) {
   if (!_items.empty()) {
@@ -116,7 +118,9 @@ void SimpleOperationsScheduler::evaluate() {
 ///////////////////////////////////////////////////////////////////////////////
 
 Timer::Timer(SimpleOperationsScheduler& operationsScheduler,
-             uint16_t timePeriodMilli, void (*opFunc)(Time, void*), void* param)
+             uint16_t timePeriodMilli,
+             void (*opFunc)(Time, void*),
+             void* param)
     : _scheduler(operationsScheduler),
       _active(false),
       _periodMilli(timePeriodMilli),

@@ -237,7 +237,8 @@ static bool validateConfigStructIntegrity(
 // Helper function to test RSA keys to test the compatibility of a single key
 // pair.
 static bool testRSAKeyPair(const std::string& privateKey,
-                           const std::string& publicKey, uint16_t replicaID) {
+                           const std::string& publicKey,
+                           uint16_t replicaID) {
   // The signer and verifier are stored with unique pointers rather than by
   // value so that they can be constructed in try/catch statements without
   // limiting their scope to those statements; declaring them by value is not
@@ -283,8 +284,11 @@ static bool testRSAKeyPair(const std::string& privateKey,
     char* signatureBuf = new char[signatureLength];
 
     try {
-      if (!signer->sign(hash.c_str(), hash.length(), signatureBuf,
-                        signatureLength, returnedSignatureLength)) {
+      if (!signer->sign(hash.c_str(),
+                        hash.length(),
+                        signatureBuf,
+                        signatureLength,
+                        returnedSignatureLength)) {
         std::cout << "TestGeneratedKeys: FAILURE: Failed to sign data with"
                      " replica "
                   << replicaID << "'s RSA private key.\n";
@@ -298,7 +302,9 @@ static bool testRSAKeyPair(const std::string& privateKey,
     }
 
     try {
-      if (!verifier->verify(hash.c_str(), hash.length(), signatureBuf,
+      if (!verifier->verify(hash.c_str(),
+                            hash.length(),
+                            signatureBuf,
                             returnedSignatureLength)) {
         std::cout << "TestGeneratedKeys: FAILURE: A signature with replica "
                   << replicaID
@@ -484,7 +490,8 @@ static bool testThresholdSignature(const std::string& cryptosystemName,
                                    std::vector<IThresholdSigner*> signers,
                                    IThresholdVerifier* verifier,
                                    const std::vector<uint16_t>& signersToTest,
-                                   uint16_t numSigners, uint16_t threshold) {
+                                   uint16_t numSigners,
+                                   uint16_t threshold) {
   std::string invalidPublicConfig =
       "TestGeneratedKeys: FAILURE: Invalid public"
       " and verification keyset for " +
@@ -672,8 +679,10 @@ static bool testThresholdSignature(const std::string& cryptosystemName,
 // Run all tests we want to do on each threshold cryptosystem on a given
 // threshold cryptosystem.
 static bool testThresholdCryptosystem(
-    const std::string& name, const std::vector<IThresholdSigner*>& signers,
-    const std::vector<IThresholdVerifier*>& verifiers, uint16_t numSigners,
+    const std::string& name,
+    const std::vector<IThresholdSigner*>& signers,
+    const std::vector<IThresholdVerifier*>& verifiers,
+    uint16_t numSigners,
     uint16_t threshold) {
   std::cout << "Testing " << name << " threshold cryptosystem.\n";
 
@@ -686,8 +695,12 @@ static bool testThresholdCryptosystem(
 
   // Test that the threshold cryptosystem functions as expected.
   for (auto signerCombination : signerCombinationsToTest) {
-    if (!testThresholdSignature(name, signers, referenceVerifier,
-                                signerCombination, numSigners, threshold)) {
+    if (!testThresholdSignature(name,
+                                signers,
+                                referenceVerifier,
+                                signerCombination,
+                                numSigners,
+                                threshold)) {
       return false;
     }
     ++testsCompleted;
@@ -774,8 +787,8 @@ static bool testThresholdKeys(
     signers.push_back(configs[i].thresholdSignerForExecution);
     verifiers.push_back(configs[i].thresholdVerifierForExecution);
   }
-  if (!testThresholdCryptosystem("execution", signers, verifiers, numReplicas,
-                                 execThresh)) {
+  if (!testThresholdCryptosystem(
+          "execution", signers, verifiers, numReplicas, execThresh)) {
     return false;
   }
 
@@ -785,8 +798,8 @@ static bool testThresholdKeys(
     signers.push_back(configs[i].thresholdSignerForSlowPathCommit);
     verifiers.push_back(configs[i].thresholdVerifierForSlowPathCommit);
   }
-  if (!testThresholdCryptosystem("slow path commit", signers, verifiers,
-                                 numReplicas, slowThresh)) {
+  if (!testThresholdCryptosystem(
+          "slow path commit", signers, verifiers, numReplicas, slowThresh)) {
     return false;
   }
 
@@ -796,8 +809,8 @@ static bool testThresholdKeys(
     signers.push_back(configs[i].thresholdSignerForCommit);
     verifiers.push_back(configs[i].thresholdVerifierForCommit);
   }
-  if (!testThresholdCryptosystem("commit", signers, verifiers, numReplicas,
-                                 commitThresh)) {
+  if (!testThresholdCryptosystem(
+          "commit", signers, verifiers, numReplicas, commitThresh)) {
     return false;
   }
 
@@ -807,8 +820,11 @@ static bool testThresholdKeys(
     signers.push_back(configs[i].thresholdSignerForOptimisticCommit);
     verifiers.push_back(configs[i].thresholdVerifierForOptimisticCommit);
   }
-  if (!testThresholdCryptosystem("optimistic fast path commit", signers,
-                                 verifiers, numReplicas, optThresh)) {
+  if (!testThresholdCryptosystem("optimistic fast path commit",
+                                 signers,
+                                 verifiers,
+                                 numReplicas,
+                                 optThresh)) {
     return false;
   }
 

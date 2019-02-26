@@ -51,8 +51,8 @@ class XAssertInitializer {
 #ifdef NDEBUG
     assertTrue(shouldNotBeCalled());
     assertFalse(shouldNotBeCalled());
-    assertInclusiveRange(shouldNotBeCalled(), shouldNotBeCalled(),
-                         shouldNotBeCalled());
+    assertInclusiveRange(
+        shouldNotBeCalled(), shouldNotBeCalled(), shouldNotBeCalled());
     assertStrictlyGreaterThan(shouldNotBeCalled(), shouldNotBeCalled());
     assertStrictlyLessThan(shouldNotBeCalled(), shouldNotBeCalled());
     assertGreaterThanOrEqual(shouldNotBeCalled(), shouldNotBeCalled());

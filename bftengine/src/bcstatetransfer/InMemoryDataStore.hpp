@@ -95,29 +95,40 @@ class InMemoryDataStore : public DataStore {
   // reserved pages
   //////////////////////////////////////////////////////////////////////////
 
-  void setPendingResPage(uint32_t inPageId, const char* inPage,
+  void setPendingResPage(uint32_t inPageId,
+                         const char* inPage,
                          uint32_t inPageLen) override;
   bool hasPendingResPage(uint32_t inPageId) override;
-  void getPendingResPage(uint32_t inPageId, char* outPage,
+  void getPendingResPage(uint32_t inPageId,
+                         char* outPage,
                          uint32_t pageLen) override;
   uint32_t numOfAllPendingResPage() override;
   set<uint32_t> getNumbersOfPendingResPages() override;
   void deleteAllPendingPages() override;
 
   void associatePendingResPageWithCheckpoint(
-      uint32_t inPageId, uint64_t inCheckpoint,
+      uint32_t inPageId,
+      uint64_t inCheckpoint,
       const STDigest& inPageDigest) override;
 
-  void setResPage(uint32_t inPageId, uint64_t inCheckpoint,
-                  const STDigest& inPageDigest, const char* inPage) override;
-  void getResPage(uint32_t inPageId, uint64_t inCheckpoint,
+  void setResPage(uint32_t inPageId,
+                  uint64_t inCheckpoint,
+                  const STDigest& inPageDigest,
+                  const char* inPage) override;
+  void getResPage(uint32_t inPageId,
+                  uint64_t inCheckpoint,
                   uint64_t* outActualCheckpoint) override;
-  void getResPage(uint32_t inPageId, uint64_t inCheckpoint,
-                  uint64_t* outActualCheckpoint, char* outPage,
+  void getResPage(uint32_t inPageId,
+                  uint64_t inCheckpoint,
+                  uint64_t* outActualCheckpoint,
+                  char* outPage,
                   uint32_t copylength) override;
-  void getResPage(uint32_t inPageId, uint64_t inCheckpoint,
-                  uint64_t* outActualCheckpoint, STDigest* outPageDigest,
-                  char* outPage, uint32_t copylength) override;
+  void getResPage(uint32_t inPageId,
+                  uint64_t inCheckpoint,
+                  uint64_t* outActualCheckpoint,
+                  STDigest* outPageDigest,
+                  char* outPage,
+                  uint32_t copylength) override;
 
   void deleteCoveredResPageInSmallerCheckpoints(uint64_t inCheckpoint) override;
 

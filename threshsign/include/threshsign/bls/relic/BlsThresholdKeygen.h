@@ -33,7 +33,8 @@ class BlsThresholdKeygenBase : public IThresholdKeygen<BNT, G2T> {
 class BlsThresholdKeygen : public BlsThresholdKeygenBase {
  public:
   BlsThresholdKeygen(const BlsPublicParameters& params,
-                     NumSharesType reqSigners, NumSharesType numSigners);
+                     NumSharesType reqSigners,
+                     NumSharesType numSigners);
   virtual ~BlsThresholdKeygen();
 };
 

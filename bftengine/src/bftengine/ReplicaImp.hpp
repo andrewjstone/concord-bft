@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -141,7 +142,9 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   // bounded log used to store information about checkpoints in the range
   // [lastStableSeqNum,lastStableSeqNum + kWorkWindowSize]
   SequenceWithActiveWindow<kWorkWindowSize + checkpointWindowSize,
-                           checkpointWindowSize, SeqNum, CheckpointInfo,
+                           checkpointWindowSize,
+                           SeqNum,
+                           CheckpointInfo,
                            CheckpointInfo>* checkpointsLog;
 
   // last known stable checkpoint of each peer replica.
@@ -238,8 +241,10 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   SimpleAutoResetEvent startSyncEvent;
 
  public:
-  ReplicaImp(const ReplicaConfig&, RequestsHandler* requestsHandler,
-             IStateTransfer* stateTransfer, ICommunication* communication);
+  ReplicaImp(const ReplicaConfig&,
+             RequestsHandler* requestsHandler,
+             IStateTransfer* stateTransfer,
+             ICommunication* communication);
   virtual ~ReplicaImp();
 
   void start();
@@ -252,7 +257,8 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
 
   // IReplicaForStateTransfer
   virtual void freeStateTransferMsg(char* m) override;
-  virtual void sendStateTransferMessage(char* m, uint32_t size,
+  virtual void sendStateTransferMessage(char* m,
+                                        uint32_t size,
                                         uint16_t replicaId) override;
   virtual void onTransferringComplete(
       int64_t checkpointNumberOfNewState) override;
@@ -261,7 +267,8 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
 
   // InternalReplicaApi
   virtual void onInternalMsg(FullCommitProofMsg* m) override;
-  virtual void onMerkleExecSignature(ViewNum v, SeqNum s,
+  virtual void onMerkleExecSignature(ViewNum v,
+                                     SeqNum s,
                                      uint16_t signatureLength,
                                      const char* signature) override;
 
@@ -290,7 +297,8 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   void GotoNextView();
 
   void tryToSendStatusReport();
-  void tryToSendReqMissingDataMsg(SeqNum seqNumber, bool slowPathOnly = false,
+  void tryToSendReqMissingDataMsg(SeqNum seqNumber,
+                                  bool slowPathOnly = false,
                                   uint16_t destReplicaId = ALL_OTHER_REPLICAS);
 
 #ifdef DEBUG_STATISTICS
@@ -321,10 +329,12 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
                                        const SeqNum seqNum,
                                        const uint16_t msgType);
 
-  void sendRetransmittableMsgToReplica(MessageBase* m, ReplicaId destReplica,
+  void sendRetransmittableMsgToReplica(MessageBase* m,
+                                       ReplicaId destReplica,
                                        SeqNum s,
                                        bool ignorePreviousAcks = false);
-  void sendAckIfNeeded(MessageBase* msg, const NodeIdType sourceNode,
+  void sendAckIfNeeded(MessageBase* msg,
+                       const NodeIdType sourceNode,
                        const SeqNum seqNum);
 
   void tryToSendPrePrepareMsg(bool batchingLogic = false);
@@ -358,9 +368,11 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   template <typename T>
   bool relevantMsgForActiveView(const T* msg);
 
-  void onReportAboutAdvancedReplica(ReplicaId reportedReplica, SeqNum seqNum,
+  void onReportAboutAdvancedReplica(ReplicaId reportedReplica,
+                                    SeqNum seqNum,
                                     ViewNum viewNum);
-  void onReportAboutLateReplica(ReplicaId reportedReplica, SeqNum seqNum,
+  void onReportAboutLateReplica(ReplicaId reportedReplica,
+                                SeqNum seqNum,
                                 ViewNum viewNum);
   void onReportAboutAdvancedReplica(ReplicaId reportedReplica, SeqNum seqNum);
   void onReportAboutLateReplica(ReplicaId reportedReplica, SeqNum seqNum);
@@ -370,7 +382,8 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   void sendCheckpointIfNeeded();
 
   void commitFullCommitProof(SeqNum seqNum, SeqNumInfo& seqNumInfo);
-  void commitAndSendFullCommitProof(SeqNum seqNum, SeqNumInfo& seqNumInfo,
+  void commitAndSendFullCommitProof(SeqNum seqNum,
+                                    SeqNumInfo& seqNumInfo,
                                     PartialProofsSet& partialProofs);
 
   virtual IncomingMsgsStorage& getIncomingMsgsStorage() override {
@@ -425,25 +438,32 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   // handlers for internal messages
 
   virtual void onPrepareCombinedSigFailed(
-      SeqNum seqNumber, ViewNum view,
+      SeqNum seqNumber,
+      ViewNum view,
       const std::set<uint16_t>& replicasWithBadSigs) override;
-  virtual void onPrepareCombinedSigSucceeded(SeqNum seqNumber, ViewNum view,
+  virtual void onPrepareCombinedSigSucceeded(SeqNum seqNumber,
+                                             ViewNum view,
                                              const char* combinedSig,
                                              uint16_t combinedSigLen) override;
-  virtual void onPrepareVerifyCombinedSigResult(SeqNum seqNumber, ViewNum view,
+  virtual void onPrepareVerifyCombinedSigResult(SeqNum seqNumber,
+                                                ViewNum view,
                                                 bool isValid) override;
 
   virtual void onCommitCombinedSigFailed(
-      SeqNum seqNumber, ViewNum view,
+      SeqNum seqNumber,
+      ViewNum view,
       const std::set<uint16_t>& replicasWithBadSigs) override;
-  virtual void onCommitCombinedSigSucceeded(SeqNum seqNumber, ViewNum view,
+  virtual void onCommitCombinedSigSucceeded(SeqNum seqNumber,
+                                            ViewNum view,
                                             const char* combinedSig,
                                             uint16_t combinedSigLen) override;
-  virtual void onCommitVerifyCombinedSigResult(SeqNum seqNumber, ViewNum view,
+  virtual void onCommitVerifyCombinedSigResult(SeqNum seqNumber,
+                                               ViewNum view,
                                                bool isValid) override;
 
   virtual void onRetransmissionsProcessingResults(
-      SeqNum relatedLastStableSeqNum, const ViewNum relatedViewNumber,
+      SeqNum relatedLastStableSeqNum,
+      const ViewNum relatedViewNumber,
       const std::forward_list<RetSuggestion>* const suggestedRetransmissions)
       override;  // TODO(GG): use generic iterators
 };

@@ -35,11 +35,16 @@ using namespace std;
 
 using namespace BLS::Relic;
 
-void batchVerifyHelper(BlsBatchVerifier& ver, int numBadShares,
-                       const G1T& msgPoint, const VectorOfShares& badSubset,
-                       const VectorOfShares& goodSubset, bool checkRoot);
+void batchVerifyHelper(BlsBatchVerifier& ver,
+                       int numBadShares,
+                       const G1T& msgPoint,
+                       const VectorOfShares& badSubset,
+                       const VectorOfShares& goodSubset,
+                       bool checkRoot);
 
-void runBatchVerificationTest(int k, int n, int maxShares,
+void runBatchVerificationTest(int k,
+                              int n,
+                              int maxShares,
                               int numBadShares = 0) {
   testAssertLessThanOrEqual(numBadShares, k);
   testAssertLessThanOrEqual(k, n);
@@ -98,23 +103,26 @@ void runBatchVerificationTest(int k, int n, int maxShares,
   g1_map(msgPoint, buf, msgLen);
 
   // logdbg << "Verifying starting from root..." << std::endl;
-  batchVerifyHelper(batchVer, numBadShares, msgPoint, badSubset, goodSubset,
-                    true);
+  batchVerifyHelper(
+      batchVer, numBadShares, msgPoint, badSubset, goodSubset, true);
 
   if (numBadShares > 0) {
     // logdbg << "Verifying but skipping root (since we have bad shares)..." <<
     // std::endl;
-    batchVerifyHelper(batchVer, numBadShares, msgPoint, badSubset, goodSubset,
-                      false);
+    batchVerifyHelper(
+        batchVer, numBadShares, msgPoint, badSubset, goodSubset, false);
   }
 
   for (IThresholdSigner* signer : signers) delete signer;
   delete verifierTemp;
 }
 
-void batchVerifyHelper(BlsBatchVerifier& ver, int numBadShares,
-                       const G1T& msgPoint, const VectorOfShares& badSubset,
-                       const VectorOfShares& goodSubset, bool checkRoot) {
+void batchVerifyHelper(BlsBatchVerifier& ver,
+                       int numBadShares,
+                       const G1T& msgPoint,
+                       const VectorOfShares& badSubset,
+                       const VectorOfShares& goodSubset,
+                       bool checkRoot) {
   std::vector<ShareID> badShares;
   std::vector<ShareID> goodShares;
 
@@ -153,7 +161,8 @@ void batchVerifyHelper(BlsBatchVerifier& ver, int numBadShares,
 #ifdef TRACE
   if (numBadShares > 0) {
     std::cout << "Found all " << numBadShares << " bad shares: ";
-    std::copy(badShares.begin(), badShares.end(),
+    std::copy(badShares.begin(),
+              badShares.end(),
               std::ostream_iterator<ShareID>(std::cout, " "));
     std::cout << endl;
   }

@@ -31,7 +31,9 @@ bool Utils::fileExists(const std::string& file) {
   return fin.good();
 }
 
-void Utils::bin2hex(const void* bin, int binLen, char* hexBuf,
+void Utils::bin2hex(const void* bin,
+                    int binLen,
+                    char* hexBuf,
                     int hexBufCapacity) {
   int needed = binLen * 2 + 1;
   static const char hex[] = "0123456789abcdef";
@@ -66,12 +68,15 @@ std::string Utils::bin2hex(const void* bin, int binLen) {
   return hexStr;
 }
 
-void Utils::hex2bin(const std::string& hexStr, unsigned char* bin,
+void Utils::hex2bin(const std::string& hexStr,
+                    unsigned char* bin,
                     int binCapacity) {
   hex2bin(hexStr.c_str(), static_cast<int>(hexStr.size()), bin, binCapacity);
 }
 
-void Utils::hex2bin(const char* hexBuf, int hexBufLen, unsigned char* bin,
+void Utils::hex2bin(const char* hexBuf,
+                    int hexBufLen,
+                    unsigned char* bin,
                     int binCapacity) {
   assertNotNull(hexBuf);
   assertNotNull(bin);

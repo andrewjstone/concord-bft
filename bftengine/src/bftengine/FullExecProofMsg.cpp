@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -17,12 +18,16 @@
 namespace bftEngine {
 namespace impl {
 
-FullExecProofMsg::FullExecProofMsg(ReplicaId senderId, NodeIdType clientId,
-                                   ReqId requestId, uint16_t sigLength,
-                                   const char* root, uint16_t rootLength,
+FullExecProofMsg::FullExecProofMsg(ReplicaId senderId,
+                                   NodeIdType clientId,
+                                   ReqId requestId,
+                                   uint16_t sigLength,
+                                   const char* root,
+                                   uint16_t rootLength,
                                    const char* executionProof,
                                    uint16_t proofLength)
-    : MessageBase(senderId, MsgCode::FullExecProof,
+    : MessageBase(senderId,
+                  MsgCode::FullExecProof,
                   sizeof(FullExecProofMsgHeader) + sigLength + rootLength +
                       proofLength) {
   b()->isNotReady = 1;  // message is not ready
@@ -33,15 +38,21 @@ FullExecProofMsg::FullExecProofMsg(ReplicaId senderId, NodeIdType clientId,
   b()->executionProofLength = proofLength;
 
   memcpy(body() + sizeof(FullExecProofMsgHeader), root, rootLength);
-  memcpy(body() + sizeof(FullExecProofMsgHeader) + rootLength, executionProof,
+  memcpy(body() + sizeof(FullExecProofMsgHeader) + rootLength,
+         executionProof,
          proofLength);
 }
 
-FullExecProofMsg::FullExecProofMsg(ReplicaId senderId, NodeIdType clientId,
-                                   const char* sig, uint16_t sigLength,
-                                   const char* root, uint16_t rootLength,
-                                   const char* readProof, uint16_t proofLength)
-    : MessageBase(senderId, MsgCode::FullExecProof,
+FullExecProofMsg::FullExecProofMsg(ReplicaId senderId,
+                                   NodeIdType clientId,
+                                   const char* sig,
+                                   uint16_t sigLength,
+                                   const char* root,
+                                   uint16_t rootLength,
+                                   const char* readProof,
+                                   uint16_t proofLength)
+    : MessageBase(senderId,
+                  MsgCode::FullExecProof,
                   sizeof(FullExecProofMsgHeader) + sigLength + rootLength +
                       proofLength) {
   b()->isNotReady = 0;  // message is ready
@@ -52,10 +63,12 @@ FullExecProofMsg::FullExecProofMsg(ReplicaId senderId, NodeIdType clientId,
   b()->executionProofLength = proofLength;
 
   memcpy(body() + sizeof(FullExecProofMsgHeader), root, rootLength);
-  memcpy(body() + sizeof(FullExecProofMsgHeader) + rootLength, readProof,
+  memcpy(body() + sizeof(FullExecProofMsgHeader) + rootLength,
+         readProof,
          proofLength);
   memcpy(body() + sizeof(FullExecProofMsgHeader) + rootLength + proofLength,
-         sig, sigLength);
+         sig,
+         sigLength);
 }
 
 void FullExecProofMsg::setSignature(const char* sig, uint16_t sigLength) {
@@ -63,14 +76,16 @@ void FullExecProofMsg::setSignature(const char* sig, uint16_t sigLength) {
 
   memcpy(body() + sizeof(FullExecProofMsgHeader) + b()->merkleRootLength +
              b()->executionProofLength,
-         sig, sigLength);
+         sig,
+         sigLength);
 
   b()->signatureLength = sigLength;
 
   b()->isNotReady = 0;  // message is ready now
 }
 
-bool FullExecProofMsg::ToActualMsgType(NodeIdType myId, MessageBase* inMsg,
+bool FullExecProofMsg::ToActualMsgType(NodeIdType myId,
+                                       MessageBase* inMsg,
                                        FullExecProofMsg*& outMsg) {
   Assert(inMsg->type() == MsgCode::FullExecProof);
   if (inMsg->size() < sizeof(FullExecProofMsgHeader)) return false;

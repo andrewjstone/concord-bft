@@ -21,7 +21,9 @@
 using std::endl;
 
 IThresholdSchemeBenchmark::IThresholdSchemeBenchmark(const IPublicParameters& p,
-                                                     int k, int n, int msgSize)
+                                                     int k,
+                                                     int n,
+                                                     int msgSize)
     : params(p),
       skBits(-1),
       pkBits(-1),

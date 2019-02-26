@@ -16,8 +16,11 @@
 #include <assert.h>
 
 namespace SimpleKVBC {
-bool copyToAndAdvance(char* _buf, size_t* _offset, size_t _maxOffset,
-                      char* _src, size_t _srcSize) {
+bool copyToAndAdvance(char* _buf,
+                      size_t* _offset,
+                      size_t _maxOffset,
+                      char* _src,
+                      size_t _srcSize) {
   assert(_buf != NULL);
   assert(_offset != NULL);
   assert(_src != NULL);

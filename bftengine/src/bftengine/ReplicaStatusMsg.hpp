@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -17,9 +18,12 @@ namespace bftEngine {
 namespace impl {
 class ReplicaStatusMsg : public MessageBase {
  public:
-  ReplicaStatusMsg(ReplicaId senderId, ViewNum viewNumber,
-                   SeqNum lastStableSeqNum, SeqNum lastExecutedSeqNum,
-                   bool viewIsActive, bool hasNewChangeMsg,
+  ReplicaStatusMsg(ReplicaId senderId,
+                   ViewNum viewNumber,
+                   SeqNum lastStableSeqNum,
+                   SeqNum lastExecutedSeqNum,
+                   bool viewIsActive,
+                   bool hasNewChangeMsg,
                    bool listOfPrePrepareMsgsInActiveWindow,
                    bool listOfMissingViewChangeMsgForViewChange,
                    bool listOfMissingPrePrepareMsgForViewChange);
@@ -52,7 +56,8 @@ class ReplicaStatusMsg : public MessageBase {
 
   void setMissingPrePrepareMsgForViewChange(SeqNum seqNum);
 
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, MessageBase* inMsg,
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              MessageBase* inMsg,
                               ReplicaStatusMsg*& outMsg);
 
  protected:

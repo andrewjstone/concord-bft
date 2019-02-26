@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -33,8 +34,11 @@ static std::set<ReplicaId> generateSetOfPeerReplicas_helpFunc(
   return retVal;
 }
 
-ReplicasInfo::ReplicasInfo(ReplicaId myId, const SigManager& sigManager,
-                           int16_t numberOfReplicas, int16_t fVal, int16_t cVal,
+ReplicasInfo::ReplicasInfo(ReplicaId myId,
+                           const SigManager& sigManager,
+                           int16_t numberOfReplicas,
+                           int16_t fVal,
+                           int16_t cVal,
                            bool dynamicCollectorForPartialProofs,
                            bool dynamicCollectorForExecutionProofs)
     : _myId{myId},
@@ -51,8 +55,11 @@ ReplicasInfo::ReplicasInfo(ReplicaId myId, const SigManager& sigManager,
 }
 
 bool ReplicasInfo::getCollectorsForPartialProofs(
-    const ReplicaId refReplica, const ViewNum v, const SeqNum seq,
-    int8_t* outNumOfCollectors, ReplicaId* outCollectorsArray) const {
+    const ReplicaId refReplica,
+    const ViewNum v,
+    const SeqNum seq,
+    int8_t* outNumOfCollectors,
+    ReplicaId* outCollectorsArray) const {
   // TODO(GG): should be based on an external function (should be part of the
   // configuration)
 
@@ -114,13 +121,16 @@ bool ReplicasInfo::getCollectorsForPartialProofs(
 }
 
 bool ReplicasInfo::getCollectorsForPartialProofs(
-    const ViewNum v, const SeqNum seq, int8_t* outNumOfCollectors,
+    const ViewNum v,
+    const SeqNum seq,
+    int8_t* outNumOfCollectors,
     ReplicaId* outCollectorsArray) const {
-  return getCollectorsForPartialProofs(_myId, v, seq, outNumOfCollectors,
-                                       outCollectorsArray);
+  return getCollectorsForPartialProofs(
+      _myId, v, seq, outNumOfCollectors, outCollectorsArray);
 }
 
-bool ReplicasInfo::getExecutionCollectors(const ViewNum v, const SeqNum seq,
+bool ReplicasInfo::getExecutionCollectors(const ViewNum v,
+                                          const SeqNum seq,
                                           int8_t* outNumOfCollectors,
                                           ReplicaId* outCollectorsArray) const {
   // TODO(GG): should be based on an external function (should be part of the
@@ -136,8 +146,8 @@ bool ReplicasInfo::getExecutionCollectors(const ViewNum v, const SeqNum seq,
     return (collector == _myId);
   } else {
     // TODO(GG): update ....
-    return getCollectorsForPartialProofs(v, seq, outNumOfCollectors,
-                                         outCollectorsArray);
+    return getCollectorsForPartialProofs(
+        v, seq, outNumOfCollectors, outCollectorsArray);
   }
 }
 

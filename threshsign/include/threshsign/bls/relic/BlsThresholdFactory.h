@@ -81,7 +81,8 @@ class BlsThresholdFactory : public IThresholdFactory {
    * shares, assemble the threshold signature and verify it as well
    */
   virtual IThresholdVerifier* newVerifier(
-      NumSharesType reqSigners, NumSharesType numSigners,
+      NumSharesType reqSigners,
+      NumSharesType numSigners,
       const char* publicKeyStr,
       const std::vector<std::string>& verifKeysStr) const;
 

@@ -27,10 +27,12 @@ namespace BLS {
 namespace Relic {
 
 BlsMultisigAccumulator::BlsMultisigAccumulator(
-    const std::vector<BlsPublicKey>& verifKeys, NumSharesType reqSigners,
-    NumSharesType totalSigners, bool withShareVerification)
-    : BlsAccumulatorBase(verifKeys, reqSigners, totalSigners,
-                         withShareVerification) {}
+    const std::vector<BlsPublicKey>& verifKeys,
+    NumSharesType reqSigners,
+    NumSharesType totalSigners,
+    bool withShareVerification)
+    : BlsAccumulatorBase(
+          verifKeys, reqSigners, totalSigners, withShareVerification) {}
 
 void BlsMultisigAccumulator::getFullSignedData(char* outThreshSig,
                                                int threshSigLen) {

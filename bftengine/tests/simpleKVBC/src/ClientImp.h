@@ -28,7 +28,8 @@ class ClientImp : public IClient {
 
   virtual bool isRunning();
 
-  virtual Status invokeCommandSynch(const Slice command, bool isReadOnly,
+  virtual Status invokeCommandSynch(const Slice command,
+                                    bool isReadOnly,
                                     Slice& outReply);
 
   virtual Status release(

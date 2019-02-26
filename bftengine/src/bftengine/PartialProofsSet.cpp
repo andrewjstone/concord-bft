@@ -4,7 +4,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -187,10 +188,11 @@ bool PartialProofsSet::addMsg(FullCommitProofMsg* m) {
     return false;
   }
 
-  bool succ =
-      thresholdVerifier(myPCP->commitPath())
-          ->verify((const char*)&expectedDigest, sizeof(Digest),
-                   m->thresholSignature(), m->thresholSignatureLength());
+  bool succ = thresholdVerifier(myPCP->commitPath())
+                  ->verify((const char*)&expectedDigest,
+                           sizeof(Digest),
+                           m->thresholSignature(),
+                           m->thresholSignatureLength());
 
   if (succ) {
     fullCommitProof = m;
@@ -232,8 +234,10 @@ class AsynchProofCreationJob : public SimpleThreadPool::Job {
  public:
   AsynchProofCreationJob(InternalReplicaApi* myReplica,
                          IThresholdVerifier* verifier,
-                         IThresholdAccumulator* acc, Digest& expectedDigest,
-                         SeqNum seqNumber, ViewNum viewNumber) {
+                         IThresholdAccumulator* acc,
+                         Digest& expectedDigest,
+                         SeqNum seqNumber,
+                         ViewNum viewNumber) {
     this->me = myReplica;
     this->acc = acc;
     this->expectedDigest = expectedDigest;
@@ -259,20 +263,24 @@ class AsynchProofCreationJob : public SimpleThreadPool::Job {
     size_t sigLength = verifier->requiredLengthForSignedData();
 
     //		if (sigLength > sizeof(bufferForSigComputations) || sigLength >
-    //UINT16_MAX || sigLength == 0)
+    // UINT16_MAX || sigLength == 0)
     if (sigLength > UINT16_MAX || sigLength == 0) {
-      LOG_WARN_F(GL, "Unable to create FullProof for seqNumber %" PRId64 "",
+      LOG_WARN_F(GL,
+                 "Unable to create FullProof for seqNumber %" PRId64 "",
                  seqNumber);
       return;
     }
 
     acc->getFullSignedData(bufferForSigComputations, sigLength);
 
-    bool succ = verifier->verify((char*)&expectedDigest, sizeof(Digest),
-                                 bufferForSigComputations, (uint16_t)sigLength);
+    bool succ = verifier->verify((char*)&expectedDigest,
+                                 sizeof(Digest),
+                                 bufferForSigComputations,
+                                 (uint16_t)sigLength);
 
     if (!succ) {
-      LOG_WARN_F(GL, "Failed to create FullProof for seqNumber %" PRId64 "",
+      LOG_WARN_F(GL,
+                 "Failed to create FullProof for seqNumber %" PRId64 "",
                  seqNumber);
       LOG_INFO_F(GL,
                  "PartialProofsSet::AsynchProofCreationJob::execute - end (for "
@@ -281,8 +289,11 @@ class AsynchProofCreationJob : public SimpleThreadPool::Job {
       return;
     } else {
       FullCommitProofMsg* fcpMsg =
-          new FullCommitProofMsg(me->getReplicasInfo().myId(), view, seqNumber,
-                                 bufferForSigComputations, (uint16_t)sigLength);
+          new FullCommitProofMsg(me->getReplicasInfo().myId(),
+                                 view,
+                                 seqNumber,
+                                 bufferForSigComputations,
+                                 (uint16_t)sigLength);
 
       //			me->sendToAllOtherReplicas(fcpMsg);
 
@@ -337,15 +348,20 @@ void PartialProofsSet::tryToCreateFullProof() {
 
     PartialCommitProofMsg* myPCP = selfPartialCommitProof;
 
-    AsynchProofCreationJob* j = new AsynchProofCreationJob(
-        replica, thresholdVerifier(cPath), acc, expectedDigest,
-        myPCP->seqNumber(), myPCP->viewNumber());
+    AsynchProofCreationJob* j =
+        new AsynchProofCreationJob(replica,
+                                   thresholdVerifier(cPath),
+                                   acc,
+                                   expectedDigest,
+                                   myPCP->seqNumber(),
+                                   myPCP->viewNumber());
 
     replica->getInternalThreadPool().add(j);
 
-    LOG_INFO_F(
-        GL, "PartialProofsSet - send to BK thread (for seqNumber %" PRId64 ")",
-        seqNumber);
+    LOG_INFO_F(GL,
+               "PartialProofsSet - send to BK thread (for seqNumber %" PRId64
+               ")",
+               seqNumber);
   }
 }
 

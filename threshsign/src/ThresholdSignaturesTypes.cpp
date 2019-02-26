@@ -21,9 +21,10 @@
 
 Cryptosystem::Cryptosystem(const std::string& sysType,
                            const std::string& sysSubtype,
-                           uint16_t sysNumSigners, uint16_t sysThreshold) {
-  if (!isValidCryptosystemSelection(sysType, sysSubtype, sysNumSigners,
-                                    sysThreshold)) {
+                           uint16_t sysNumSigners,
+                           uint16_t sysThreshold) {
+  if (!isValidCryptosystemSelection(
+          sysType, sysSubtype, sysNumSigners, sysThreshold)) {
     throw InvalidCryptosystemException(
         "Invalid cryptosystem selection:"
         " primary type: " +

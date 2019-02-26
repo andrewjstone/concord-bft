@@ -40,7 +40,8 @@ namespace impl {
 
 class BCStateTran : public IStateTransfer {
  public:
-  BCStateTran(const bool persistentDataStore, const Config& config,
+  BCStateTran(const bool persistentDataStore,
+              const Config& config,
               IAppState* const stateApi);
 
   ~BCStateTran() override;
@@ -72,15 +73,18 @@ class BCStateTran : public IStateTransfer {
 
   uint32_t sizeOfReservedPage() const override;
 
-  bool loadReservedPage(uint32_t reservedPageId, uint32_t copyLength,
+  bool loadReservedPage(uint32_t reservedPageId,
+                        uint32_t copyLength,
                         char* outReservedPage) const override;
 
-  void saveReservedPage(uint32_t reservedPageId, uint32_t copyLength,
+  void saveReservedPage(uint32_t reservedPageId,
+                        uint32_t copyLength,
                         const char* inReservedPage) override;
   void zeroReservedPage(uint32_t reservedPageId) override;
 
   void onTimer() override;
-  void handleStateTransferMessage(char* msg, uint32_t msgLen,
+  void handleStateTransferMessage(char* msg,
+                                  uint32_t msgLen,
                                   uint16_t senderId) override;
 
  protected:
@@ -194,14 +198,18 @@ class BCStateTran : public IStateTransfer {
   // Message handlers
   ///////////////////////////////////////////////////////////////////////////
 
-  bool onMessage(const AskForCheckpointSummariesMsg* m, uint32_t msgLen,
+  bool onMessage(const AskForCheckpointSummariesMsg* m,
+                 uint32_t msgLen,
                  uint16_t replicaId);
-  bool onMessage(const CheckpointSummaryMsg* m, uint32_t msgLen,
+  bool onMessage(const CheckpointSummaryMsg* m,
+                 uint32_t msgLen,
                  uint16_t replicaId);
   bool onMessage(const FetchBlocksMsg* m, uint32_t msgLen, uint16_t replicaId);
-  bool onMessage(const FetchResPagesMsg* m, uint32_t msgLen,
+  bool onMessage(const FetchResPagesMsg* m,
+                 uint32_t msgLen,
                  uint16_t replicaId);
-  bool onMessage(const RejectFetchingMsg* m, uint32_t msgLen,
+  bool onMessage(const RejectFetchingMsg* m,
+                 uint32_t msgLen,
                  uint16_t replicaId);
   bool onMessage(const ItemDataMsg* m, uint32_t msgLen, uint16_t replicaId);
 
@@ -238,7 +246,10 @@ class BCStateTran : public IStateTransfer {
   uint64_t lastTimeSentAskForCheckpointSummariesMsg = 0;
   uint16_t retransmissionNumberOfAskForCheckpointSummariesMsg = 0;
 
-  typedef MsgsCertificate<CheckpointSummaryMsg, false, false, true,
+  typedef MsgsCertificate<CheckpointSummaryMsg,
+                          false,
+                          false,
+                          true,
                           CheckpointSummaryMsg>
       CheckpointSummaryMsgCert;
 
@@ -281,15 +292,21 @@ class BCStateTran : public IStateTransfer {
 
   void clearAllPendingItemsData();
   void clearPendingItemsData(uint64_t untilBlock);
-  bool getNextFullBlock(uint64_t requiredBlock, bool& outBadDataDetected,
-                        int16_t& outLastChunkInRequiredBlock, char* outBlock,
-                        uint32_t& outBlockSize, bool isVBLock);
+  bool getNextFullBlock(uint64_t requiredBlock,
+                        bool& outBadDataDetected,
+                        int16_t& outLastChunkInRequiredBlock,
+                        char* outBlock,
+                        uint32_t& outBlockSize,
+                        bool isVBLock);
 
-  bool checkBlock(uint64_t blockNum, const STDigest& expectedBlockDigest,
-                  char* block, uint32_t blockSize) const;
+  bool checkBlock(uint64_t blockNum,
+                  const STDigest& expectedBlockDigest,
+                  char* block,
+                  uint32_t blockSize) const;
 
   bool checkVirtualBlockOfResPages(
-      const STDigest& expectedDigestOfResPagesDescriptor, char* vblock,
+      const STDigest& expectedDigestOfResPagesDescriptor,
+      char* vblock,
       uint32_t vblockSize) const;
 
   uint16_t selectSourceReplica();
@@ -309,12 +326,14 @@ class BCStateTran : public IStateTransfer {
 
   static void computeDigestOfPage(const uint32_t pageId,
                                   const uint64_t checkpointNumber,
-                                  const char* page, STDigest& outDigest);
+                                  const char* page,
+                                  STDigest& outDigest);
 
   static void computeDigestOfPagesDescriptor(
       const DataStore::ResPagesDescriptor* pagesDesc, STDigest& outDigest);
 
-  static void computeDigestOfBlock(const uint64_t blockNum, const char* block,
+  static void computeDigestOfBlock(const uint64_t blockNum,
+                                   const char* block,
                                    const uint32_t blockSize,
                                    STDigest* outDigest);
 };

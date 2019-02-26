@@ -51,6 +51,7 @@ struct EqualKeyValuePair {
 // SetOfKeyValuePairs
 // In this set each key is unique (see HelpFuncs::EqualKeyValuePair)
 class SetOfKeyValuePairs
-    : public std::unordered_set<KeyValuePair, HelpFuncs::HashKeyValuePair,
+    : public std::unordered_set<KeyValuePair,
+                                HelpFuncs::HashKeyValuePair,
                                 HelpFuncs::EqualKeyValuePair> {};
 }  // namespace SimpleKVBC

@@ -54,9 +54,11 @@ using bftEngine::SeqNumberGeneratorForClientRequests;
 using bftEngine::SimpleClient;
 
 // Declarations of functions form config.cpp.
-extern PlainUdpConfig getUDPConfig(uint16_t id, int numOfClients,
+extern PlainUdpConfig getUDPConfig(uint16_t id,
+                                   int numOfClients,
                                    int numOfReplicas);
-extern PlainTcpConfig getTCPConfig(uint16_t id, int numOfClients,
+extern PlainTcpConfig getTCPConfig(uint16_t id,
+                                   int numOfClients,
                                    int numOfReplicas);
 
 concordlogger::Logger clientLogger =
@@ -79,7 +81,9 @@ struct ClientParams {
   uint16_t numOfSlow = 0;
 };
 
-void parse_params(int argc, char** argv, ClientParams& cp,
+void parse_params(int argc,
+                  char** argv,
+                  ClientParams& cp,
                   bftEngine::SimpleClientParams& scp) {
   if (argc < 2) return;
 
@@ -101,40 +105,40 @@ void parse_params(int argc, char** argv, ClientParams& cp,
       } else if (p == "-id") {
         auto clId = std::stoi(argv[i + 1]);
         if (clId < min16_t_u || clId > max16_t_u) {
-          printf("-id value is out of range (%hu - %hu)\n", min16_t_u,
-                 max16_t_u);
+          printf(
+              "-id value is out of range (%hu - %hu)\n", min16_t_u, max16_t_u);
           exit(-1);
         }
         cp.clientId = (uint16_t)clId;
       } else if (p == "-r") {
         auto numRep = std::stoi(argv[i + 1]);
         if (numRep < min16_t_u || numRep > max16_t_u) {
-          printf("-r value is out of range (%hu - %hu)\n", min16_t_u,
-                 max16_t_u);
+          printf(
+              "-r value is out of range (%hu - %hu)\n", min16_t_u, max16_t_u);
           exit(-1);
         }
         cp.numOfReplicas = (uint16_t)numRep;
       } else if (p == "-cl") {
         auto numCl = std::stoi(argv[i + 1]);
         if (numCl < min16_t_u || numCl > max16_t_u) {
-          printf("-cl value is out of range (%hu - %hu)\n", min16_t_u,
-                 max16_t_u);
+          printf(
+              "-cl value is out of range (%hu - %hu)\n", min16_t_u, max16_t_u);
           exit(-1);
         }
         cp.numOfClients = (uint16_t)numCl;
       } else if (p == "-c") {
         auto numSlow = std::stoi(argv[i + 1]);
         if (numSlow < min16_t_u || numSlow > max16_t_u) {
-          printf("-c value is out of range (%hu - %hu)\n", min16_t_u,
-                 max16_t_u);
+          printf(
+              "-c value is out of range (%hu - %hu)\n", min16_t_u, max16_t_u);
           exit(-1);
         }
         cp.numOfSlow = (uint16_t)numSlow;
       } else if (p == "-f") {
         auto numF = std::stoi(argv[i + 1]);
         if (numF < min16_t_u || numF > max16_t_u) {
-          printf("-f value is out of range (%hu - %hu)\n", min16_t_u,
-                 max16_t_u);
+          printf(
+              "-f value is out of range (%hu - %hu)\n", min16_t_u, max16_t_u);
           exit(-1);
         }
         cp.numOfFaulty = (uint16_t)numF;
@@ -147,7 +151,8 @@ void parse_params(int argc, char** argv, ClientParams& cp,
       } else if (p == "-srft") {
         auto srft = std::stoi(argv[i + 1]);
         if (srft < min16_t_u || srft > max16_t_u) {
-          printf("-srft value is out of range (%hu - %hu)\n", min16_t_u,
+          printf("-srft value is out of range (%hu - %hu)\n",
+                 min16_t_u,
                  max16_t_u);
           exit(-1);
         }
@@ -155,7 +160,8 @@ void parse_params(int argc, char** argv, ClientParams& cp,
       } else if (p == "-srpt") {
         auto srpt = std::stoi(argv[i + 1]);
         if (srpt < min16_t_u || srpt > max16_t_u) {
-          printf("-srpt value is out of range (%hu - %hu)\n", min16_t_u,
+          printf("-srpt value is out of range (%hu - %hu)\n",
+                 min16_t_u,
                  max16_t_u);
           exit(-1);
         }
@@ -163,8 +169,8 @@ void parse_params(int argc, char** argv, ClientParams& cp,
       } else if (p == "-prt") {
         auto prt = std::stoi(argv[i + 1]);
         if (prt < min16_t_u || prt > max16_t_u) {
-          printf("-prt value is out of range (%hu - %hu)\n", min16_t_u,
-                 max16_t_u);
+          printf(
+              "-prt value is out of range (%hu - %hu)\n", min16_t_u, max16_t_u);
           exit(-1);
         }
         scp.clientPeriodicResetThresh = (uint16_t)prt;
@@ -294,9 +300,14 @@ int main(int argc, char** argv) {
       char replyBuffer[kReplyBufferLength];
       uint32_t actualReplyLength = 0;
 
-      client->sendRequest(readOnly, rawRequestBuffer, rawRequestLength,
-                          requestSequenceNumber, timeout, kReplyBufferLength,
-                          replyBuffer, actualReplyLength);
+      client->sendRequest(readOnly,
+                          rawRequestBuffer,
+                          rawRequestLength,
+                          requestSequenceNumber,
+                          timeout,
+                          kReplyBufferLength,
+                          replyBuffer,
+                          actualReplyLength);
 
       // Read should respond with eight bytes of data.
       test_assert(actualReplyLength == sizeof(uint64_t),
@@ -332,9 +343,14 @@ int main(int argc, char** argv) {
       char replyBuffer[kReplyBufferLength];
       uint32_t actualReplyLength = 0;
 
-      client->sendRequest(readOnly, rawRequestBuffer, rawRequestLength,
-                          requestSequenceNumber, timeout, kReplyBufferLength,
-                          replyBuffer, actualReplyLength);
+      client->sendRequest(readOnly,
+                          rawRequestBuffer,
+                          rawRequestLength,
+                          requestSequenceNumber,
+                          timeout,
+                          kReplyBufferLength,
+                          replyBuffer,
+                          actualReplyLength);
 
       // We can now check the expected value on the next read.
       hasExpectedLastValue = true;

@@ -32,7 +32,9 @@ class IThresholdVerifier {
       bool withShareVerification) const = 0;
   virtual void release(IThresholdAccumulator* acc) = 0;
 
-  virtual bool verify(const char* msg, int msgLen, const char* sig,
+  virtual bool verify(const char* msg,
+                      int msgLen,
+                      const char* sig,
                       int sigLen) const = 0;
   virtual int requiredLengthForSignedData() const = 0;
 

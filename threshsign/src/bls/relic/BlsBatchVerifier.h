@@ -338,10 +338,13 @@ class BlsBatchVerifier {
    * construct, then we know the root aggregated signature is invalid so we can
    * skip it.
    */
-  bool batchVerify(const G1T& msg, bool wantBadShares,
-                   std::vector<ShareID>& shares, bool checkRoot);
+  bool batchVerify(const G1T& msg,
+                   bool wantBadShares,
+                   std::vector<ShareID>& shares,
+                   bool checkRoot);
 
-  bool batchVerifyRecursive(int node, bool wantBadShares,
+  bool batchVerifyRecursive(int node,
+                            bool wantBadShares,
                             std::vector<ShareID>& shares);
 };
 

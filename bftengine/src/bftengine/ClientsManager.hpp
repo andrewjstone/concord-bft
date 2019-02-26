@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -28,7 +29,8 @@ class ClientRequestMsg;
 
 class ClientsManager {
  public:
-  ClientsManager(ReplicaId myId, std::set<NodeIdType>& clientsSet,
+  ClientsManager(ReplicaId myId,
+                 std::set<NodeIdType>& clientsSet,
                  uint32_t sizeOfReservedPage);
   ~ClientsManager();
 
@@ -50,12 +52,16 @@ class ClientsManager {
 
   bool isValidClient(NodeIdType clientId) const;
 
-  void getInfoAboutLastReplyToClient(NodeIdType clientId, ReqId& outseqNumber,
+  void getInfoAboutLastReplyToClient(NodeIdType clientId,
+                                     ReqId& outseqNumber,
                                      Time& outSentTime);
 
   ClientReplyMsg* allocateNewReplyMsgAndWriteToStorage(
-      NodeIdType clientId, ReqId requestSeqNum, uint16_t currentPrimaryId,
-      char* reply, uint32_t replyLength);
+      NodeIdType clientId,
+      ReqId requestSeqNum,
+      uint16_t currentPrimaryId,
+      char* reply,
+      uint32_t replyLength);
 
   ClientReplyMsg* allocateMsgWithLatestReply(NodeIdType clientId,
                                              uint16_t currentPrimaryId);

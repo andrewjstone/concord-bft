@@ -24,7 +24,9 @@ class IThresholdSigner {
 
  public:
   virtual int requiredLengthForSignedData() const = 0;
-  virtual void signData(const char* hash, int hashLen, char* outSig,
+  virtual void signData(const char* hash,
+                        int hashLen,
+                        char* outSig,
                         int outSigLen) = 0;
 
   virtual const IShareSecretKey& getShareSecretKey() const = 0;

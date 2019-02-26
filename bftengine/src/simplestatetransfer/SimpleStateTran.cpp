@@ -21,13 +21,16 @@
 #include "SimpleBCStateTransfer.hpp"
 #include "Logging.hpp"
 
-#define Assert(expr)                                                          \
-  {                                                                           \
-    if ((expr) != true) {                                                     \
-      STLogger.error("'%s' is NOT true (in function '%s' in %s:%d)\n", #expr, \
-                     __FUNCTION__, __FILE__, __LINE__);                       \
-      assert(false);                                                          \
-    }                                                                         \
+#define Assert(expr)                                                   \
+  {                                                                    \
+    if ((expr) != true) {                                              \
+      STLogger.error("'%s' is NOT true (in function '%s' in %s:%d)\n", \
+                     #expr,                                            \
+                     __FUNCTION__,                                     \
+                     __FILE__,                                         \
+                     __LINE__);                                        \
+      assert(false);                                                   \
+    }                                                                  \
   }
 
 namespace bftEngine {
@@ -41,8 +44,12 @@ concordlogger::Logger STLogger =
 
 class SimpleStateTran : public ISimpleInMemoryStateTransfer {
  public:
-  SimpleStateTran(char* ptrToState, uint32_t sizeOfState, uint16_t myReplicaId,
-                  uint16_t fVal, uint16_t cVal, bool pedanticChecks);
+  SimpleStateTran(char* ptrToState,
+                  uint32_t sizeOfState,
+                  uint16_t myReplicaId,
+                  uint16_t fVal,
+                  uint16_t cVal,
+                  bool pedanticChecks);
 
   virtual ~SimpleStateTran();
 
@@ -76,17 +83,20 @@ class SimpleStateTran : public ISimpleInMemoryStateTransfer {
 
   uint32_t sizeOfReservedPage() const override;
 
-  bool loadReservedPage(uint32_t reservedPageId, uint32_t copyLength,
+  bool loadReservedPage(uint32_t reservedPageId,
+                        uint32_t copyLength,
                         char* outReservedPage) const override;
 
-  void saveReservedPage(uint32_t reservedPageId, uint32_t copyLength,
+  void saveReservedPage(uint32_t reservedPageId,
+                        uint32_t copyLength,
                         const char* inReservedPage) override;
 
   void zeroReservedPage(uint32_t reservedPageId) override;
 
   void onTimer() override;
 
-  void handleStateTransferMessage(char* msg, uint32_t msgLen,
+  void handleStateTransferMessage(char* msg,
+                                  uint32_t msgLen,
                                   uint16_t senderId) override;
 
   //////////////////////////////////////////////////////////////////////////
@@ -109,7 +119,8 @@ class SimpleStateTran : public ISimpleInMemoryStateTransfer {
 
     bool hasBlock(uint64_t blockId) override;
 
-    bool getBlock(uint64_t blockId, char* outBlock,
+    bool getBlock(uint64_t blockId,
+                  char* outBlock,
                   uint32_t* outBlockSize) override;
 
     bool getPrevDigestFromBlock(
@@ -148,7 +159,8 @@ class SimpleStateTran : public ISimpleInMemoryStateTransfer {
       realInterface_->freeStateTransferMsg(m);
     }
 
-    void sendStateTransferMessage(char* m, uint32_t size,
+    void sendStateTransferMessage(char* m,
+                                  uint32_t size,
                                   uint16_t replicaId) override {
       realInterface_->sendStateTransferMessage(m, size, replicaId);
     }
@@ -279,22 +291,32 @@ class SimpleStateTran : public ISimpleInMemoryStateTransfer {
 
 }  // namespace impl
 
-ISimpleInMemoryStateTransfer* create(void* ptrToState, uint32_t sizeOfState,
-                                     uint16_t myReplicaId, uint16_t fVal,
-                                     uint16_t cVal, bool pedanticChecks) {
+ISimpleInMemoryStateTransfer* create(void* ptrToState,
+                                     uint32_t sizeOfState,
+                                     uint16_t myReplicaId,
+                                     uint16_t fVal,
+                                     uint16_t cVal,
+                                     bool pedanticChecks) {
   // TODO(GG): check arguments
 
-  ISimpleInMemoryStateTransfer* retVal = new impl::SimpleStateTran(
-      reinterpret_cast<char*>(ptrToState), sizeOfState, myReplicaId, fVal, cVal,
-      pedanticChecks);
+  ISimpleInMemoryStateTransfer* retVal =
+      new impl::SimpleStateTran(reinterpret_cast<char*>(ptrToState),
+                                sizeOfState,
+                                myReplicaId,
+                                fVal,
+                                cVal,
+                                pedanticChecks);
 
   return retVal;
 }
 
 namespace impl {
-SimpleStateTran::SimpleStateTran(char* ptrToState, uint32_t sizeOfState,
-                                 uint16_t myReplicaId, uint16_t fVal,
-                                 uint16_t cVal, bool pedanticChecks)
+SimpleStateTran::SimpleStateTran(char* ptrToState,
+                                 uint32_t sizeOfState,
+                                 uint16_t myReplicaId,
+                                 uint16_t fVal,
+                                 uint16_t cVal,
+                                 bool pedanticChecks)
     : ptrToState_{ptrToState}, sizeOfState_{sizeOfState} {
   SimpleBlockchainStateTransfer::Config config;
 
@@ -369,8 +391,8 @@ void SimpleStateTran::init(uint64_t maxNumOfRequiredStoredCheckpoints,
 
   // init internalST_
 
-  internalST_->init(maxNumOfRequiredStoredCheckpoints, totalNumberOfPages(),
-                    pageSize_);
+  internalST_->init(
+      maxNumOfRequiredStoredCheckpoints, totalNumberOfPages(), pageSize_);
 
   Assert(numberOfResPages_ == (internalST_->numberOfReservedPages() -
                                numberOfAppPages_ - numberOfMetadataPages_));
@@ -438,8 +460,8 @@ void SimpleStateTran::createCheckpointOfCurrentState(
   for (std::pair<uint32_t, std::set<uint32_t> > g : pagesMap) {
     Assert(g.first < numberOfMetadataPages_);
 
-    internalST_->loadReservedPage(medataPageToInternalPage(g.first), pageSize_,
-                                  tempBuffer_);
+    internalST_->loadReservedPage(
+        medataPageToInternalPage(g.first), pageSize_, tempBuffer_);
 
     MetadataDesc* descsArray = reinterpret_cast<MetadataDesc*>(tempBuffer_);
 
@@ -453,8 +475,8 @@ void SimpleStateTran::createCheckpointOfCurrentState(
       char* beginPage =
           (reinterpret_cast<char*>(ptrToState_)) + (appPage * pageSize_);
 
-      internalST_->saveReservedPage(appPageToInternalPage(appPage), copyLength,
-                                    beginPage);
+      internalST_->saveReservedPage(
+          appPageToInternalPage(appPage), copyLength, beginPage);
 
       uint32_t mIndex = findIndexInMetadataPage(appPage);
 
@@ -464,8 +486,8 @@ void SimpleStateTran::createCheckpointOfCurrentState(
       descsArray[mIndex].checkpointNumberOfLastUpdate = checkpointNumber;
     }
 
-    internalST_->saveReservedPage(medataPageToInternalPage(g.first), pageSize_,
-                                  tempBuffer_);
+    internalST_->saveReservedPage(
+        medataPageToInternalPage(g.first), pageSize_, tempBuffer_);
   }
 
   updateAppPages_.clear();
@@ -489,8 +511,8 @@ void SimpleStateTran::getDigestOfCheckpoint(uint64_t checkpointNumber,
   Assert(internalST_->isRunning());
   Assert(checkpointNumber <= lastKnownCheckpoint);
 
-  internalST_->getDigestOfCheckpoint(checkpointNumber, sizeOfDigestBuffer,
-                                     outDigestBuffer);
+  internalST_->getDigestOfCheckpoint(
+      checkpointNumber, sizeOfDigestBuffer, outDigestBuffer);
 }
 
 void SimpleStateTran::startCollectingState() {
@@ -530,8 +552,8 @@ bool SimpleStateTran::loadReservedPage(uint32_t reservedPageId,
   Assert(internalST_->isRunning());
   Assert(reservedPageId < numberOfResPages_);
 
-  return internalST_->loadReservedPage(reservedPageId, copyLength,
-                                       outReservedPage);
+  return internalST_->loadReservedPage(
+      reservedPageId, copyLength, outReservedPage);
 }
 
 void SimpleStateTran::saveReservedPage(uint32_t reservedPageId,
@@ -556,7 +578,8 @@ void SimpleStateTran::onTimer() {
   internalST_->onTimer();
 }
 
-void SimpleStateTran::handleStateTransferMessage(char* msg, uint32_t msgLen,
+void SimpleStateTran::handleStateTransferMessage(char* msg,
+                                                 uint32_t msgLen,
                                                  uint16_t senderId) {
   Assert(isInitialized());
   Assert(internalST_->isRunning());
@@ -585,8 +608,8 @@ void SimpleStateTran::onComplete(int64_t checkpointNumberOfNewState) {
   Assert(updateAppPages_.empty());
 
   for (uint32_t mPage = 0; mPage < numberOfMetadataPages_; mPage++) {
-    internalST_->loadReservedPage(medataPageToInternalPage(mPage), pageSize_,
-                                  tempBuffer_);
+    internalST_->loadReservedPage(
+        medataPageToInternalPage(mPage), pageSize_, tempBuffer_);
 
     MetadataDesc* descsArray = reinterpret_cast<MetadataDesc*>(tempBuffer_);
 
@@ -604,8 +627,8 @@ void SimpleStateTran::onComplete(int64_t checkpointNumberOfNewState) {
         uint32_t size =
             (appPage == (numberOfAppPages_ - 1)) ? lastAppPageSize_ : pageSize_;
 
-        internalST_->loadReservedPage(appPageToInternalPage(appPage), size,
-                                      pagePtr);
+        internalST_->loadReservedPage(
+            appPageToInternalPage(appPage), size, pagePtr);
       }
     }
   }
@@ -615,7 +638,8 @@ void SimpleStateTran::onComplete(int64_t checkpointNumberOfNewState) {
 
 bool SimpleStateTran::DummyBDState::hasBlock(uint64_t blockId) { return false; }
 
-bool SimpleStateTran::DummyBDState::getBlock(uint64_t blockId, char* outBlock,
+bool SimpleStateTran::DummyBDState::getBlock(uint64_t blockId,
+                                             char* outBlock,
                                              uint32_t* outBlockSize) {
   Assert(false);
   return false;
@@ -628,7 +652,8 @@ bool SimpleStateTran::DummyBDState::getPrevDigestFromBlock(
   return false;
 }
 
-bool SimpleStateTran::DummyBDState::putBlock(uint64_t blockId, char* block,
+bool SimpleStateTran::DummyBDState::putBlock(uint64_t blockId,
+                                             char* block,
                                              uint32_t blockSize) {
   Assert(false);
   return false;

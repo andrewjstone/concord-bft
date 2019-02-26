@@ -163,7 +163,8 @@ Status BlockchainDBAdapter::updateKey(Key _key, BlockId _block, Value _value) {
  * stored.
  *  @return Status OK
  */
-Status BlockchainDBAdapter::getKeyByReadVersion(BlockId readVersion, Slice key,
+Status BlockchainDBAdapter::getKeyByReadVersion(BlockId readVersion,
+                                                Slice key,
                                                 Slice& outValue,
                                                 BlockId& outBlock) const {
   IDBClient::IDBClientIterator* iter = m_db->getIterator();
@@ -203,7 +204,8 @@ Status BlockchainDBAdapter::getKeyByReadVersion(BlockId readVersion, Slice key,
  *  @param _found true if lookup successful, else false.
  *  @return Status of the operation.
  */
-Status BlockchainDBAdapter::getBlockById(BlockId _blockId, Slice& _blockRaw,
+Status BlockchainDBAdapter::getBlockById(BlockId _blockId,
+                                         Slice& _blockRaw,
                                          bool& _found) const {
   Slice key = genBlockDbKey(_blockId);
   Status s = m_db->get(key, _blockRaw);
@@ -264,8 +266,10 @@ inline void CopyKey(Slice _src, Slice& _trg) {
  */
 Status BlockchainDBAdapter::first(IDBClient::IDBClientIterator* iter,
                                   BlockId readVersion,
-                                  OUT BlockId& actualVersion, OUT bool& isEnd,
-                                  OUT Slice& _key, OUT Slice& _value) {
+                                  OUT BlockId& actualVersion,
+                                  OUT bool& isEnd,
+                                  OUT Slice& _key,
+                                  OUT Slice& _value) {
   Key firstKey;
 
   KeyValuePair p = composedToSimple(iter->first());
@@ -355,9 +359,11 @@ Status BlockchainDBAdapter::first(IDBClient::IDBClientIterator* iter,
 // Only for data fields, i.e. E_DB_KEY_TYPE_KEY. It makes more sense to put data
 // second, and blocks first. Stupid optimization nevertheless
 Status BlockchainDBAdapter::seekAtLeast(IDBClient::IDBClientIterator* iter,
-                                        Slice _searchKey, BlockId _readVersion,
+                                        Slice _searchKey,
+                                        BlockId _readVersion,
                                         OUT BlockId& _actualVersion,
-                                        OUT Slice& _key, OUT Slice& _value,
+                                        OUT Slice& _key,
+                                        OUT Slice& _value,
                                         OUT bool& _isEnd) {
   Key searchKey = _searchKey;
   BlockId actualBlock;
@@ -438,8 +444,10 @@ Status BlockchainDBAdapter::seekAtLeast(IDBClient::IDBClientIterator* iter,
  *  @return Status OK.
  */
 Status BlockchainDBAdapter::next(IDBClient::IDBClientIterator* iter,
-                                 BlockId _readVersion, OUT Slice& _key,
-                                 OUT Slice& _value, OUT BlockId& _actualVersion,
+                                 BlockId _readVersion,
+                                 OUT Slice& _key,
+                                 OUT Slice& _value,
+                                 OUT BlockId& _actualVersion,
                                  OUT bool& _isEnd) {
   KeyValuePair p = composedToSimple(iter->getCurrent());
   Key currentKey = p.first;
@@ -513,7 +521,8 @@ Status BlockchainDBAdapter::next(IDBClient::IDBClientIterator* iter,
  *  @return Status OK.
  */
 Status BlockchainDBAdapter::getCurrent(IDBClient::IDBClientIterator* iter,
-                                       OUT Slice& _key, OUT Slice& _value) {
+                                       OUT Slice& _key,
+                                       OUT Slice& _value) {
   // Not calling to underlying DB iterator, because it may have next()'d during
   // seekAtLeast
   _key = m_current.first;

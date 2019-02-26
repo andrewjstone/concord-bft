@@ -30,7 +30,8 @@ class BlsMultisigAccumulator : public BlsAccumulatorBase {
  protected:
  public:
   BlsMultisigAccumulator(const std::vector<BlsPublicKey>& vks,
-                         NumSharesType reqSigners, NumSharesType totalSigners,
+                         NumSharesType reqSigners,
+                         NumSharesType totalSigners,
                          bool withShareVerification);
   virtual ~BlsMultisigAccumulator() {}
 

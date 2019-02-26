@@ -21,7 +21,8 @@
 namespace BLS {
 namespace Relic {
 
-BlsPolynomial::BlsPolynomial(const BNT& secret, int degree,
+BlsPolynomial::BlsPolynomial(const BNT& secret,
+                             int degree,
                              const BNT& fieldSize)
     : SecretSharingPolynomial<BNT>(secret, degree, fieldSize) {}
 

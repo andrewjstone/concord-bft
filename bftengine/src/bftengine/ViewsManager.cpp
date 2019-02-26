@@ -38,7 +38,10 @@ ViewsManager::ViewsManager(
   Assert(N == (3 * F + 2 * C + 1));
 
   viewChangeSafetyLogic =
-      new ViewChangeSafetyLogic(N, F, C, preparedCertificateVerifier,
+      new ViewChangeSafetyLogic(N,
+                                F,
+                                C,
+                                preparedCertificateVerifier,
                                 PrePrepareMsg::digestOfNullPrePrepareMsg());
 
   stat = Stat::IN_VIEW;
@@ -90,7 +93,8 @@ ViewsManager::~ViewsManager() {
     // delete messages from prePrepareMsgsOfRestrictions which are not in
     // collectionOfPrePrepareMsgs (we don't want to delete twice)
     for (SeqNum i = minRestrictionOfPendingView;
-         i <= maxRestrictionOfPendingView; i++) {
+         i <= maxRestrictionOfPendingView;
+         i++) {
       int64_t idx = (i - minRestrictionOfPendingView);
       if (prePrepareMsgsOfRestrictions[idx] == nullptr) continue;
       if (collectionOfPrePrepareMsgs.count(i) == 0 ||
@@ -267,7 +271,8 @@ SeqNum ViewsManager::stableLowerBoundWhenEnteredToView() const {
 }
 
 ViewChangeMsg* ViewsManager::exitFromCurrentView(
-    SeqNum currentLastStable, SeqNum currentLastExecuted,
+    SeqNum currentLastStable,
+    SeqNum currentLastExecuted,
     const std::vector<PrevViewInfo>& prevViewInfo) {
   Assert(stat == Stat::IN_VIEW);
   Assert(myLatestActiveView == myLatestPendingView);
@@ -337,8 +342,13 @@ ViewChangeMsg* ViewsManager::exitFromCurrentView(
       Assert(s == pf->seqNumber());
       Assert(pf->viewNumber() == myLatestActiveView);
 
-      myNewVC->addElement(*replicasInfo, s, digest, myLatestActiveView, true,
-                          myLatestActiveView, pf->signatureLen(),
+      myNewVC->addElement(*replicasInfo,
+                          s,
+                          digest,
+                          myLatestActiveView,
+                          true,
+                          myLatestActiveView,
+                          pf->signatureLen(),
                           pf->signatureBody());
     } else if ((preparedCertInPrev != nullptr) && allRequests) {
       // if we have a prepared certificate from previous VC + we didn't find a
@@ -352,15 +362,20 @@ ViewChangeMsg* ViewsManager::exitFromCurrentView(
       char* sig = reinterpret_cast<char*>(preparedCertInPrev) +
                   sizeof(ViewChangeMsg::PreparedCertificate);
 
-      myNewVC->addElement(*replicasInfo, s, digest, myLatestActiveView, true,
+      myNewVC->addElement(*replicasInfo,
+                          s,
+                          digest,
+                          myLatestActiveView,
+                          true,
                           preparedCertInPrev->certificateView,
-                          preparedCertInPrev->certificateSigLength, sig);
+                          preparedCertInPrev->certificateSigLength,
+                          sig);
     } else if (allRequests && !pp->isNull()) {
       // we don't add null-operation to a VC message, becuase our default for
       // non-safe operations is null-operation (notice that, in the above
       // lines, we still may add prepared certificate for null-op)
-      myNewVC->addElement(*replicasInfo, s, digest, myLatestActiveView, false,
-                          0, 0, nullptr);
+      myNewVC->addElement(
+          *replicasInfo, s, digest, myLatestActiveView, false, 0, 0, nullptr);
     } else {
       Assert((s > currentLastExecuted) || (pp->isNull()));
     }
@@ -387,7 +402,9 @@ ViewChangeMsg* ViewsManager::exitFromCurrentView(
 }
 
 bool ViewsManager::tryToEnterView(
-    ViewNum v, SeqNum currentLastStable, SeqNum currentLastExecuted,
+    ViewNum v,
+    SeqNum currentLastStable,
+    SeqNum currentLastExecuted,
     std::vector<PrePrepareMsg*>* outPrePrepareMsgsOfView) {
   Assert(stat != Stat::IN_VIEW);
   Assert(v > myLatestActiveView);
@@ -449,10 +466,12 @@ bool ViewsManager::tryToEnterView(
       printf("None\n");
     } else {
       for (SeqNum i = minRestrictionOfPendingView;
-           i <= maxRestrictionOfPendingView; i++) {
+           i <= maxRestrictionOfPendingView;
+           i++) {
         uint64_t idx = i - minRestrictionOfPendingView;
         printf("\n");
-        printf("Seqnum=%" PRId64 ", isNull=%d, digestPrefix=%d .     ", i,
+        printf("Seqnum=%" PRId64 ", isNull=%d, digestPrefix=%d .     ",
+               i,
                static_cast<int>(restrictionsOfPendingView[idx].isNull),
                *reinterpret_cast<int*>(
                    restrictionsOfPendingView[idx].digest.content()));
@@ -669,16 +688,19 @@ void ViewsManager::computeRestrictionsOfNewView(ViewNum v) {
 
   viewChangeSafetyLogic->computeRestrictions(
       // Inputs
-      viewChangeMsgsOfPendingView, lowerBoundStableForPendingView,
+      viewChangeMsgsOfPendingView,
+      lowerBoundStableForPendingView,
       // Outputs
-      minRestrictionOfPendingView, maxRestrictionOfPendingView,
+      minRestrictionOfPendingView,
+      maxRestrictionOfPendingView,
       restrictionsOfPendingView);
 
   // add items to prePrepareMsgsOfRestrictions
   // if we have restrictions
   if (minRestrictionOfPendingView != 0) {
     for (SeqNum i = minRestrictionOfPendingView;
-         i <= maxRestrictionOfPendingView; i++) {
+         i <= maxRestrictionOfPendingView;
+         i++) {
       const int64_t idx = (i - minRestrictionOfPendingView);
 
       Assert(idx < kWorkWindowSize);
@@ -753,7 +775,8 @@ void ViewsManager::resetDataOfLatestPendingAndKeepMyViewChange() {
   // delete messages in prePrepareMsgsOfRestrictions
   if (minRestrictionOfPendingView != 0) {
     for (SeqNum i = minRestrictionOfPendingView;
-         i <= maxRestrictionOfPendingView; i++) {
+         i <= maxRestrictionOfPendingView;
+         i++) {
       int64_t idx = i - minRestrictionOfPendingView;
       Assert(idx < kWorkWindowSize);
       auto pos = collectionOfPrePrepareMsgs.find(i);

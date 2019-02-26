@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -57,18 +58,24 @@ class PrePrepareMsg : public MessageBase {
   // static
 
   static PrePrepareMsg* createNullPrePrepareMsg(
-      ReplicaId sender, ViewNum v, SeqNum s,
+      ReplicaId sender,
+      ViewNum v,
+      SeqNum s,
       CommitPath firstPath =
           CommitPath::SLOW);  // TODO(GG): why static method ?
 
   static const Digest& digestOfNullPrePrepareMsg();
 
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, MessageBase* inMsg,
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              MessageBase* inMsg,
                               PrePrepareMsg*& outMsg);
 
   // ctor and other build methods
 
-  PrePrepareMsg(ReplicaId sender, ViewNum v, SeqNum s, CommitPath firstPath,
+  PrePrepareMsg(ReplicaId sender,
+                ViewNum v,
+                SeqNum s,
+                CommitPath firstPath,
                 bool isNull = false);
 
   uint32_t remainingSizeForRequests() const;
@@ -96,7 +103,8 @@ class PrePrepareMsg : public MessageBase {
   void updateView(ViewNum v, CommitPath firstPath = CommitPath::SLOW);
 
  protected:
-  static int16_t computeFlagsForPrePrepareMsg(bool isNull, bool isReady,
+  static int16_t computeFlagsForPrePrepareMsg(bool isNull,
+                                              bool isReady,
                                               CommitPath firstPath);
 
   bool isReady() const { return (((b()->flags >> 1) & 0x1) == 1); }

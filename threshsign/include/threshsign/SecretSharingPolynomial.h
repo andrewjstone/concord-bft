@@ -30,7 +30,8 @@ class SecretSharingPolynomial {
   const Integer& modBase;
 
  public:
-  SecretSharingPolynomial(const Integer& secret, int degree,
+  SecretSharingPolynomial(const Integer& secret,
+                          int degree,
                           const Integer& modBase)
       : degree(degree), modBase(modBase) {
     coefs.resize(static_cast<size_t>(degree + 1));

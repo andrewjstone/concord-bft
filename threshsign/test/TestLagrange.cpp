@@ -109,8 +109,8 @@ int RelicAppMain(const Library& lib, const std::vector<std::string>& args) {
     testAssertEqual(incrCoeffs.size(), naiveCoeffs.size());
 
     // Make sure the coefficients match
-    auto result = std::mismatch(incrCoeffs.begin(), incrCoeffs.end(),
-                                naiveCoeffs.begin());
+    auto result = std::mismatch(
+        incrCoeffs.begin(), incrCoeffs.end(), naiveCoeffs.begin());
     if (result.first != incrCoeffs.end()) {
       size_t pos = static_cast<size_t>(result.first - incrCoeffs.begin());
       logerror << "Mismatch for signer " << pos << endl;

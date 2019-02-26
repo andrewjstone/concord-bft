@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -140,7 +141,9 @@ static bool checkSlowPathCertificates(
 ///////////////////////////////////////////////////////////////////////////////
 
 ViewChangeSafetyLogic::ViewChangeSafetyLogic(
-    const uint16_t n, const uint16_t f, const uint16_t c,
+    const uint16_t n,
+    const uint16_t f,
+    const uint16_t c,
     IThresholdVerifier* const preparedCertificateVerifier,
     const Digest& digestOfNull)
     : N(n),
@@ -189,7 +192,8 @@ SeqNum ViewChangeSafetyLogic::calcLBStableForView(
 
 void ViewChangeSafetyLogic::computeRestrictions(
     ViewChangeMsg** const inViewChangeMsgsOfCurrentView,
-    const SeqNum inLBStableForView, SeqNum& outMinRestrictedSeqNum,
+    const SeqNum inLBStableForView,
+    SeqNum& outMinRestrictedSeqNum,
     SeqNum& outMaxRestrictedSeqNum,
     Restriction* outSafetyRestrictionsArray) const {
   const SeqNum lowerBound = inLBStableForView + 1;
@@ -230,8 +234,8 @@ void ViewChangeSafetyLogic::computeRestrictions(
   for (; currSeqNum <= upperBound && !VCIterators.empty(); currSeqNum++) {
     Restriction& r = outSafetyRestrictionsArray[currSeqNum - lowerBound];
 
-    bool hasRest = computeRestrictionsForSeqNum(currSeqNum, VCIterators,
-                                                upperBound, r.digest);
+    bool hasRest = computeRestrictionsForSeqNum(
+        currSeqNum, VCIterators, upperBound, r.digest);
 
     if (hasRest && (r.digest != nullDigest)) {
       lastRestcitionNum = currSeqNum;
@@ -269,8 +273,10 @@ void ViewChangeSafetyLogic::computeRestrictions(
 }
 
 bool ViewChangeSafetyLogic::computeRestrictionsForSeqNum(
-    SeqNum s, vector<ViewChangeMsg::ElementsIterator*>& VCIterators,
-    const SeqNum upperBound, Digest& outRestrictedDigest) const {
+    SeqNum s,
+    vector<ViewChangeMsg::ElementsIterator*>& VCIterators,
+    const SeqNum upperBound,
+    Digest& outRestrictedDigest) const {
   Assert(!VCIterators.empty());
   Assert(s <= upperBound);
 
@@ -301,10 +307,11 @@ bool ViewChangeSafetyLogic::computeRestrictionsForSeqNum(
   for (SlowElem slow : slowPathCertificates) {
     Assert(s == slow.seqNum());
     Digest d;
-    Digest::calcCombination(slow.prePrepreDigest(), slow.certificateView(),
-                            slow.seqNum(), d);
+    Digest::calcCombination(
+        slow.prePrepreDigest(), slow.certificateView(), slow.seqNum(), d);
 
-    bool valid = preparedCertVerifier->verify(d.content(), DIGEST_SIZE,
+    bool valid = preparedCertVerifier->verify(d.content(),
+                                              DIGEST_SIZE,
                                               slow.certificateSig(),
                                               slow.certificateSigLength());
 

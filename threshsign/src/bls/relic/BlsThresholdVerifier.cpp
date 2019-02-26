@@ -37,8 +37,11 @@ namespace BLS {
 namespace Relic {
 
 BlsThresholdVerifier::BlsThresholdVerifier(
-    const BlsPublicParameters& params, const G2T& pk, NumSharesType reqSigners,
-    NumSharesType numSigners, const std::vector<BlsPublicKey>& verifKeys)
+    const BlsPublicParameters& params,
+    const G2T& pk,
+    NumSharesType reqSigners,
+    NumSharesType numSigners,
+    const std::vector<BlsPublicKey>& verifKeys)
     : params(params),
       pk(pk),
       vks(verifKeys.begin(), verifKeys.end()),
@@ -50,12 +53,14 @@ BlsThresholdVerifier::BlsThresholdVerifier(
       static_cast<std::vector<BlsPublicKey>::size_type>(numSigners + 1));
   // verifKeys[0] was copied as well, but it's set to a dummy PK so it does not
   // matter
-  assertEqual(vks.size(), static_cast<std::vector<BlsPublicKey>::size_type>(
-                              numSigners + 1));
+  assertEqual(
+      vks.size(),
+      static_cast<std::vector<BlsPublicKey>::size_type>(numSigners + 1));
 
 #ifdef TRACE
   logtrace << "VKs (array has size " << vks.size() << ")" << endl;
-  std::copy(vks.begin(), vks.end(),
+  std::copy(vks.begin(),
+            vks.end(),
             std::ostream_iterator<BlsPublicKey>(std::cout, "\n"));
 #endif
 }
@@ -72,13 +77,15 @@ IThresholdAccumulator* BlsThresholdVerifier::newAccumulator(
   if (reqSigners == numSigners - 1) {
     return new BlsAlmostMultisigAccumulator(vks, numSigners);
   } else {
-    return new BlsThresholdAccumulator(vks, reqSigners, numSigners,
-                                       withShareVerification);
+    return new BlsThresholdAccumulator(
+        vks, reqSigners, numSigners, withShareVerification);
   }
 }
 
-bool BlsThresholdVerifier::verify(const char* msg, int msgLen,
-                                  const char* sigBuf, int sigLen) const {
+bool BlsThresholdVerifier::verify(const char* msg,
+                                  int msgLen,
+                                  const char* sigBuf,
+                                  int sigLen) const {
   G1T h, sig;
   // Convert hash to elliptic curve point
   g1_map(h, reinterpret_cast<const unsigned char*>(msg), msgLen);
@@ -88,7 +95,8 @@ bool BlsThresholdVerifier::verify(const char* msg, int msgLen,
   return verify(h, sig, pk.y);
 }
 
-bool BlsThresholdVerifier::verify(const G1T& msgHash, const G1T& sigShare,
+bool BlsThresholdVerifier::verify(const G1T& msgHash,
+                                  const G1T& sigShare,
                                   const G2T& pk) const {
   // FIXME: RELIC: Dealing with library peculiarities here by using a const cast
   // Pair hash with PK

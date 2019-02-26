@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -17,7 +18,8 @@
 namespace bftEngine {
 namespace impl {
 
-SigManager::SigManager(ReplicaId myId, int16_t numberOfReplicasAndClients,
+SigManager::SigManager(ReplicaId myId,
+                       int16_t numberOfReplicasAndClients,
                        PrivateKeyDesc mySigPrivateKey,
                        std::set<PublicKeyDesc> replicasSigPublicKeys)
     : _myId{myId} {
@@ -56,8 +58,10 @@ uint16_t SigManager::getSigLength(ReplicaId replicaId) const {
   }
 }
 
-bool SigManager::verifySig(ReplicaId replicaId, const char* data,
-                           size_t dataLength, const char* sig,
+bool SigManager::verifySig(ReplicaId replicaId,
+                           const char* data,
+                           size_t dataLength,
+                           const char* sig,
                            uint16_t sigLength) const {
   auto pos = _replicasVerifiers.find(replicaId);
   Assert(pos != _replicasVerifiers.end());
@@ -69,7 +73,9 @@ bool SigManager::verifySig(ReplicaId replicaId, const char* data,
   return res;
 }
 
-void SigManager::sign(const char* data, size_t dataLength, char* outSig,
+void SigManager::sign(const char* data,
+                      size_t dataLength,
+                      char* outSig,
                       uint16_t outSigLength) const {
   size_t actualSigSize = 0;
   _mySigner->sign(data, dataLength, outSig, outSigLength, actualSigSize);

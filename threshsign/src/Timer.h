@@ -36,7 +36,8 @@ class ScopedTimer {
   const char* suffix;
 
  public:
-  ScopedTimer(std::ostream& out, const std::string& prefix = "",
+  ScopedTimer(std::ostream& out,
+              const std::string& prefix = "",
               const char* suffix = "\n")
       : beginning(theclock::now()), out(out), prefix(prefix), suffix(suffix) {}
 

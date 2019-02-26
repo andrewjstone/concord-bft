@@ -20,7 +20,8 @@ namespace BLS {
 namespace Relic {
 
 BlsThresholdSigner::BlsThresholdSigner(const BlsPublicParameters& params,
-                                       ShareID id, const BNT& sk)
+                                       ShareID id,
+                                       const BNT& sk)
     : params(params),
       sk(sk),
       pk(sk),
@@ -31,7 +32,9 @@ BlsThresholdSigner::BlsThresholdSigner(const BlsPublicParameters& params,
   idNum.toBytes(idBuf, sizeof(id));
 }
 
-void BlsThresholdSigner::signData(const char* hash, int hashLen, char* outSig,
+void BlsThresholdSigner::signData(const char* hash,
+                                  int hashLen,
+                                  char* outSig,
                                   int outSigLen) {
   // TODO: ALIN: If the signer has some time to waste before signing, we can
   // precompute multiplication tables on H(m) to speed up signing.

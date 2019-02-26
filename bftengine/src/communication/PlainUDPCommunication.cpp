@@ -117,9 +117,9 @@ class PlainUDPCommunication::PlainUdpImpl {
     Assert(config.listenPort > 0, "Port should not be negative!");
     Assert(config.nodes.size() > 0, "No communication endpoints specified!");
 
-    LOG_DEBUG(_logger, "Node " << config.selfId
-                               << ", listen IP: " << config.listenIp
-                               << ", listen port: " << config.listenPort);
+    LOG_DEBUG(_logger,
+              "Node " << config.selfId << ", listen IP: " << config.listenIp
+                      << ", listen port: " << config.listenPort);
 
     for (auto next = config.nodes.begin(); next != config.nodes.end(); next++) {
       auto key = create_key(next->second.ip, next->second.port);
@@ -192,8 +192,15 @@ class PlainUDPCommunication::PlainUdpImpl {
     {
       BOOL tmpBuf = FALSE;
       DWORD bytesReturned = 0;
-      WSAIoctl(udpSockFd, _WSAIOW(IOC_VENDOR, 12), &tmpBuf, sizeof(tmpBuf),
-               NULL, 0, &bytesReturned, NULL, NULL);
+      WSAIoctl(udpSockFd,
+               _WSAIOW(IOC_VENDOR, 12),
+               &tmpBuf,
+               sizeof(tmpBuf),
+               NULL,
+               0,
+               &bytesReturned,
+               NULL,
+               NULL);
     }
 #endif
 
@@ -248,7 +255,8 @@ class PlainUDPCommunication::PlainUdpImpl {
     return ConnectionStatus::Unknown;
   }
 
-  int sendAsyncMessage(const NodeNum &destNode, const char *const message,
+  int sendAsyncMessage(const NodeNum &destNode,
+                       const char *const message,
                        const size_t &messageLength) {
     int error = 0;
 
@@ -260,11 +268,16 @@ class PlainUDPCommunication::PlainUdpImpl {
     Assert(messageLength > 0, "The message length must be positive!");
     Assert(message != NULL, "No message provided!");
 
-    LOG_DEBUG(_logger, " Sending " << messageLength << " bytes to " << destNode
-                                   << " (" << inet_ntoa(to->sin_addr) << ":"
-                                   << ntohs(to->sin_port));
+    LOG_DEBUG(_logger,
+              " Sending " << messageLength << " bytes to " << destNode << " ("
+                          << inet_ntoa(to->sin_addr) << ":"
+                          << ntohs(to->sin_port));
 
-    error = sendto(udpSockFd, message, messageLength, 0, (struct sockaddr *)to,
+    error = sendto(udpSockFd,
+                   message,
+                   messageLength,
+                   0,
+                   (struct sockaddr *)to,
                    sizeof(Addr));
 
     if (error < 0) {
@@ -297,8 +310,8 @@ class PlainUDPCommunication::PlainUdpImpl {
 
   void startRecvThread() {
     LOG_DEBUG(_logger, "Starting the receiving thread..");
-    createThread(&recvThreadRef, &PlainUdpImpl::recvRoutineWrapper,
-                 (void *)this);
+    createThread(
+        &recvThreadRef, &PlainUdpImpl::recvRoutineWrapper, (void *)this);
   }
 
   NodeAddressResolveResult addrToNodeId(Addr netAdress) {
@@ -348,8 +361,12 @@ class PlainUDPCommunication::PlainUdpImpl {
 #endif
     int mLen = 0;
     do {
-      mLen = recvfrom(udpSockFd, bufferForIncomingMessages, maxMsgSize, 0,
-                      (sockaddr *)&fromAdress, &fromAdressLength);
+      mLen = recvfrom(udpSockFd,
+                      bufferForIncomingMessages,
+                      maxMsgSize,
+                      0,
+                      (sockaddr *)&fromAdress,
+                      &fromAdressLength);
 
       LOG_DEBUG(_logger, "recvfrom returned " << mLen << " bytes");
 

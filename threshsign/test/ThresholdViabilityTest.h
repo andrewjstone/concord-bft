@@ -31,8 +31,11 @@
 
 using std::endl;
 
-template <class GroupType, class PublicParameters, class ThresholdAccumulator,
-          class ThresholdSigner, class ThresholdVerifier>
+template <class GroupType,
+          class PublicParameters,
+          class ThresholdAccumulator,
+          class ThresholdSigner,
+          class ThresholdVerifier>
 class ThresholdViabilityTest {
  protected:
   const PublicParameters& params;
@@ -146,8 +149,8 @@ class ThresholdViabilityTest {
         testAssertNotNull(signer(i));
         int shareLen = signer(i)->requiredLengthForSignedData();
         AutoCharBuf shareBuf(shareLen);
-        signer(i)->signData(reinterpret_cast<const char*>(msg), msgSize,
-                            shareBuf, shareLen);
+        signer(i)->signData(
+            reinterpret_cast<const char*>(msg), msgSize, shareBuf, shareLen);
 
         shareAccum->add(shareBuf, shareLen);
 
@@ -169,8 +172,8 @@ class ThresholdViabilityTest {
 
     // logdbg << "Verifying signature(" << Utils::bin2hex(msg) << "): " <<
     // Utils::bin2hex(sig, sigLen) << endl;
-    if (false == verifier()->verify(reinterpret_cast<const char*>(msg), msgLen,
-                                    sig, sigLen)) {
+    if (false == verifier()->verify(
+                     reinterpret_cast<const char*>(msg), msgLen, sig, sigLen)) {
       logerror << reqSigners << " out of " << numSigners << " signature "
                << Utils::bin2hex(sig, sigLen) << " did not verify" << endl;
       throw std::logic_error("Signature did not verify");

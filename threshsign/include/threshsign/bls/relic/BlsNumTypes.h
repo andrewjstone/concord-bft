@@ -327,7 +327,9 @@ class G1T {
     return r;
   }
 
-  static G1T TimesTwice(const G1T& a1, const BNT& e1, const G1T& a2,
+  static G1T TimesTwice(const G1T& a1,
+                        const BNT& e1,
+                        const G1T& a2,
                         const BNT& e2) {
     G1T r;
     g1_mul_sim(r, a1, e1, a2, e2);
@@ -431,12 +433,17 @@ class G2T {
     return r;
   }
 
-  static G2T TimesTwice(const G2T& a1, const BNT& e1, const G2T& a2,
+  static G2T TimesTwice(const G2T& a1,
+                        const BNT& e1,
+                        const G2T& a2,
                         const BNT& e2) {
     G2T r;
     // FIXME: RELIC: should take const's
-    g2_mul_sim(r, const_cast<G2T&>(a1), const_cast<BNT&>(e1),
-               const_cast<G2T&>(a2), const_cast<BNT&>(e2));
+    g2_mul_sim(r,
+               const_cast<G2T&>(a1),
+               const_cast<BNT&>(e1),
+               const_cast<G2T&>(a2),
+               const_cast<BNT&>(e2));
     return r;
   }
 

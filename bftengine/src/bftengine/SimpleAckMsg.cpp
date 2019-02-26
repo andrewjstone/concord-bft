@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -17,7 +18,9 @@
 namespace bftEngine {
 namespace impl {
 
-SimpleAckMsg::SimpleAckMsg(SeqNum s, ViewNum v, ReplicaId senderId,
+SimpleAckMsg::SimpleAckMsg(SeqNum s,
+                           ViewNum v,
+                           ReplicaId senderId,
                            uint64_t ackData)
     : MessageBase(senderId, MsgCode::SimpleAckMsg, sizeof(SimpleAckMsgHeader)) {
   b()->seqNum = s;
@@ -26,7 +29,8 @@ SimpleAckMsg::SimpleAckMsg(SeqNum s, ViewNum v, ReplicaId senderId,
 }
 
 bool SimpleAckMsg::ToActualMsgType(const ReplicasInfo& repInfo,
-                                   MessageBase* inMsg, SimpleAckMsg*& outMsg) {
+                                   MessageBase* inMsg,
+                                   SimpleAckMsg*& outMsg) {
   Assert(inMsg->type() == MsgCode::SimpleAckMsg);
   if (inMsg->size() < sizeof(SimpleAckMsgHeader)) return false;
 

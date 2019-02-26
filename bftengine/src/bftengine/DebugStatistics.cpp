@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -76,28 +77,39 @@ void DebugStatistics::onCycleCheck() {
 
 #endif
 
-  fprintf(stdout, "\n %02u:%02u:%02u.%03u STAT:\t", hour, minute, seconds,
-          milli);
+  fprintf(
+      stdout, "\n %02u:%02u:%02u.%03u STAT:\t", hour, minute, seconds, milli);
   fprintf(stdout, "ReadOnlyThruput = %7.2f\t", readThruput);
   fprintf(stdout, "WriteThruput = %7.2f\t", writeThruput);
   fprintf(stdout, "receivedMessages = %zd\t", d.receivedMessages);
   fprintf(stdout, "sendMessages = %zd\t", d.sendMessages);
-  fprintf(stdout, "numberOfReceivedSTMessages = %zd\t",
+  fprintf(stdout,
+          "numberOfReceivedSTMessages = %zd\t",
           d.numberOfReceivedSTMessages);
-  fprintf(stdout, "numberOfReceivedStatusMessages = %zd\t",
+  fprintf(stdout,
+          "numberOfReceivedStatusMessages = %zd\t",
           d.numberOfReceivedStatusMessages);
-  fprintf(stdout, "numberOfReceivedCommitMessages = %zd\t",
+  fprintf(stdout,
+          "numberOfReceivedCommitMessages = %zd\t",
           d.numberOfReceivedCommitMessages);
   fprintf(stdout, "\n");
 
   if (d.completedReadOnlyRequests > 0 || d.completedReadWriteRequests > 0) {
-    fprintf(stdout, "\n %02u:%02u:%02u.%03u SHRES:\t", hour, minute, seconds,
+    fprintf(stdout,
+            "\n %02u:%02u:%02u.%03u SHRES:\t",
+            hour,
+            minute,
+            seconds,
             milli);
     fprintf(stdout, "ReadOnlyThruput = %7.2f\t", readThruput);
     fprintf(stdout, "WriteThruput = %7.2f\t", writeThruput);
     fprintf(stdout, "\n\n\n");
 
-    fprintf(stderr, "\n %02u:%02u:%02u.%03u SHRES:\t", hour, minute, seconds,
+    fprintf(stderr,
+            "\n %02u:%02u:%02u.%03u SHRES:\t",
+            hour,
+            minute,
+            seconds,
             milli);
     fprintf(stderr, "ReadOnlyThruput = %7.2f\t", readThruput);
     fprintf(stderr, "WriteThruput = %7.2f\t", writeThruput);

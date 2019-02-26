@@ -27,14 +27,19 @@ namespace BLS {
 namespace Relic {
 
 template <class GT>
-GT fastMultExp(const VectorOfShares& s, const std::vector<GT>& a,
-               const std::vector<BNT>& e, int maxBits) {
+GT fastMultExp(const VectorOfShares& s,
+               const std::vector<GT>& a,
+               const std::vector<BNT>& e,
+               int maxBits) {
   return fastMultExp(s, s.first(), s.count(), a, e, maxBits);
 }
 
 template <class GT>
-GT fastMultExp(const VectorOfShares& s, ShareID first, int count,
-               const std::vector<GT>& a, const std::vector<BNT>& e,
+GT fastMultExp(const VectorOfShares& s,
+               ShareID first,
+               int count,
+               const std::vector<GT>& a,
+               const std::vector<BNT>& e,
                int maxBits) {
   GT r;
   assertEqual(r, GT::Identity());
@@ -60,7 +65,8 @@ GT fastMultExp(const VectorOfShares& s, ShareID first, int count,
 }
 
 template <class GT>
-GT fastMultExpTwo(const VectorOfShares& s, const std::vector<GT>& a,
+GT fastMultExpTwo(const VectorOfShares& s,
+                  const std::vector<GT>& a,
                   const std::vector<BNT>& e) {
   GT r;
   assertEqual(r, GT::Identity());
@@ -87,16 +93,24 @@ GT fastMultExpTwo(const VectorOfShares& s, const std::vector<GT>& a,
  */
 template G1T fastMultExp<G1T>(const VectorOfShares& s,
                               const std::vector<G1T>& a,
-                              const std::vector<BNT>& e, int maxBits);
-template G1T fastMultExp<G1T>(const VectorOfShares& s, ShareID first, int count,
+                              const std::vector<BNT>& e,
+                              int maxBits);
+template G1T fastMultExp<G1T>(const VectorOfShares& s,
+                              ShareID first,
+                              int count,
                               const std::vector<G1T>& a,
-                              const std::vector<BNT>& e, int maxBits);
+                              const std::vector<BNT>& e,
+                              int maxBits);
 template G2T fastMultExp<G2T>(const VectorOfShares& s,
                               const std::vector<G2T>& a,
-                              const std::vector<BNT>& e, int maxBits);
-template G2T fastMultExp<G2T>(const VectorOfShares& s, ShareID first, int count,
+                              const std::vector<BNT>& e,
+                              int maxBits);
+template G2T fastMultExp<G2T>(const VectorOfShares& s,
+                              ShareID first,
+                              int count,
                               const std::vector<G2T>& a,
-                              const std::vector<BNT>& e, int maxBits);
+                              const std::vector<BNT>& e,
+                              int maxBits);
 
 template G1T fastMultExpTwo<G1T>(const VectorOfShares& s,
                                  const std::vector<G1T>& a,

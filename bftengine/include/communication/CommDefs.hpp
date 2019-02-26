@@ -51,8 +51,12 @@ struct BaseCommConfig {
   UPDATE_CONNECTIVITY_FN statusCallback;
   NodeNum selfId;
 
-  BaseCommConfig(CommType type, std::string ip, uint16_t port,
-                 uint32_t bufLength, NodeMap _nodes, NodeNum _selfId,
+  BaseCommConfig(CommType type,
+                 std::string ip,
+                 uint16_t port,
+                 uint32_t bufLength,
+                 NodeMap _nodes,
+                 NodeNum _selfId,
                  UPDATE_CONNECTIVITY_FN _statusCallback = nullptr)
       : commType{type},
         listenIp{std::move(ip)},
@@ -66,33 +70,59 @@ struct BaseCommConfig {
 };
 
 struct PlainUdpConfig : BaseCommConfig {
-  PlainUdpConfig(std::string ip, uint16_t port, uint32_t bufLength,
-                 NodeMap _nodes, NodeNum _selfId,
+  PlainUdpConfig(std::string ip,
+                 uint16_t port,
+                 uint32_t bufLength,
+                 NodeMap _nodes,
+                 NodeNum _selfId,
                  UPDATE_CONNECTIVITY_FN _statusCallback = nullptr)
-      : BaseCommConfig(CommType::PlainUdp, std::move(ip), port, bufLength,
-                       std::move(_nodes), _selfId, _statusCallback) {}
+      : BaseCommConfig(CommType::PlainUdp,
+                       std::move(ip),
+                       port,
+                       bufLength,
+                       std::move(_nodes),
+                       _selfId,
+                       _statusCallback) {}
 };
 
 struct PlainTcpConfig : BaseCommConfig {
   int32_t maxServerId;
 
-  PlainTcpConfig(std::string ip, uint16_t port, uint32_t bufLength,
-                 NodeMap _nodes, int32_t _maxServerId, NodeNum _selfId,
+  PlainTcpConfig(std::string ip,
+                 uint16_t port,
+                 uint32_t bufLength,
+                 NodeMap _nodes,
+                 int32_t _maxServerId,
+                 NodeNum _selfId,
                  UPDATE_CONNECTIVITY_FN _statusCallback = nullptr)
-      : BaseCommConfig(CommType::PlainTcp, std::move(ip), port, bufLength,
-                       std::move(_nodes), _selfId, _statusCallback),
+      : BaseCommConfig(CommType::PlainTcp,
+                       std::move(ip),
+                       port,
+                       bufLength,
+                       std::move(_nodes),
+                       _selfId,
+                       _statusCallback),
         maxServerId{_maxServerId} {}
 };
 
 struct TlsTcpConfig : PlainTcpConfig {
   std::string certificatesRootPath;
 
-  TlsTcpConfig(std::string ip, uint16_t port, uint32_t bufLength,
-               NodeMap _nodes, int32_t _maxServerId, NodeNum _selfId,
+  TlsTcpConfig(std::string ip,
+               uint16_t port,
+               uint32_t bufLength,
+               NodeMap _nodes,
+               int32_t _maxServerId,
+               NodeNum _selfId,
                std::string certRootPath,
                UPDATE_CONNECTIVITY_FN _statusCallback = nullptr)
-      : PlainTcpConfig(move(ip), port, bufLength, std::move(_nodes),
-                       _maxServerId, _selfId, _statusCallback),
+      : PlainTcpConfig(move(ip),
+                       port,
+                       bufLength,
+                       std::move(_nodes),
+                       _maxServerId,
+                       _selfId,
+                       _statusCallback),
         certificatesRootPath{move(certRootPath)} {
     commType = CommType::TlsTcp;
   }
@@ -109,7 +139,8 @@ class PlainUDPCommunication : public ICommunication {
   ConnectionStatus getCurrentConnectionStatus(
       const NodeNum node) const override;
 
-  int sendAsyncMessage(const NodeNum destNode, const char *const message,
+  int sendAsyncMessage(const NodeNum destNode,
+                       const char *const message,
                        const size_t messageLength) override;
 
   void setReceiver(NodeNum receiverNum, IReceiver *receiver) override;
@@ -136,7 +167,8 @@ class PlainTCPCommunication : public ICommunication {
   ConnectionStatus getCurrentConnectionStatus(
       const NodeNum node) const override;
 
-  int sendAsyncMessage(const NodeNum destNode, const char *const message,
+  int sendAsyncMessage(const NodeNum destNode,
+                       const char *const message,
                        const size_t messageLength) override;
 
   void setReceiver(NodeNum receiverNum, IReceiver *receiver) override;
@@ -161,7 +193,8 @@ class TlsTCPCommunication : public ICommunication {
   ConnectionStatus getCurrentConnectionStatus(
       const NodeNum node) const override;
 
-  int sendAsyncMessage(const NodeNum destNode, const char *const message,
+  int sendAsyncMessage(const NodeNum destNode,
+                       const char *const message,
                        const size_t messageLength) override;
 
   void setReceiver(NodeNum receiverNum, IReceiver *receiver) override;

@@ -77,7 +77,8 @@ class ViewsManager {
     PrepareFullMsg* prepareFull;
   };
   ViewChangeMsg* exitFromCurrentView(
-      SeqNum currentLastStable, SeqNum currentLastExecuted,
+      SeqNum currentLastStable,
+      SeqNum currentLastExecuted,
       const std::vector<PrevViewInfo>& prevViewInfo);
   // TODO(GG): prevViewInfo is defined and used in a confusing way (becuase it
   // contains both executed and non-executed items) - TODO: improve by using two
@@ -87,7 +88,8 @@ class ViewsManager {
   // Can be used when we don't have an active view
   ///////////////////////////////////////////////////////////////////////////
 
-  bool tryToEnterView(ViewNum v, SeqNum currentLastStable,
+  bool tryToEnterView(ViewNum v,
+                      SeqNum currentLastStable,
                       SeqNum currentLastExecuted,
                       std::vector<PrePrepareMsg*>* outPrePrepareMsgsOfView);
 

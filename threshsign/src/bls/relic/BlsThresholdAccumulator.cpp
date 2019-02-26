@@ -35,16 +35,18 @@ namespace BLS {
 namespace Relic {
 
 BlsThresholdAccumulator::BlsThresholdAccumulator(
-    const std::vector<BlsPublicKey>& vks, NumSharesType reqSigners,
-    NumSharesType totalSigners, bool withShareVerification)
+    const std::vector<BlsPublicKey>& vks,
+    NumSharesType reqSigners,
+    NumSharesType totalSigners,
+    bool withShareVerification)
     : BlsAccumulatorBase(vks, reqSigners, totalSigners, withShareVerification) {
   coeffs.resize(static_cast<size_t>(totalSigners + 1));
   assertEqual(threshSig, G1T::Identity());
 }
 
 void BlsThresholdAccumulator::computeLagrangeCoeff() {
-  lagrangeCoeffAccumReduced(validSharesBits, coeffs,
-                            BLS::Relic::Library::Get().getG2Order());
+  lagrangeCoeffAccumReduced(
+      validSharesBits, coeffs, BLS::Relic::Library::Get().getG2Order());
 }
 
 void BlsThresholdAccumulator::exponentiateLagrangeCoeff() {

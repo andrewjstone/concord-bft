@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -21,7 +22,8 @@
 namespace bftEngine {
 namespace impl {
 
-ClientsManager::ClientsManager(ReplicaId myId, std::set<NodeIdType>& clientsSet,
+ClientsManager::ClientsManager(ReplicaId myId,
+                               std::set<NodeIdType>& clientsSet,
                                uint32_t sizeOfReservedPage)
     : myId_(myId),
       sizeOfReservedPage_(sizeOfReservedPage),
@@ -74,8 +76,8 @@ void ClientsManager::loadInfoFromReservedPages() {
   for (std::pair<NodeIdType, uint16_t> e : clientIdToIndex_) {
     const uint32_t firstPageId = e.second * reservedPagesPerClient_;
 
-    stateTransfer_->loadReservedPage(firstPageId, sizeOfReservedPage_,
-                                     scratchPage_);
+    stateTransfer_->loadReservedPage(
+        firstPageId, sizeOfReservedPage_, scratchPage_);
 
     ClientReplyMsgHeader* replyHeader = (ClientReplyMsgHeader*)scratchPage_;
     Assert(replyHeader->msgType == 0 || replyHeader->msgType == MsgCode::Reply);
@@ -118,8 +120,11 @@ void ClientsManager::getInfoAboutLastReplyToClient(NodeIdType clientId,
 }
 
 ClientReplyMsg* ClientsManager::allocateNewReplyMsgAndWriteToStorage(
-    NodeIdType clientId, ReqId requestSeqNum, uint16_t currentPrimaryId,
-    char* reply, uint32_t replyLength) {
+    NodeIdType clientId,
+    ReqId requestSeqNum,
+    uint16_t currentPrimaryId,
+    char* reply,
+    uint32_t replyLength) {
   // Assert(replyLength <= .... ) - TODO(GG)
 
   const uint16_t clientIdx = clientIdToIndex_.at(clientId);
@@ -191,8 +196,8 @@ ClientReplyMsg* ClientsManager::allocateMsgWithLatestReply(
   // LOG_INFO_F(GL, "allocateMsgWithLatestReply - firstPageId=%d",
   // (int)firstPageId);
 
-  stateTransfer_->loadReservedPage(firstPageId, sizeOfReservedPage_,
-                                   scratchPage_);
+  stateTransfer_->loadReservedPage(
+      firstPageId, sizeOfReservedPage_, scratchPage_);
 
   ClientReplyMsgHeader* replyHeader = (ClientReplyMsgHeader*)scratchPage_;
   Assert(replyHeader->msgType == MsgCode::Reply);

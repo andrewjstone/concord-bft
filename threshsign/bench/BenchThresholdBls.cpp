@@ -56,7 +56,9 @@ class ThresholdBlsRelicBenchmark : public IThresholdSchemeBenchmark {
   bool useMultisig;
 
  public:
-  ThresholdBlsRelicBenchmark(const BlsPublicParameters& p, int k, int n,
+  ThresholdBlsRelicBenchmark(const BlsPublicParameters& p,
+                             int k,
+                             int n,
                              bool useMultisig)
       : IThresholdSchemeBenchmark(p, k, n),
         threshSig(nullptr),
@@ -205,8 +207,9 @@ class ThresholdBlsRelicBenchmark : public IThresholdSchemeBenchmark {
                              sigBits)
            << endl;
 
-    if (verifier->verify(reinterpret_cast<char*>(msg), msgSize, threshSig,
-                         sigBits) == false) {
+    if (verifier->verify(
+            reinterpret_cast<char*>(msg), msgSize, threshSig, sigBits) ==
+        false) {
       throw std::logic_error(
           "Your threshold signing or verification code is wrong.");
     }

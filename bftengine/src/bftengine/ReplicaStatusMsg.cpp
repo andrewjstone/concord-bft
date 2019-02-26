@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -17,7 +18,14 @@
 namespace bftEngine {
 namespace impl {
 static uint8_t powersOf2[] = {
-    0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
+    0x1,
+    0x2,
+    0x4,
+    0x8,
+    0x10,
+    0x20,
+    0x40,
+    0x80,
 };
 
 // TODO(GG): here we assume that replica Ids are between 0 and
@@ -40,14 +48,17 @@ MsgSize ReplicaStatusMsg::calcSizeOfReplicaStatusMsg(
     return sizeof(ReplicaStatusMsg::ReplicaStatusMsgHeader);
 }
 
-ReplicaStatusMsg::ReplicaStatusMsg(ReplicaId senderId, ViewNum viewNumber,
+ReplicaStatusMsg::ReplicaStatusMsg(ReplicaId senderId,
+                                   ViewNum viewNumber,
                                    SeqNum lastStableSeqNum,
-                                   SeqNum lastExecutedSeqNum, bool viewIsActive,
+                                   SeqNum lastExecutedSeqNum,
+                                   bool viewIsActive,
                                    bool hasNewChangeMsg,
                                    bool listOfPPInActiveWindow,
                                    bool listOfMissingVCForVC,
                                    bool listOfMissingPPForVC)
-    : MessageBase(senderId, MsgCode::ReplicaStatus,
+    : MessageBase(senderId,
+                  MsgCode::ReplicaStatus,
                   calcSizeOfReplicaStatusMsg(listOfPPInActiveWindow,
                                              listOfMissingVCForVC,
                                              listOfMissingPPForVC)) {

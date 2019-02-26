@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -25,7 +26,8 @@ static const uint32_t minTimeToStartSlowPathMilli = 20;       // 100;
 static const uint32_t maxTimeToStartSlowPathMilli = 2000;
 static const float maxUpdateInTimeToStartSlowPath = 0.20F;
 
-ControllerWithSimpleHistory::ControllerWithSimpleHistory(uint16_t C, uint16_t F,
+ControllerWithSimpleHistory::ControllerWithSimpleHistory(uint16_t C,
+                                                         uint16_t F,
                                                          ReplicaId replicaId,
                                                          ViewNum initialView,
                                                          SeqNum initialSeq)
@@ -58,7 +60,8 @@ void ControllerWithSimpleHistory::onBecomePrimary(ViewNum v, SeqNum s) {
 
   currentTimeToStartSlowPathMilli = defaultTimeToStartSlowPathMilli;
 
-  LOG_INFO_F(GL, "currentTimeToStartSlowPathMilli = %d",
+  LOG_INFO_F(GL,
+             "currentTimeToStartSlowPathMilli = %d",
              (int)currentTimeToStartSlowPathMilli);
 }
 
@@ -186,8 +189,10 @@ void ControllerWithSimpleHistory::onEndOfEvaluationPeriod() {
   const double execVar = avgAndStdOfExecTime.var();
   const double execStd = ((execVar) > 0 ? sqrt(execVar) : 0);
 
-  LOG_INFO_F(GL, "Execution time of recent rounds (micro) - avg=%f std=%f",
-             execAvg, execStd);
+  LOG_INFO_F(GL,
+             "Execution time of recent rounds (micro) - avg=%f std=%f",
+             execAvg,
+             execStd);
 
   if (!downgraded) {
     // compute and update currentTimeToStartSlowPathMilli
@@ -210,7 +215,8 @@ void ControllerWithSimpleHistory::onEndOfEvaluationPeriod() {
 
     currentTimeToStartSlowPathMilli = newSlowPathTimeMilli;
 
-    LOG_INFO_F(GL, "currentTimeToStartSlowPathMilli = %d",
+    LOG_INFO_F(GL,
+               "currentTimeToStartSlowPathMilli = %d",
                (int)currentTimeToStartSlowPathMilli);
   }
 }

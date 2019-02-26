@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -31,16 +32,22 @@ namespace bftEngine {
 namespace impl {
 class SimpleClientImp : public SimpleClient, public IReceiver {
  public:
-  SimpleClientImp(ICommunication* communication, uint16_t clientId,
-                  uint16_t fVal, uint16_t cVal, SimpleClientParams& p);
+  SimpleClientImp(ICommunication* communication,
+                  uint16_t clientId,
+                  uint16_t fVal,
+                  uint16_t cVal,
+                  SimpleClientParams& p);
 
   // SimpleClient methods
 
   virtual ~SimpleClientImp() override;
 
-  virtual int sendRequest(bool isReadOnly, const char* request,
-                          uint32_t lengthOfRequest, uint64_t reqSeqNum,
-                          uint64_t timeoutMilli, uint32_t lengthOfReplyBuffer,
+  virtual int sendRequest(bool isReadOnly,
+                          const char* request,
+                          uint32_t lengthOfRequest,
+                          uint64_t reqSeqNum,
+                          uint64_t timeoutMilli,
+                          uint32_t lengthOfReplyBuffer,
                           char* replyBuffer,
                           uint32_t& actualReplyLength) override;
 
@@ -51,7 +58,8 @@ class SimpleClientImp : public SimpleClient, public IReceiver {
 
   // IReceiver methods
 
-  virtual void onNewMessage(const NodeNum sourceNode, const char* const message,
+  virtual void onNewMessage(const NodeNum sourceNode,
+                            const char* const message,
                             const size_t messageLength) override;
 
   virtual void onConnectionStatusChanged(
@@ -125,8 +133,11 @@ void SimpleClientImp::onMessageFromReplica(MessageBase* msg) {
   LOG_INFO_F(GL,
              "Client %d received ClientReplyMsg with seqNum=%" PRIu64
              " sender=%d  size=%d  primaryId=%d hash=%" PRIu64 "",
-             _clientId, replyMsg->reqSeqNum(), replyMsg->senderId(),
-             replyMsg->size(), (int)replyMsg->currentPrimaryId(),
+             _clientId,
+             replyMsg->reqSeqNum(),
+             replyMsg->senderId(),
+             replyMsg->size(),
+             (int)replyMsg->currentPrimaryId(),
              replyMsg->debugHash());
 
   if (replyMsg->reqSeqNum() != pendingRequest->requestSeqNum()) {
@@ -155,18 +166,25 @@ static std::set<ReplicaId> generateSetOfReplicas_helpFunc(
 }
 
 SimpleClientImp::SimpleClientImp(ICommunication* communication,
-                                 uint16_t clientId, uint16_t fVal,
-                                 uint16_t cVal, SimpleClientParams& p)
+                                 uint16_t clientId,
+                                 uint16_t fVal,
+                                 uint16_t cVal,
+                                 SimpleClientParams& p)
     : _clientId{clientId},
       _fVal{fVal},
       _cVal{cVal},
       _replicas{generateSetOfReplicas_helpFunc(3 * fVal + 2 * cVal + 1)},
       _communication{communication},
-      replysCertificate(3 * fVal + 2 * cVal + 1, fVal, 2 * fVal + cVal + 1,
-                        clientId),
-      limitOfExpectedOperationTime(
-          p.clientInitialRetryTimeoutMilli, 2, p.clientMaxRetryTimeoutMilli,
-          p.clientMinRetryTimeoutMilli, 32, 1000, 2, 2),
+      replysCertificate(
+          3 * fVal + 2 * cVal + 1, fVal, 2 * fVal + cVal + 1, clientId),
+      limitOfExpectedOperationTime(p.clientInitialRetryTimeoutMilli,
+                                   2,
+                                   p.clientMaxRetryTimeoutMilli,
+                                   p.clientMinRetryTimeoutMilli,
+                                   32,
+                                   1000,
+                                   2,
+                                   2),
       clientSendsRequestToAllReplicasFirstThresh{
           p.clientSendsRequestToAllReplicasFirstThresh},
       clientSendsRequestToAllReplicasPeriodThresh{
@@ -195,8 +213,10 @@ SimpleClientImp::~SimpleClientImp() {
   Assert(numberOfTransmissions == 0);
 }
 
-int SimpleClientImp::sendRequest(bool isReadOnly, const char* request,
-                                 uint32_t lengthOfRequest, uint64_t reqSeqNum,
+int SimpleClientImp::sendRequest(bool isReadOnly,
+                                 const char* request,
+                                 uint32_t lengthOfRequest,
+                                 uint64_t reqSeqNum,
                                  uint64_t timeoutMilli,
                                  uint32_t lengthOfReplyBuffer,
                                  char* replyBuffer,
@@ -207,7 +227,10 @@ int SimpleClientImp::sendRequest(bool isReadOnly, const char* request,
              " (isRO=%d, "
              "request "
              "size=%zu, retransmissionMilli=%d) ",
-             _clientId, reqSeqNum, (int)isReadOnly, (size_t)lengthOfRequest,
+             _clientId,
+             reqSeqNum,
+             (int)isReadOnly,
+             (size_t)lengthOfRequest,
              (int)limitOfExpectedOperationTime.upperLimit());
 
   if (!_communication->isRunning()) {
@@ -281,7 +304,10 @@ int SimpleClientImp::sendRequest(bool isReadOnly, const char* request,
                "Client %d - request %" PRIu64
                " has committed "
                "(isRO=%d, request size=%zu,  retransmissionMilli=%d) ",
-               _clientId, reqSeqNum, (int)isReadOnly, (size_t)lengthOfRequest,
+               _clientId,
+               reqSeqNum,
+               (int)isReadOnly,
+               (size_t)lengthOfRequest,
                (int)limitOfExpectedOperationTime.upperLimit());
 
     ClientReplyMsg* correctReply = replysCertificate.bestCorrectMsg();
@@ -290,8 +316,8 @@ int SimpleClientImp::sendRequest(bool isReadOnly, const char* request,
     _knownPrimaryReplica = correctReply->currentPrimaryId();
 
     if (correctReply->replyLength() <= lengthOfReplyBuffer) {
-      memcpy(replyBuffer, correctReply->replyBuf(),
-             correctReply->replyLength());
+      memcpy(
+          replyBuffer, correctReply->replyBuf(), correctReply->replyLength());
       actualReplyLength = correctReply->replyLength();
       reset();
       return 0;
@@ -407,10 +433,14 @@ void SimpleClientImp::sendPendingRequest() {
              "size=%zu, "
              " retransmissionMilli=%d, numberOfTransmissions=%d, "
              "resetReplies=%d, sendToAll=%d)",
-             _clientId, pendingRequest->requestSeqNum(),
-             (int)pendingRequest->isReadOnly(), (size_t)pendingRequest->size(),
+             _clientId,
+             pendingRequest->requestSeqNum(),
+             (int)pendingRequest->isReadOnly(),
+             (size_t)pendingRequest->size(),
              (int)limitOfExpectedOperationTime.upperLimit(),
-             (int)numberOfTransmissions, (int)resetReplies, (int)sendToAll);
+             (int)numberOfTransmissions,
+             (int)resetReplies,
+             (int)sendToAll);
 
   if (resetReplies) {
     replysCertificate.resetAndFree();
@@ -420,8 +450,8 @@ void SimpleClientImp::sendPendingRequest() {
   if (sendToAll) {
     for (uint16_t r : _replicas) {
       // int stat =
-      _communication->sendAsyncMessage(r, pendingRequest->body(),
-                                       pendingRequest->size());
+      _communication->sendAsyncMessage(
+          r, pendingRequest->body(), pendingRequest->size());
       // TODO(GG): handle errors (print and/or ....)
     }
   } else {
@@ -470,18 +500,20 @@ uint64_t SeqNumberGeneratorForClientRequestsImp::
 
 namespace bftEngine {
 SimpleClient* SimpleClient::createSimpleClient(ICommunication* communication,
-                                               uint16_t clientId, uint16_t fVal,
+                                               uint16_t clientId,
+                                               uint16_t fVal,
                                                uint16_t cVal,
                                                SimpleClientParams p) {
   return new impl::SimpleClientImp(communication, clientId, fVal, cVal, p);
 }
 
 SimpleClient* SimpleClient::createSimpleClient(ICommunication* communication,
-                                               uint16_t clientId, uint16_t fVal,
+                                               uint16_t clientId,
+                                               uint16_t fVal,
                                                uint16_t cVal) {
   SimpleClientParams p;
-  return SimpleClient::createSimpleClient(communication, clientId, fVal, cVal,
-                                          p);
+  return SimpleClient::createSimpleClient(
+      communication, clientId, fVal, cVal, p);
 }
 
 SimpleClient::~SimpleClient() {}

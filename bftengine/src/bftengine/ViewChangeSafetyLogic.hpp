@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -24,7 +25,9 @@ namespace impl {
 
 class ViewChangeSafetyLogic {
  public:
-  ViewChangeSafetyLogic(const uint16_t n, const uint16_t f, const uint16_t c,
+  ViewChangeSafetyLogic(const uint16_t n,
+                        const uint16_t f,
+                        const uint16_t c,
                         IThresholdVerifier* const preparedCertificateVerifier,
                         const Digest& digestOfNull);
 
@@ -51,8 +54,10 @@ class ViewChangeSafetyLogic {
 
  protected:
   bool computeRestrictionsForSeqNum(
-      SeqNum s, vector<ViewChangeMsg::ElementsIterator*>& VCIterators,
-      const SeqNum upperBound, Digest& outRestrictedDigest) const;
+      SeqNum s,
+      vector<ViewChangeMsg::ElementsIterator*>& VCIterators,
+      const SeqNum upperBound,
+      Digest& outRestrictedDigest) const;
 
   const uint16_t N;  // number of replicas
   const uint16_t F;

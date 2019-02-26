@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -111,7 +112,8 @@ bool RSAKeysGenerator::generateKeys(string& outPublicKey,
 
 size_t DigestUtil::digestLength() { return DigestType::DIGESTSIZE; }
 
-bool DigestUtil::compute(const char* input, size_t inputLength,
+bool DigestUtil::compute(const char* input,
+                         size_t inputLength,
                          char* outBufferForDigest,
                          size_t lengthOfBufferForDigest) {
   DigestType dig;
@@ -168,12 +170,15 @@ class RSASignerInternal {
 
   size_t signatureLength() { return priv.SignatureLength(); }
 
-  bool sign(const char* inBuffer, size_t lengthOfInBuffer, char* outBuffer,
-            size_t lengthOfOutBuffer, size_t& lengthOfReturnedData) {
+  bool sign(const char* inBuffer,
+            size_t lengthOfInBuffer,
+            char* outBuffer,
+            size_t lengthOfOutBuffer,
+            size_t& lengthOfReturnedData) {
     const size_t sigLen = priv.SignatureLength();
     if (lengthOfOutBuffer < sigLen) return false;
-    lengthOfReturnedData = priv.SignMessage(rand, (byte*)inBuffer,
-                                            lengthOfInBuffer, (byte*)outBuffer);
+    lengthOfReturnedData = priv.SignMessage(
+        rand, (byte*)inBuffer, lengthOfInBuffer, (byte*)outBuffer);
     VERIFY(lengthOfReturnedData == sigLen);
 
     return true;
@@ -190,10 +195,12 @@ class RSAVerifierInternal {
 
   size_t signatureLength() { return pub.SignatureLength(); }
 
-  bool verify(const char* data, size_t lengthOfData, const char* signature,
+  bool verify(const char* data,
+              size_t lengthOfData,
+              const char* signature,
               size_t lengthOfOSignature) {
-    bool ok = pub.VerifyMessage((byte*)data, lengthOfData, (byte*)signature,
-                                lengthOfOSignature);
+    bool ok = pub.VerifyMessage(
+        (byte*)data, lengthOfData, (byte*)signature, lengthOfOSignature);
     return ok;
   }
 
@@ -220,11 +227,16 @@ size_t RSASigner::signatureLength() {
   return p->signatureLength();
 }
 
-bool RSASigner::sign(const char* inBuffer, size_t lengthOfInBuffer,
-                     char* outBuffer, size_t lengthOfOutBuffer,
+bool RSASigner::sign(const char* inBuffer,
+                     size_t lengthOfInBuffer,
+                     char* outBuffer,
+                     size_t lengthOfOutBuffer,
                      size_t& lengthOfReturnedData) {
   RSASignerInternal* p = (RSASignerInternal*)d;
-  bool succ = p->sign(inBuffer, lengthOfInBuffer, outBuffer, lengthOfOutBuffer,
+  bool succ = p->sign(inBuffer,
+                      lengthOfInBuffer,
+                      outBuffer,
+                      lengthOfOutBuffer,
                       lengthOfReturnedData);
   return succ;
 }
@@ -248,15 +260,21 @@ size_t RSAVerifier::signatureLength() {
   return p->signatureLength();
 }
 
-bool RSAVerifier::verify(const char* data, size_t lengthOfData,
-                         const char* signature, size_t lengthOfOSignature) {
+bool RSAVerifier::verify(const char* data,
+                         size_t lengthOfData,
+                         const char* signature,
+                         size_t lengthOfOSignature) {
   RSAVerifierInternal* p = (RSAVerifierInternal*)d;
   return p->verify(data, lengthOfData, signature, lengthOfOSignature);
 }
 
 void SecretSharingOperations::splitBinaryString(
-    uint16_t threshold, uint16_t nShares, string binaryData, const char* seed,
-    string* outBinaryStringArray, uint16_t lenOutBinaryStringArray) {
+    uint16_t threshold,
+    uint16_t nShares,
+    string binaryData,
+    const char* seed,
+    string* outBinaryStringArray,
+    uint16_t lenOutBinaryStringArray) {
   VERIFY(threshold <= nShares);
   VERIFY(threshold > 1);
   VERIFY(nShares > 1);
@@ -315,7 +333,8 @@ void SecretSharingOperations::recoverBinaryString(uint16_t threshold,
 }
 
 void SecretSharingOperations::splitHexString(uint16_t threshold,
-                                             uint16_t nShares, string hexData,
+                                             uint16_t nShares,
+                                             string hexData,
                                              const char* seed,
                                              string* outHexStringArray,
                                              uint16_t lenOutHexStringArray) {
@@ -327,23 +346,29 @@ void SecretSharingOperations::splitHexString(uint16_t threshold,
 
   string binData;
   CryptoPP::StringSource ss(
-      hexData, true,
+      hexData,
+      true,
       new CryptoPP::HexDecoder(new CryptoPP::StringSink(binData)));
 
   for (uint16_t i = 0; i < nShares; i++) outHexStringArray[i].clear();
 
   splitBinaryString(
-      threshold, nShares, binData, seed, outHexStringArray,
+      threshold,
+      nShares,
+      binData,
+      seed,
+      outHexStringArray,
       nShares);  // we use outHexStringArray to store the binary strings (to
                  // avoid additional allocation of strings)
 
   for (uint16_t i = 0; i < nShares; i++) {
     string binString = outHexStringArray[i];
     outHexStringArray[i].clear();
-    CryptoPP::StringSource ss(
-        (const byte*)binString.data(), binString.length(), true,
-        new CryptoPP::HexEncoder(
-            new CryptoPP::StringSink(outHexStringArray[i])));
+    CryptoPP::StringSource ss((const byte*)binString.data(),
+                              binString.length(),
+                              true,
+                              new CryptoPP::HexEncoder(new CryptoPP::StringSink(
+                                  outHexStringArray[i])));
   }
 }
 
@@ -359,7 +384,8 @@ void SecretSharingOperations::recoverHexString(uint16_t threshold,
 
   for (uint16_t i = 0; i < threshold; i++) {
     binaryStringArray[i].clear();
-    CryptoPP::StringSource ss(inHexStringArray[i], true,
+    CryptoPP::StringSource ss(inHexStringArray[i],
+                              true,
                               new CryptoPP::HexDecoder(new CryptoPP::StringSink(
                                   binaryStringArray[i])));
   }
@@ -369,7 +395,8 @@ void SecretSharingOperations::recoverHexString(uint16_t threshold,
   recoverBinaryString(threshold, binaryStringArray, binData);
 
   CryptoPP::StringSource ss(
-      binData, true,
+      binData,
+      true,
       new CryptoPP::HexEncoder(new CryptoPP::StringSink(outHexData)));
 
   delete[] binaryStringArray;

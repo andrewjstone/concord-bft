@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -17,7 +18,8 @@
 namespace bftEngine {
 namespace impl {
 
-ClientReplyMsg::ClientReplyMsg(ReplicaId primaryId, ReqId reqSeqNum,
+ClientReplyMsg::ClientReplyMsg(ReplicaId primaryId,
+                               ReqId reqSeqNum,
                                ReplicaId replicaId)
     : MessageBase(replicaId, MsgCode::Reply, maxExternalMessageSize) {
   b()->reqSeqNum = reqSeqNum;
@@ -26,9 +28,12 @@ ClientReplyMsg::ClientReplyMsg(ReplicaId primaryId, ReqId reqSeqNum,
   setMsgSize(sizeof(ClientReplyMsgHeader));
 }
 
-ClientReplyMsg::ClientReplyMsg(ReplicaId replicaId, ReqId reqSeqNum,
-                               char* reply, uint32_t replyLength)
-    : MessageBase(replicaId, MsgCode::Reply,
+ClientReplyMsg::ClientReplyMsg(ReplicaId replicaId,
+                               ReqId reqSeqNum,
+                               char* reply,
+                               uint32_t replyLength)
+    : MessageBase(replicaId,
+                  MsgCode::Reply,
                   sizeof(ClientReplyMsgHeader) + replyLength) {
   b()->reqSeqNum = reqSeqNum;
   b()->currentPrimaryId = 0;
@@ -39,7 +44,8 @@ ClientReplyMsg::ClientReplyMsg(ReplicaId replicaId, ReqId reqSeqNum,
 }
 
 ClientReplyMsg::ClientReplyMsg(ReplicaId replicaId, uint32_t replyLength)
-    : MessageBase(replicaId, MsgCode::Reply,
+    : MessageBase(replicaId,
+                  MsgCode::Reply,
                   sizeof(ClientReplyMsgHeader) + replyLength) {
   b()->reqSeqNum = 0;
   b()->currentPrimaryId = 0;
@@ -58,7 +64,8 @@ void ClientReplyMsg::setPrimaryId(ReplicaId primaryId) {
   b()->currentPrimaryId = primaryId;
 }
 
-bool ClientReplyMsg::ToActualMsgType(NodeIdType myId, MessageBase* inMsg,
+bool ClientReplyMsg::ToActualMsgType(NodeIdType myId,
+                                     MessageBase* inMsg,
                                      ClientReplyMsg*& outMsg) {
   Assert(inMsg->type() == MsgCode::Reply);
   if (inMsg->size() < sizeof(ClientReplyMsgHeader)) return false;

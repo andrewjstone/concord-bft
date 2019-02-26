@@ -125,7 +125,8 @@ ShareID VectorOfShares::last() const {
   return static_cast<ShareID>(size) + 1;
 }
 
-void VectorOfShares::randomSubset(VectorOfShares& signers, int numSigners,
+void VectorOfShares::randomSubset(VectorOfShares& signers,
+                                  int numSigners,
                                   int reqSigners) {
   assertLessThanOrEqual(reqSigners, numSigners);
   // NOTE: Does not need cryptographically secure RNG

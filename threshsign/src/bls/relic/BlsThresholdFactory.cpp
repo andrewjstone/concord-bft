@@ -63,7 +63,8 @@ std::unique_ptr<BlsThresholdKeygenBase> BlsThresholdFactory::newKeygen(
 }
 
 IThresholdVerifier* BlsThresholdFactory::newVerifier(
-    NumSharesType reqSigners, NumSharesType numSigners,
+    NumSharesType reqSigners,
+    NumSharesType numSigners,
     const char* publicKeyStr,
     const std::vector<std::string>& verifKeysStr) const {
   G2T pk((std::string(publicKeyStr)));
@@ -74,7 +75,9 @@ IThresholdVerifier* BlsThresholdFactory::newVerifier(
   // Getting fancy now: converting strings to PKs!
   auto begin = verifKeysStr.begin();
   begin++;  // have to skip over signer 0, which doesn't exist
-  std::transform(begin, verifKeysStr.end(), std::back_inserter(verifKeys),
+  std::transform(begin,
+                 verifKeysStr.end(),
+                 std::back_inserter(verifKeys),
                  [](const std::string& str) -> BlsPublicKey {
                    return BlsPublicKey(G2T(str));
                  });
@@ -82,8 +85,8 @@ IThresholdVerifier* BlsThresholdFactory::newVerifier(
   if (useMultisig || reqSigners == numSigners)
     return new BlsMultisigVerifier(params, reqSigners, numSigners, verifKeys);
   else
-    return new BlsThresholdVerifier(params, pk, reqSigners, numSigners,
-                                    verifKeys);
+    return new BlsThresholdVerifier(
+        params, pk, reqSigners, numSigners, verifKeys);
 }
 
 IThresholdSigner* BlsThresholdFactory::newSigner(
@@ -120,8 +123,8 @@ BlsThresholdFactory::newRandomSigners(NumSharesType reqSigners,
     verifier =
         new BlsMultisigVerifier(params, reqSigners, numSigners, verifKeys);
   } else {
-    verifier = new BlsThresholdVerifier(params, keygen->getPublicKey(),
-                                        reqSigners, numSigners, verifKeys);
+    verifier = new BlsThresholdVerifier(
+        params, keygen->getPublicKey(), reqSigners, numSigners, verifKeys);
   }
 
   return std::make_tuple(sks, verifier);

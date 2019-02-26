@@ -46,7 +46,8 @@ void BlsBatchVerifier::addShare(ShareID id, const G1T& sigShare) {
 
 void BlsBatchVerifier::aggregateSigsAndVerifKeys() { aggTree.aggregate(); }
 
-bool BlsBatchVerifier::batchVerify(const G1T& msg, bool wantBadShares,
+bool BlsBatchVerifier::batchVerify(const G1T& msg,
+                                   bool wantBadShares,
                                    std::vector<ShareID>& shares,
                                    bool checkRoot) {
   // WARNING: If we ever multi-thread this, then 'shares' needs to be
@@ -90,7 +91,8 @@ bool BlsBatchVerifier::batchVerify(const G1T& msg, bool wantBadShares,
   }
 }
 
-bool BlsBatchVerifier::batchVerifyRecursive(int node, bool wantBadShares,
+bool BlsBatchVerifier::batchVerifyRecursive(int node,
+                                            bool wantBadShares,
                                             std::vector<ShareID>& shares) {
   const Share& share = aggTree.getNode(node);
   assertProperty(node, share.isAggregated);

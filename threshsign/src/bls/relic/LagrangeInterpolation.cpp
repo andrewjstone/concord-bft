@@ -406,7 +406,8 @@ void lagrangeCoeffNaiveReduced(const VectorOfShares& signers,
   }
 }
 
-void lagrangeCoeffNaive(const VectorOfShares& signers, std::vector<BNT>& coeffs,
+void lagrangeCoeffNaive(const VectorOfShares& signers,
+                        std::vector<BNT>& coeffs,
                         const BNT& fieldOrder) {
   BNT lagrNum, lagrDenom;
 

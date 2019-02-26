@@ -28,9 +28,12 @@ class ISimpleInMemoryStateTransfer : public IStateTransfer {
                           uint32_t sizeOfUpdatedRegion) = 0;
 };
 
-ISimpleInMemoryStateTransfer* create(void* ptrToState, uint32_t sizeOfState,
-                                     uint16_t myReplicaId, uint16_t fVal,
-                                     uint16_t cVal, bool pedanticChecks);
+ISimpleInMemoryStateTransfer* create(void* ptrToState,
+                                     uint32_t sizeOfState,
+                                     uint16_t myReplicaId,
+                                     uint16_t fVal,
+                                     uint16_t cVal,
+                                     bool pedanticChecks);
 
 }  // namespace SimpleInMemoryStateTransfer
 }  // namespace bftEngine

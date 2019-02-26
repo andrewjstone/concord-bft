@@ -38,8 +38,8 @@ constexpr LogLevel CURRENT_LEVEL = LogLevel::info;
 
 class SimpleLoggerImpl {
   std::string _name;
-  std::string LEVELS_STRINGS[6] = {"TRACE", "DEBUG", "INFO",
-                                   "WARN",  "ERROR", "FATAL"};
+  std::string LEVELS_STRINGS[6] = {
+      "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
 
   inline void get_time(std::stringstream &ss) {
     using namespace std::chrono;
@@ -57,8 +57,11 @@ class SimpleLoggerImpl {
   inline void print(concordlogger::LogLevel l, std::string text) {
     std::stringstream time;
     get_time(time);
-    printf("%s %s (%s) %s\n", SimpleLoggerImpl::LEVELS_STRINGS[l].c_str(),
-           time.str().c_str(), _name.c_str(), text.c_str());
+    printf("%s %s (%s) %s\n",
+           SimpleLoggerImpl::LEVELS_STRINGS[l].c_str(),
+           time.str().c_str(),
+           _name.c_str(),
+           text.c_str());
   }
 };
 

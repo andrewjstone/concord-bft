@@ -101,7 +101,8 @@ class VectorOfShares {
    */
   static int getByteCount();
 
-  static void randomSubset(VectorOfShares& signers, int numSigners,
+  static void randomSubset(VectorOfShares& signers,
+                           int numSigners,
                            int reqSigners);
 };
 

@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -36,7 +37,8 @@ class IncomingMsgsStorage {
   void pushExternalMsg(MessageBase* m);      // can be called by any thread
   void pushInternalMsg(InternalMessage* m);  // can be called by any thread
 
-  bool pop(void*& item, bool& external,
+  bool pop(void*& item,
+           bool& external,
            std::chrono::milliseconds
                timeout);  // should only be called by the main thread
   bool empty();           // should only be called by the main thread.

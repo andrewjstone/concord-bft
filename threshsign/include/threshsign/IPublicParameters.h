@@ -33,7 +33,8 @@ class IPublicParameters {
   std::string name, library;
 
  public:
-  IPublicParameters(int k, const std::string& name,
+  IPublicParameters(int k,
+                    const std::string& name,
                     const std::string& lib = "unknown")
       : k(k), name(name), library(lib) {}
   virtual ~IPublicParameters() {}

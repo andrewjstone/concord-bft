@@ -43,7 +43,8 @@ struct StateTransferDigest {
 #pragma pack(pop)
 
 // This method should be used to compute block digests
-void computeBlockDigest(const uint64_t blockId, const char* block,
+void computeBlockDigest(const uint64_t blockId,
+                        const char* block,
                         const uint32_t blockSize,
                         StateTransferDigest* outDigest);
 
@@ -57,7 +58,8 @@ class IAppState {
 
   // If block blockId exists, then its content is returned via the arguments
   // outBlock and outBlockSize. Returns true IFF block blockId exists.
-  virtual bool getBlock(uint64_t blockId, char* outBlock,
+  virtual bool getBlock(uint64_t blockId,
+                        char* outBlock,
                         uint32_t* outBlockSize) = 0;
 
   // If block blockId exists, then the digest of block blockId-1 is returned via
@@ -110,7 +112,8 @@ struct Config {
 };
 
 // creates an instance of the state transfer module.
-IStateTransfer* create(const Config& config, IAppState* const stateApi,
+IStateTransfer* create(const Config& config,
+                       IAppState* const stateApi,
                        const bool persistentDataStore);
 
 }  // namespace SimpleBlockchainStateTransfer

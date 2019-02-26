@@ -75,13 +75,14 @@ struct SimpleBlock {
   // static void print(SimpleBlock* block)
   //{
   //	printf("\nBlockId=%" PRId64 " Items=%zu", block->id,
-  //block->numberOfItems); 	for (size_t i = 0; i < block->numberOfItems; i++)
+  // block->numberOfItems); 	for (size_t i = 0; i < block->numberOfItems;
+  // i++)
   //	{
   //		printf("\n");
   //		printf("Block id %" PRId64 " item %3zu key=", block->id, i);
   //		for (int k = 0; k < KV_LEN; k++) printf("%02X",
-  //block->items[i].key[k]); 		printf("   val="); 		for (int k = 0; k < KV_LEN; k++)
-  //printf("%02X", block->items[i].val[k]);
+  // block->items[i].key[k]); 		printf("   val="); 		for (int k = 0; k
+  // < KV_LEN; k++) printf("%02X", block->items[i].val[k]);
   //	}
   //}
 };
@@ -263,12 +264,12 @@ struct SimpleReplyHeader_GetLastBlockHeader {
 //		SimpleReadHeader* p = (SimpleReadHeader*)r;
 //		printf("\n");
 //		printf("Read: version=%" PRId64 " numberOfKeysToRead=%zu keys=",
-//p->readVerion, p->numberOfKeysToRead); 		for (size_t i = 0; i <
-//p->numberOfKeysToRead; i++)
+// p->readVerion, p->numberOfKeysToRead); 		for (size_t i = 0; i <
+// p->numberOfKeysToRead; i++)
 //		{
 //			printf("%4s", " ");
 //			for (int k = 0; k < KV_LEN; k++) printf("%02X",
-//p->keys[i].key[k]);
+// p->keys[i].key[k]);
 //		}
 //
 //	}
@@ -298,8 +299,9 @@ struct SimpleReplyHeader_GetLastBlockHeader {
 //			printf("%4s", " ");
 //			printf("< ");
 //			for (int k = 0; k < KV_LEN; k++) printf("%02X",
-//p->elements[i].key[k]); 			printf(" ; "); 			for (int k = 0; k < KV_LEN; k++)
-//printf("%02X", p->elements[i].val[k]); 			printf(" >");
+// p->elements[i].key[k]); 			printf(" ; "); 			for
+// (int k = 0; k < KV_LEN; k++) printf("%02X", p->elements[i].val[k]); printf("
+// >");
 //		}
 //
 //	}
@@ -342,7 +344,8 @@ class InternalTestsBuilder {
   friend void BasicRandomTests::run(IClient* client,
                                     const size_t numOfOperations);
 
-  static void createRandomTest(size_t numOfRequests, size_t seed,
+  static void createRandomTest(size_t numOfRequests,
+                               size_t seed,
                                int64_t testPrefix,
                                list<SimpleRequestHeader*>& outRequests,
                                list<SimpleReplyHeader*>& outReplies) {
@@ -354,23 +357,26 @@ class InternalTestsBuilder {
 
     for (map<BlockId, SimpleBlock*>::iterator it =
              t.m_internalBlockchain.begin();
-         it != t.m_internalBlockchain.end(); it++)
+         it != t.m_internalBlockchain.end();
+         it++)
       SimpleBlock::free(it->second);
   }
 
   static void free(std::list<SimpleRequestHeader*>& outRequests,
                    std::list<SimpleReplyHeader*>& outReplies) {
     for (list<SimpleRequestHeader*>::iterator it = outRequests.begin();
-         it != outRequests.end(); it++)
+         it != outRequests.end();
+         it++)
       SimpleRequestHeader::free(*it);
 
     for (list<SimpleReplyHeader*>::iterator it = outReplies.begin();
-         it != outReplies.end(); it++)
+         it != outReplies.end();
+         it++)
       SimpleReplyHeader::free(*it);
   }
 
-  //			const int64_t m_testPrefix; // TODO(GG): can be used to support
-  //multi-executions of the test on the same blockchain
+  //			const int64_t m_testPrefix; // TODO(GG): can be used to
+  // support multi-executions of the test on the same blockchain
 
   std::list<SimpleRequestHeader*> m_requests;
   std::list<SimpleReplyHeader*> m_replies;
@@ -402,7 +408,8 @@ class InternalTestsBuilder {
 
     for (std::map<BlockId, SimpleBlock*>::iterator it =
              m_internalBlockchain.begin();
-         it != m_internalBlockchain.end(); it++) {
+         it != m_internalBlockchain.end();
+         it++) {
       BlockId bId = it->first;
       SimpleBlock* block = it->second;
       (void)bId;
@@ -593,7 +600,8 @@ class InternalCommandsHandler : public ICommandsHandler {
   virtual bool executeCommand(const Slice command,
                               const ILocalKeyValueStorageReadOnly& roStorage,
                               IBlocksAppender& blockAppender,
-                              const size_t maxReplySize, char* outReply,
+                              const size_t maxReplySize,
+                              char* outReply,
                               size_t& outReplySize) const {
     printf("Got message of size %zu\n", command.size);
 
@@ -604,8 +612,8 @@ class InternalCommandsHandler : public ICommandsHandler {
     }
     SimpleRequestHeader* p = (SimpleRequestHeader*)command.data;
     if (p->type != 1)
-      return executeReadOnlyCommand(command, roStorage, maxReplySize, outReply,
-                                    outReplySize);
+      return executeReadOnlyCommand(
+          command, roStorage, maxReplySize, outReply, outReplySize);
 
     // conditional write
 
@@ -629,8 +637,8 @@ class InternalCommandsHandler : public ICommandsHandler {
     for (size_t i = 0; !hasConflict && i < pCondWrite->numberOfKeysInReadSet;
          i++) {
       Slice key(readSetArray[i].key, KV_LEN);
-      roStorage.mayHaveConflictBetween(key, pCondWrite->readVerion + 1,
-                                       currBlock, hasConflict);
+      roStorage.mayHaveConflictBetween(
+          key, pCondWrite->readVerion + 1, currBlock, hasConflict);
     }
 
     if (!hasConflict) {
@@ -674,8 +682,11 @@ class InternalCommandsHandler : public ICommandsHandler {
   }
 
   virtual bool executeReadOnlyCommand(
-      const Slice command, const ILocalKeyValueStorageReadOnly& roStorage,
-      const size_t maxReplySize, char* outReply, size_t& outReplySize) const {
+      const Slice command,
+      const ILocalKeyValueStorageReadOnly& roStorage,
+      const size_t maxReplySize,
+      char* outReply,
+      size_t& outReplySize) const {
     if (command.size < sizeof(SimpleRequestHeader)) {
       CHECK(false, "small message");
       return false;
@@ -701,7 +712,7 @@ class InternalCommandsHandler : public ICommandsHandler {
       }
 
       //					printf("\nRead request");
-      //print(p);
+      // print(p);
 
       SimpleReplyHeader_Read* pReply = (SimpleReplyHeader_Read*)(outReply);
       outReplySize = replySize;
@@ -723,7 +734,7 @@ class InternalCommandsHandler : public ICommandsHandler {
       }
 
       //					printf("\nRead reply");
-      //print((SimpleReplyHeader*)pReply);
+      // print((SimpleReplyHeader*)pReply);
 
       return true;
 
@@ -734,7 +745,7 @@ class InternalCommandsHandler : public ICommandsHandler {
         return false;
       }
       //					SimpleGetLastBlockHeader*
-      //pGetLast = (SimpleGetLastBlockHeader*)command.data;
+      // pGetLast = (SimpleGetLastBlockHeader*)command.data;
 
       if (maxReplySize < sizeof(SimpleReplyHeader_GetLastBlockHeader)) {
         CHECK(false, "small message");
@@ -811,9 +822,11 @@ void run(IClient* client, const size_t numOfOperations) {
   std::list<Internal::SimpleRequestHeader*> requests;
   std::list<Internal::SimpleReplyHeader*> expectedReplies;
 
-  Internal::InternalTestsBuilder::createRandomTest(numOfOperations, 1111,
+  Internal::InternalTestsBuilder::createRandomTest(numOfOperations,
+                                                   1111,
                                                    INT64_MIN /* INT64_MAX */,
-                                                   requests, expectedReplies);
+                                                   requests,
+                                                   expectedReplies);
 
   client->start();
 

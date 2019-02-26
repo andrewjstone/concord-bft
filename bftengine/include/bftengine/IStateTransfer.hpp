@@ -53,9 +53,11 @@ class IStateTransfer {
   // working with reserved pages
   virtual uint32_t numberOfReservedPages() const = 0;
   virtual uint32_t sizeOfReservedPage() const = 0;
-  virtual bool loadReservedPage(uint32_t reservedPageId, uint32_t copyLength,
+  virtual bool loadReservedPage(uint32_t reservedPageId,
+                                uint32_t copyLength,
                                 char *outReservedPage) const = 0;
-  virtual void saveReservedPage(uint32_t reservedPageId, uint32_t copyLength,
+  virtual void saveReservedPage(uint32_t reservedPageId,
+                                uint32_t copyLength,
                                 const char *inReservedPage) = 0;
   virtual void zeroReservedPage(uint32_t reservedPageId) = 0;
 
@@ -67,7 +69,8 @@ class IStateTransfer {
   // (a state transfer module may directly send messages).
   // Message msg should be released by using
   // IReplicaForStateTransfer::freeStateTransferMsg
-  virtual void handleStateTransferMessage(char *msg, uint32_t msgLen,
+  virtual void handleStateTransferMessage(char *msg,
+                                          uint32_t msgLen,
                                           uint16_t senderId) = 0;
 };
 
@@ -82,7 +85,8 @@ class IReplicaForStateTransfer {
 
   virtual void freeStateTransferMsg(char *m) = 0;
 
-  virtual void sendStateTransferMessage(char *m, uint32_t size,
+  virtual void sendStateTransferMessage(char *m,
+                                        uint32_t size,
                                         uint16_t replicaId) = 0;
 
   // the timer is disabled when timerPeriodMilli==0

@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -36,19 +37,26 @@ class SimpleClient {
   static const uint64_t INFINITE_TIMEOUT = UINT64_MAX;
 
   static SimpleClient* createSimpleClient(ICommunication* communication,
-                                          uint16_t clientId, uint16_t fVal,
+                                          uint16_t clientId,
+                                          uint16_t fVal,
                                           uint16_t cVal);
 
   static SimpleClient* createSimpleClient(ICommunication* communication,
-                                          uint16_t clientId, uint16_t fVal,
-                                          uint16_t cVal, SimpleClientParams p);
+                                          uint16_t clientId,
+                                          uint16_t fVal,
+                                          uint16_t cVal,
+                                          SimpleClientParams p);
 
   virtual ~SimpleClient();
 
-  virtual int sendRequest(bool isReadOnly, const char* request,
-                          uint32_t lengthOfRequest, uint64_t reqSeqNum,
-                          uint64_t timeoutMilli, uint32_t lengthOfReplyBuffer,
-                          char* replyBuffer, uint32_t& actualReplyLength) = 0;
+  virtual int sendRequest(bool isReadOnly,
+                          const char* request,
+                          uint32_t lengthOfRequest,
+                          uint64_t reqSeqNum,
+                          uint64_t timeoutMilli,
+                          uint32_t lengthOfReplyBuffer,
+                          char* replyBuffer,
+                          uint32_t& actualReplyLength) = 0;
 
   virtual int sendRequestToResetSeqNum() = 0;
   virtual int sendRequestToReadLatestSeqNum(uint64_t timeoutMilli,

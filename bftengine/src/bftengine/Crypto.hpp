@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -40,8 +41,11 @@ class RSASigner {
   RSASigner(const char* privateKey);
   ~RSASigner();
   size_t signatureLength();
-  bool sign(const char* inBuffer, size_t lengthOfInBuffer, char* outBuffer,
-            size_t lengthOfOutBuffer, size_t& lengthOfReturnedData);
+  bool sign(const char* inBuffer,
+            size_t lengthOfInBuffer,
+            char* outBuffer,
+            size_t lengthOfOutBuffer,
+            size_t& lengthOfReturnedData);
 
  private:
   void* d;
@@ -53,7 +57,9 @@ class RSAVerifier {
   RSAVerifier(const char* publicKey);
   ~RSAVerifier();
   size_t signatureLength();
-  bool verify(const char* data, size_t lengthOfData, const char* signature,
+  bool verify(const char* data,
+              size_t lengthOfData,
+              const char* signature,
               size_t lengthOfOSignature);
 
  private:
@@ -63,8 +69,10 @@ class RSAVerifier {
 class DigestUtil {
  public:
   static size_t digestLength();
-  static bool compute(const char* input, size_t inputLength,
-                      char* outBufferForDigest, size_t lengthOfBufferForDigest);
+  static bool compute(const char* input,
+                      size_t inputLength,
+                      char* outBufferForDigest,
+                      size_t lengthOfBufferForDigest);
 
   class Context {
    public:
@@ -88,15 +96,20 @@ class RSAKeysGenerator {
 
 class SecretSharingOperations {
  public:
-  static void splitHexString(uint16_t threshold, uint16_t nShares,
-                             string hexData, const char* seed,
+  static void splitHexString(uint16_t threshold,
+                             uint16_t nShares,
+                             string hexData,
+                             const char* seed,
                              string* outHexStringArray,
                              uint16_t lenOutHexStringArray);
-  static void recoverHexString(uint16_t threshold, string inHexStringArray[],
+  static void recoverHexString(uint16_t threshold,
+                               string inHexStringArray[],
                                string& outHexData);
 
-  static void splitBinaryString(uint16_t threshold, uint16_t nShares,
-                                string binaryData, const char* seed,
+  static void splitBinaryString(uint16_t threshold,
+                                uint16_t nShares,
+                                string binaryData,
+                                const char* seed,
                                 string* outBinaryStringArray,
                                 uint16_t lenOutBinaryStringArray);
   static void recoverBinaryString(uint16_t threshold,

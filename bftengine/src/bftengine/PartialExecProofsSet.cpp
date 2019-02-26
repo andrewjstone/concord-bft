@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -52,7 +53,8 @@ void PartialExecProofsSet::resetAndFree() {
   accumulator = nullptr;
   if (setOfFullExecProofs.size() > 0) {
     for (std::set<FullExecProofMsg*>::iterator it = setOfFullExecProofs.begin();
-         it != setOfFullExecProofs.end(); ++it) {
+         it != setOfFullExecProofs.end();
+         ++it) {
       FullExecProofMsg* p = *it;
       delete p;
     }
@@ -61,7 +63,8 @@ void PartialExecProofsSet::resetAndFree() {
   }
 }
 
-void PartialExecProofsSet::addSelf(PartialExecProofMsg* m, Digest& merkleRoot,
+void PartialExecProofsSet::addSelf(PartialExecProofMsg* m,
+                                   Digest& merkleRoot,
                                    std::set<FullExecProofMsg*> fullExecProofs) {
   const ReplicaId repId = m->senderId();
 
@@ -121,7 +124,8 @@ class MerkleExecSignatureInternalMsg : public InternalMessage {
 
  public:
   MerkleExecSignatureInternalMsg(InternalReplicaApi* const internalReplicaApi,
-                                 ViewNum viewNumber, SeqNum seqNumber,
+                                 ViewNum viewNumber,
+                                 SeqNum seqNumber,
                                  uint16_t signatureLength,
                                  const char* signature)
       : replicaApi(internalReplicaApi) {
@@ -138,8 +142,8 @@ class MerkleExecSignatureInternalMsg : public InternalMessage {
   }
 
   virtual void handle() override {
-    replicaApi->onMerkleExecSignature(viewNum, seqNum, signatureLength,
-                                      signature);
+    replicaApi->onMerkleExecSignature(
+        viewNum, seqNum, signatureLength, signature);
   }
 };
 
@@ -147,8 +151,10 @@ class AsynchExecProofCreationJob : public SimpleThreadPool::Job {
  public:
   AsynchExecProofCreationJob(InternalReplicaApi* const internalReplicaApi,
                              IThresholdVerifier* verifier,
-                             IThresholdAccumulator* acc, Digest& expectedDigest,
-                             SeqNum seqNumber, ViewNum view)
+                             IThresholdAccumulator* acc,
+                             Digest& expectedDigest,
+                             SeqNum seqNumber,
+                             ViewNum view)
       : replicaApi(internalReplicaApi) {
     this->acc = acc;
     this->expectedDigest = expectedDigest;
@@ -174,17 +180,20 @@ class AsynchExecProofCreationJob : public SimpleThreadPool::Job {
     size_t sigLength = verifier->requiredLengthForSignedData();
 
     //		if (sigLength > sizeof(bufferForSigComputations) || sigLength >
-    //UINT16_MAX || sigLength == 0)
+    // UINT16_MAX || sigLength == 0)
     if (sigLength > UINT16_MAX || sigLength == 0) {
-      LOG_WARN_F(GL, "Unable to create FullProof for seqNumber %" PRId64 "",
+      LOG_WARN_F(GL,
+                 "Unable to create FullProof for seqNumber %" PRId64 "",
                  seqNumber);
       return;
     }
 
     acc->getFullSignedData(bufferForSigComputations, sigLength);
 
-    bool succ = verifier->verify((char*)&expectedDigest, sizeof(Digest),
-                                 bufferForSigComputations, sigLength);
+    bool succ = verifier->verify((char*)&expectedDigest,
+                                 sizeof(Digest),
+                                 bufferForSigComputations,
+                                 sigLength);
 
     if (!succ) {
       LOG_WARN_F(GL,
@@ -197,7 +206,9 @@ class AsynchExecProofCreationJob : public SimpleThreadPool::Job {
       return;
     } else {
       MerkleExecSignatureInternalMsg* pInMsg =
-          new MerkleExecSignatureInternalMsg(replicaApi, view, seqNumber,
+          new MerkleExecSignatureInternalMsg(replicaApi,
+                                             view,
+                                             seqNumber,
                                              (uint16_t)sigLength,
                                              bufferForSigComputations);
       replicaApi->getIncomingMsgsStorage().pushInternalMsg(pInMsg);
@@ -228,9 +239,13 @@ void PartialExecProofsSet::tryToCreateFullProof() {
 
     PartialExecProofMsg* myPEP = myPartialExecProof;
 
-    AsynchExecProofCreationJob* j = new AsynchExecProofCreationJob(
-        replicaApi, thresholdVerifier(), acc, expectedDigest,
-        myPEP->seqNumber(), myPEP->viewNumber());
+    AsynchExecProofCreationJob* j =
+        new AsynchExecProofCreationJob(replicaApi,
+                                       thresholdVerifier(),
+                                       acc,
+                                       expectedDigest,
+                                       myPEP->seqNumber(),
+                                       myPEP->viewNumber());
 
     replicaApi->getInternalThreadPool().add(j);
 
@@ -244,7 +259,8 @@ void PartialExecProofsSet::tryToCreateFullProof() {
 void PartialExecProofsSet::setMerkleSignature(const char* sig,
                                               uint16_t sigLength) {
   for (set<FullExecProofMsg*>::iterator it = setOfFullExecProofs.begin();
-       it != setOfFullExecProofs.end(); ++it) {
+       it != setOfFullExecProofs.end();
+       ++it) {
     FullExecProofMsg* fep = *it;
     fep->setSignature(sig, sigLength);
   }

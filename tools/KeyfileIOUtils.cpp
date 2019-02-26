@@ -21,8 +21,10 @@
 
 // Helper function to outputReplicaKeyfile.
 static void serializeCryptosystemPublicConfiguration(
-    std::ostream& output, const Cryptosystem& system,
-    const std::string& sysName, const std::string& prefix) {
+    std::ostream& output,
+    const Cryptosystem& system,
+    const std::string& sysName,
+    const std::string& prefix) {
   uint16_t numReplicas = system.getNumSigners();
 
   output << "\n# " << sysName
@@ -47,11 +49,17 @@ static void serializeCryptosystemPublicConfiguration(
 }
 
 bool outputReplicaKeyfile(
-    uint16_t replicaID, uint16_t numReplicas, uint16_t f, uint16_t c,
-    std::ostream& output, const std::string& outputFilename,
+    uint16_t replicaID,
+    uint16_t numReplicas,
+    uint16_t f,
+    uint16_t c,
+    std::ostream& output,
+    const std::string& outputFilename,
     const std::vector<std::pair<std::string, std::string>>& rsaKeys,
-    const Cryptosystem& execSys, const Cryptosystem& slowSys,
-    const Cryptosystem& commitSys, const Cryptosystem& optSys) {
+    const Cryptosystem& execSys,
+    const Cryptosystem& slowSys,
+    const Cryptosystem& commitSys,
+    const Cryptosystem& optSys) {
   if ((3 * f + 2 * c + 1) != numReplicas) {
     std::cout << "F, C, and number of replicas do not agree for requested"
                  " output.\n";
@@ -72,12 +80,12 @@ bool outputReplicaKeyfile(
     output << "  - " << rsaKeys[i].second << "\n";
   }
 
-  serializeCryptosystemPublicConfiguration(output, execSys, "Execution",
-                                           "execution");
-  serializeCryptosystemPublicConfiguration(output, slowSys, "Slow path commit",
-                                           "slow_commit");
-  serializeCryptosystemPublicConfiguration(output, commitSys, "Commit",
-                                           "commit");
+  serializeCryptosystemPublicConfiguration(
+      output, execSys, "Execution", "execution");
+  serializeCryptosystemPublicConfiguration(
+      output, slowSys, "Slow path commit", "slow_commit");
+  serializeCryptosystemPublicConfiguration(
+      output, commitSys, "Commit", "commit");
   serializeCryptosystemPublicConfiguration(
       output, optSys, "Optimistic fast path commit", "optimistic_commit");
 
@@ -117,10 +125,12 @@ static std::string trim(const std::string& str) {
 // integer is in the map, is a valid integer and not some other string value,
 // and is within range.
 static bool parseUint16(
-    uint16_t& output, const std::string& identifier,
+    uint16_t& output,
+    const std::string& identifier,
     std::unordered_map<std::string, std::string>& map,
     const std::string& filename,
-    const std::unordered_map<std::string, size_t>& lineNumbers, uint16_t min,
+    const std::unordered_map<std::string, size_t>& lineNumbers,
+    uint16_t min,
     uint16_t max) {
   if (map.count(identifier) < 1) {
     if (lineNumbers.count(identifier) < 1) {
@@ -209,7 +219,8 @@ static bool expectEntries(
 // Handles reading all the public configuration for each of the four
 // cryptosystems we expect to read in.
 static bool deserializeCryptosystemPublicConfiguration(
-    std::unique_ptr<Cryptosystem>& cryptosystem, const std::string& name,
+    std::unique_ptr<Cryptosystem>& cryptosystem,
+    const std::string& name,
     const std::string& prefix,
     std::unordered_map<std::string, std::string>& valueAssignments,
     std::unordered_map<std::string, std::vector<std::string>>& listAssignments,
@@ -226,12 +237,22 @@ static bool deserializeCryptosystemPublicConfiguration(
 
   uint16_t numSigners, threshold;
 
-  if (!parseUint16(numSigners, numSignersVar, valueAssignments, filename,
-                   identifierLines, 1, UINT16_MAX)) {
+  if (!parseUint16(numSigners,
+                   numSignersVar,
+                   valueAssignments,
+                   filename,
+                   identifierLines,
+                   1,
+                   UINT16_MAX)) {
     return false;
   }
-  if (!parseUint16(threshold, threshVar, valueAssignments, filename,
-                   identifierLines, 1, UINT16_MAX)) {
+  if (!parseUint16(threshold,
+                   threshVar,
+                   valueAssignments,
+                   filename,
+                   identifierLines,
+                   1,
+                   UINT16_MAX)) {
     return false;
   }
 
@@ -243,8 +264,10 @@ static bool deserializeCryptosystemPublicConfiguration(
     return false;
   }
 
-  if (!expectEntries({typeVar, subtypeVar, pubKeyVar}, valueAssignments,
-                     filename, identifierLines)) {
+  if (!expectEntries({typeVar, subtypeVar, pubKeyVar},
+                     valueAssignments,
+                     filename,
+                     identifierLines)) {
     return false;
   }
 
@@ -253,8 +276,8 @@ static bool deserializeCryptosystemPublicConfiguration(
   std::string subtype = valueAssignments[subtypeVar];
   valueAssignments.erase(subtypeVar);
 
-  if (!Cryptosystem::isValidCryptosystemSelection(type, subtype, numSigners,
-                                                  threshold)) {
+  if (!Cryptosystem::isValidCryptosystemSelection(
+          type, subtype, numSigners, threshold)) {
     std::cout << filename << ": line " << identifierLines.at(typeVar)
               << ":"
                  " Invalid configuration for "
@@ -330,7 +353,8 @@ static std::string getBadSyntaxMessage(const std::string& filename,
 // records of what line numbers everything it parses come from for use in
 // giving error messages referencing specific lines.
 bool parseReplicaKeyfile(
-    std::istream& input, const std::string& filename,
+    std::istream& input,
+    const std::string& filename,
     std::unordered_map<std::string, std::string>& valueAssignments,
     std::unordered_map<std::string, std::vector<std::string>>& listAssignments,
     std::unordered_map<std::string, size_t>& identifierLines,
@@ -496,34 +520,59 @@ bool parseReplicaKeyfile(
   return true;
 }
 
-bool inputReplicaKeyfile(std::istream& input, const std::string& filename,
+bool inputReplicaKeyfile(std::istream& input,
+                         const std::string& filename,
                          bftEngine::ReplicaConfig& config) {
   std::unordered_map<std::string, std::string> valueAssignments;
   std::unordered_map<std::string, std::vector<std::string>> listAssignments;
   std::unordered_map<std::string, size_t> identifierLines;
   std::unordered_map<std::string, std::vector<size_t>> listEntryLines;
 
-  if (!parseReplicaKeyfile(input, filename, valueAssignments, listAssignments,
-                           identifierLines, listEntryLines)) {
+  if (!parseReplicaKeyfile(input,
+                           filename,
+                           valueAssignments,
+                           listAssignments,
+                           identifierLines,
+                           listEntryLines)) {
     return false;
   }
 
   uint16_t numReplicas, f, c, replicaID;
 
-  if (!parseUint16(numReplicas, "num_replicas", valueAssignments, filename,
-                   identifierLines, 1, UINT16_MAX)) {
-    return false;
-  }
-  if (!parseUint16(f, "f_val", valueAssignments, filename, identifierLines, 1,
+  if (!parseUint16(numReplicas,
+                   "num_replicas",
+                   valueAssignments,
+                   filename,
+                   identifierLines,
+                   1,
                    UINT16_MAX)) {
     return false;
   }
-  if (!parseUint16(c, "c_val", valueAssignments, filename, identifierLines, 0,
+  if (!parseUint16(f,
+                   "f_val",
+                   valueAssignments,
+                   filename,
+                   identifierLines,
+                   1,
                    UINT16_MAX)) {
     return false;
   }
-  if (!parseUint16(replicaID, "replica_id", valueAssignments, filename,
-                   identifierLines, 0, UINT16_MAX)) {
+  if (!parseUint16(c,
+                   "c_val",
+                   valueAssignments,
+                   filename,
+                   identifierLines,
+                   0,
+                   UINT16_MAX)) {
+    return false;
+  }
+  if (!parseUint16(replicaID,
+                   "replica_id",
+                   valueAssignments,
+                   filename,
+                   identifierLines,
+                   0,
+                   UINT16_MAX)) {
     return false;
   }
 
@@ -584,35 +633,60 @@ bool inputReplicaKeyfile(std::istream& input, const std::string& filename,
   std::unique_ptr<Cryptosystem> commitSys;
   std::unique_ptr<Cryptosystem> optSys;
 
-  if (!deserializeCryptosystemPublicConfiguration(
-          execSys, "execution", "execution", valueAssignments, listAssignments,
-          filename, identifierLines, listEntryLines, numReplicas)) {
+  if (!deserializeCryptosystemPublicConfiguration(execSys,
+                                                  "execution",
+                                                  "execution",
+                                                  valueAssignments,
+                                                  listAssignments,
+                                                  filename,
+                                                  identifierLines,
+                                                  listEntryLines,
+                                                  numReplicas)) {
     return false;
   }
-  if (!deserializeCryptosystemPublicConfiguration(
-          slowSys, "slow path commit", "slow_commit", valueAssignments,
-          listAssignments, filename, identifierLines, listEntryLines,
-          numReplicas)) {
+  if (!deserializeCryptosystemPublicConfiguration(slowSys,
+                                                  "slow path commit",
+                                                  "slow_commit",
+                                                  valueAssignments,
+                                                  listAssignments,
+                                                  filename,
+                                                  identifierLines,
+                                                  listEntryLines,
+                                                  numReplicas)) {
     return false;
   }
-  if (!deserializeCryptosystemPublicConfiguration(
-          commitSys, "commit", "commit", valueAssignments, listAssignments,
-          filename, identifierLines, listEntryLines, numReplicas)) {
+  if (!deserializeCryptosystemPublicConfiguration(commitSys,
+                                                  "commit",
+                                                  "commit",
+                                                  valueAssignments,
+                                                  listAssignments,
+                                                  filename,
+                                                  identifierLines,
+                                                  listEntryLines,
+                                                  numReplicas)) {
     return false;
   }
-  if (!deserializeCryptosystemPublicConfiguration(
-          optSys, "optimistic fast path commit", "optimistic_commit",
-          valueAssignments, listAssignments, filename, identifierLines,
-          listEntryLines, numReplicas)) {
+  if (!deserializeCryptosystemPublicConfiguration(optSys,
+                                                  "optimistic fast path commit",
+                                                  "optimistic_commit",
+                                                  valueAssignments,
+                                                  listAssignments,
+                                                  filename,
+                                                  identifierLines,
+                                                  listEntryLines,
+                                                  numReplicas)) {
     return false;
   }
 
   // Load private keys for this replica.
-  if (!expectEntries({"rsa_private_key", "execution_cryptosystem_private_key",
+  if (!expectEntries({"rsa_private_key",
+                      "execution_cryptosystem_private_key",
                       "slow_commit_cryptosystem_private_key",
                       "commit_cryptosystem_private_key",
                       "optimistic_commit_cryptosystem_private_key"},
-                     valueAssignments, filename, identifierLines)) {
+                     valueAssignments,
+                     filename,
+                     identifierLines)) {
     return false;
   }
 

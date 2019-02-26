@@ -103,7 +103,8 @@ class IClient {
 
   virtual bool isRunning() = 0;
 
-  virtual Status invokeCommandSynch(const Slice command, bool isReadOnly,
+  virtual Status invokeCommandSynch(const Slice command,
+                                    bool isReadOnly,
                                     Slice& outReply) = 0;
 
   virtual Status release(
@@ -170,12 +171,15 @@ class ICommandsHandler {
   virtual bool executeCommand(const Slice command,
                               const ILocalKeyValueStorageReadOnly& roStorage,
                               IBlocksAppender& blockAppender,
-                              const size_t maxReplySize, char* outReply,
+                              const size_t maxReplySize,
+                              char* outReply,
                               size_t& outReplySize) const = 0;
 
   virtual bool executeReadOnlyCommand(
-      const Slice command, const ILocalKeyValueStorageReadOnly& roStorage,
-      const size_t maxReplySize, char* outReply,
+      const Slice command,
+      const ILocalKeyValueStorageReadOnly& roStorage,
+      const size_t maxReplySize,
+      char* outReply,
       size_t& outReplySize) const = 0;
 };
 
@@ -198,12 +202,15 @@ class ILocalKeyValueStorageReadOnly {
   virtual Status get(Key key, Value& outValue) const = 0;
 
   // get value of a key (returns the latest version before readVersion+1)
-  virtual Status get(BlockId readVersion, Slice key, Slice& outValue,
+  virtual Status get(BlockId readVersion,
+                     Slice key,
+                     Slice& outValue,
                      BlockId& outBlock) const = 0;
 
   // returns outRes==true if key has been changed between block fromBlock and
   // toBlock.
-  virtual Status mayHaveConflictBetween(Slice key, BlockId fromBlock,
+  virtual Status mayHaveConflictBetween(Slice key,
+                                        BlockId fromBlock,
                                         BlockId toBlock,
                                         bool& outRes) const = 0;
 
@@ -224,14 +231,19 @@ class ILocalKeyValueStorageReadOnlyIterator {
   virtual KeyValuePair next() = 0;
 
   // iteration on a specific read version
-  virtual KeyValuePair first(BlockId readVersion, BlockId& actualVersion,
+  virtual KeyValuePair first(BlockId readVersion,
+                             BlockId& actualVersion,
                              bool& isEnd) = 0;
   virtual KeyValuePair seekAtLeast(
-      BlockId readVersion, Key key, BlockId& actualVersion,
+      BlockId readVersion,
+      Key key,
+      BlockId& actualVersion,
       bool& isEnd) = 0;  // Assumes lexicographical ordering of the keys, seek
                          // the first element k >= key
   virtual KeyValuePair next(
-      BlockId readVersion, Key key, BlockId& actualVersion,
+      BlockId readVersion,
+      Key key,
+      BlockId& actualVersion,
       bool& isEnd) = 0;  // Proceed to next element and return it
 };
 }  // namespace SimpleKVBC

@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -31,7 +32,8 @@ static std::set<MessageBase*>
 void MessageBase::printLiveMessages() {
   printf("\nDumping all live messages:");
   for (std::set<MessageBase*>::iterator it = liveMessagesDebug.begin();
-       it != liveMessagesDebug.end(); it++) {
+       it != liveMessagesDebug.end();
+       it++) {
     printf("<type=%d, size=%d>", (*it)->type(), (*it)->size());
     printf("%8s", " ");  // space
   }
@@ -93,8 +95,10 @@ MessageBase::MessageBase(NodeIdType sender, MsgType type, MsgSize size) {
 #endif
 }
 
-MessageBase::MessageBase(NodeIdType sender, MessageBase::Header* body,
-                         MsgSize size, bool ownerOfStorage) {
+MessageBase::MessageBase(NodeIdType sender,
+                         MessageBase::Header* body,
+                         MsgSize size,
+                         bool ownerOfStorage) {
   msgBody_ = body;
   msgSize_ = size;
   storageSize_ = size;

@@ -35,7 +35,9 @@ class BlockchainDBAdapter {
 
   Status addBlock(BlockId _blockId, Slice _blockRaw);
   Status updateKey(Key _key, BlockId _block, Value _value);
-  Status getKeyByReadVersion(BlockId readVersion, Slice key, Slice& outValue,
+  Status getKeyByReadVersion(BlockId readVersion,
+                             Slice key,
+                             Slice& outValue,
                              BlockId& outBlock) const;
   Status getBlockById(BlockId _blockId, Slice& _blockRaw, bool& _found) const;
   bool hasBlockId(BlockId _blockId) const;
@@ -45,17 +47,28 @@ class BlockchainDBAdapter {
   Status freeIterator(IDBClient::IDBClientIterator* _iter) {
     return m_db->freeIterator(_iter);
   }
-  Status first(IDBClient::IDBClientIterator* iter, BlockId readVersion,
-               OUT BlockId& actualVersion, OUT bool& isEnd, OUT Slice& _key,
+  Status first(IDBClient::IDBClientIterator* iter,
+               BlockId readVersion,
+               OUT BlockId& actualVersion,
+               OUT bool& isEnd,
+               OUT Slice& _key,
                OUT Slice& _value);
-  Status seekAtLeast(IDBClient::IDBClientIterator* iter, Slice _searchKey,
-                     BlockId _readVersion, OUT BlockId& _actualVersion,
-                     OUT Slice& _key, OUT Slice& _value, OUT bool& _isEnd);
-  Status next(IDBClient::IDBClientIterator* iter, BlockId _readVersion,
-              OUT Slice& _key, OUT Slice& _value, OUT BlockId& _actualVersion,
+  Status seekAtLeast(IDBClient::IDBClientIterator* iter,
+                     Slice _searchKey,
+                     BlockId _readVersion,
+                     OUT BlockId& _actualVersion,
+                     OUT Slice& _key,
+                     OUT Slice& _value,
+                     OUT bool& _isEnd);
+  Status next(IDBClient::IDBClientIterator* iter,
+              BlockId _readVersion,
+              OUT Slice& _key,
+              OUT Slice& _value,
+              OUT BlockId& _actualVersion,
               OUT bool& _isEnd);
 
-  Status getCurrent(IDBClient::IDBClientIterator* iter, OUT Slice& _key,
+  Status getCurrent(IDBClient::IDBClientIterator* iter,
+                    OUT Slice& _key,
                     OUT Slice& _value);
   Status isEnd(IDBClient::IDBClientIterator* iter, OUT bool& _isEnd);
 

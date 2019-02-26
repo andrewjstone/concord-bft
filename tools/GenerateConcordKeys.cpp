@@ -53,8 +53,11 @@ static std::pair<std::string, std::string> generateRsaKey() {
   return keyPair;
 }
 
-static bool parseUInt16(uint16_t& output, const std::string& str, uint16_t min,
-                        uint16_t max, const std::string& name) {
+static bool parseUInt16(uint16_t& output,
+                        const std::string& str,
+                        uint16_t min,
+                        uint16_t max,
+                        const std::string& name) {
   long long unverifiedNum;
   std::string errorMessage = "Invalid value given for " + name + ": " + str +
                              " (expected integer in range [" +
@@ -296,32 +299,32 @@ int main(int argc, char** argv) {
   uint16_t optThresh = n;
 
   // Verify cryptosystem selections.
-  if (!Cryptosystem::isValidCryptosystemSelection(execType, execParam, n,
-                                                  execThresh)) {
+  if (!Cryptosystem::isValidCryptosystemSelection(
+          execType, execParam, n, execThresh)) {
     std::cout << "Invalid selection of cryptosystem for execution cryptosystem"
                  " (with threshold "
               << execThresh << " out of " << n << "): " << execType << " "
               << execParam << ".\n";
     return -1;
   }
-  if (!Cryptosystem::isValidCryptosystemSelection(slowType, slowParam, n,
-                                                  slowThresh)) {
+  if (!Cryptosystem::isValidCryptosystemSelection(
+          slowType, slowParam, n, slowThresh)) {
     std::cout << "Invalid selection of cryptosystem for slow path commit"
                  " cryptosystem (with threshold "
               << slowThresh << " out of " << n << "): " << slowType << " "
               << slowParam << ".\n";
     return -1;
   }
-  if (!Cryptosystem::isValidCryptosystemSelection(commitType, commitParam, n,
-                                                  commitThresh)) {
+  if (!Cryptosystem::isValidCryptosystemSelection(
+          commitType, commitParam, n, commitThresh)) {
     std::cout << "Invalid selection of cryptosystem for commit cryptosystem"
                  " (with threshold "
               << commitThresh << " out of " << n << "): " << commitType << " "
               << commitParam << ".\n";
     return -1;
   }
-  if (!Cryptosystem::isValidCryptosystemSelection(optType, optParam, n,
-                                                  optThresh)) {
+  if (!Cryptosystem::isValidCryptosystemSelection(
+          optType, optParam, n, optThresh)) {
     std::cout << "Invalid selection of cryptosystem for optimistic fast path"
                  " commit cryptosystem (with threshold "
               << optThresh << " out of " << n << "): " << optType << " "
@@ -358,9 +361,17 @@ int main(int argc, char** argv) {
   // Output the generated keys.
 
   for (uint16_t i = 0; i < n; ++i) {
-    if (!outputReplicaKeyfile(i, n, f, c, outputFiles[i],
-                              outputPrefix + std::to_string(i), rsaKeys,
-                              execSys, slowSys, commitSys, optSys)) {
+    if (!outputReplicaKeyfile(i,
+                              n,
+                              f,
+                              c,
+                              outputFiles[i],
+                              outputPrefix + std::to_string(i),
+                              rsaKeys,
+                              execSys,
+                              slowSys,
+                              commitSys,
+                              optSys)) {
       return -1;
     }
   }

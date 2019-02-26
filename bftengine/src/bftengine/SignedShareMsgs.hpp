@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -48,14 +49,22 @@ class SignedShareBase : public MessageBase {
   static_assert(sizeof(SignedShareBaseHeader) == (2 + 8 + 8 + 2),
                 "SignedShareBaseHeader is 58B");
 
-  static SignedShareBase* create(int16_t type, ViewNum v, SeqNum s,
-                                 ReplicaId senderId, Digest& digest,
+  static SignedShareBase* create(int16_t type,
+                                 ViewNum v,
+                                 SeqNum s,
+                                 ReplicaId senderId,
+                                 Digest& digest,
                                  IThresholdSigner* thresholdSigner);
-  static SignedShareBase* create(int16_t type, ViewNum v, SeqNum s,
-                                 ReplicaId senderId, const char* sig,
+  static SignedShareBase* create(int16_t type,
+                                 ViewNum v,
+                                 SeqNum s,
+                                 ReplicaId senderId,
+                                 const char* sig,
                                  uint16_t sigLen);
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, int16_t type,
-                              MessageBase* inMsg, SignedShareBase*& outMsg);
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              int16_t type,
+                              MessageBase* inMsg,
+                              SignedShareBase*& outMsg);
 
   SignedShareBase(ReplicaId sender, int16_t type, size_t msgSize);
 
@@ -68,10 +77,13 @@ class SignedShareBase : public MessageBase {
 
 class PreparePartialMsg : public SignedShareBase {
  public:
-  static PreparePartialMsg* create(ViewNum v, SeqNum s, ReplicaId senderId,
+  static PreparePartialMsg* create(ViewNum v,
+                                   SeqNum s,
+                                   ReplicaId senderId,
                                    Digest& ppDigest,
                                    IThresholdSigner* thresholdSigner);
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, MessageBase* inMsg,
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              MessageBase* inMsg,
                               PreparePartialMsg*& outMsg);
 };
 
@@ -81,9 +93,13 @@ class PreparePartialMsg : public SignedShareBase {
 
 class PrepareFullMsg : public SignedShareBase {
  public:
-  static PrepareFullMsg* create(ViewNum v, SeqNum s, ReplicaId senderId,
-                                const char* sig, uint16_t sigLen);
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, MessageBase* inMsg,
+  static PrepareFullMsg* create(ViewNum v,
+                                SeqNum s,
+                                ReplicaId senderId,
+                                const char* sig,
+                                uint16_t sigLen);
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              MessageBase* inMsg,
                               PrepareFullMsg*& outMsg);
 };
 
@@ -93,10 +109,13 @@ class PrepareFullMsg : public SignedShareBase {
 
 class CommitPartialMsg : public SignedShareBase {
  public:
-  static CommitPartialMsg* create(ViewNum v, SeqNum s, ReplicaId senderId,
+  static CommitPartialMsg* create(ViewNum v,
+                                  SeqNum s,
+                                  ReplicaId senderId,
                                   Digest& ppDoubleDigest,
                                   IThresholdSigner* thresholdSigner);
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, MessageBase* inMsg,
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              MessageBase* inMsg,
                               CommitPartialMsg*& outMsg);
 };
 
@@ -106,9 +125,10 @@ class CommitPartialMsg : public SignedShareBase {
 
 class CommitFullMsg : public SignedShareBase {
  public:
-  static CommitFullMsg* create(ViewNum v, SeqNum s, int16_t senderId,
-                               const char* sig, uint16_t sigLen);
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, MessageBase* inMsg,
+  static CommitFullMsg* create(
+      ViewNum v, SeqNum s, int16_t senderId, const char* sig, uint16_t sigLen);
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              MessageBase* inMsg,
                               CommitFullMsg*& outMsg);
 };
 

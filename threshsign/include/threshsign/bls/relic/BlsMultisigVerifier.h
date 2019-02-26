@@ -28,7 +28,8 @@ class BlsPublicParameters;
 class BlsMultisigVerifier : public BlsThresholdVerifier {
  public:
   BlsMultisigVerifier(const BlsPublicParameters& params,
-                      NumSharesType reqSigners, NumSharesType numSigners,
+                      NumSharesType reqSigners,
+                      NumSharesType numSigners,
                       const std::vector<BlsPublicKey>& verifKeys);
 
   virtual ~BlsMultisigVerifier() {}
@@ -47,7 +48,9 @@ class BlsMultisigVerifier : public BlsThresholdVerifier {
     return BlsThresholdVerifier::getPublicKey();
   }
 
-  virtual bool verify(const char* msg, int msgLen, const char* sig,
+  virtual bool verify(const char* msg,
+                      int msgLen,
+                      const char* sig,
                       int sigLen) const;
 
   virtual int requiredLengthForSignedData() const;

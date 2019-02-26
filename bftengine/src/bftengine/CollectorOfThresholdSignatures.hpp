@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -116,7 +117,8 @@ class CollectorOfThresholdSignatures {
   bool isComplete() const { return (combinedValidSignatureMsg != nullptr); }
 
   void onCompletionOfSignaturesProcessing(
-      SeqNum seqNumber, ViewNum view,
+      SeqNum seqNumber,
+      ViewNum view,
       const std::set<ReplicaId>&
           replicasWithBadSigs)  // if we found bad signatures
   {
@@ -137,7 +139,9 @@ class CollectorOfThresholdSignatures {
   }
 
   void onCompletionOfSignaturesProcessing(
-      SeqNum seqNumber, ViewNum view, const char* combinedSig,
+      SeqNum seqNumber,
+      ViewNum view,
+      const char* combinedSig,
       uint16_t combinedSigLen)  // if we compute a valid combined signature
   {
     Assert(expectedSeqNumber == seqNumber);
@@ -156,7 +160,8 @@ class CollectorOfThresholdSignatures {
         context, seqNumber, view, combinedSig, combinedSigLen);
   }
 
-  void onCompletionOfCombinedSigVerification(SeqNum seqNumber, ViewNum view,
+  void onCompletionOfCombinedSigVerification(SeqNum seqNumber,
+                                             ViewNum view,
                                              bool isValid) {
     Assert(expectedSeqNumber == seqNumber);
     Assert(expectedView == view);
@@ -191,10 +196,13 @@ class CollectorOfThresholdSignatures {
 
       CombinedSigVerificationJob* bkJob = new CombinedSigVerificationJob(
           ExternalFunc::thresholdVerifier(context),
-          &ExternalFunc::incomingMsgsStorage(context), expectedSeqNumber,
-          expectedView, expectedDigest,
+          &ExternalFunc::incomingMsgsStorage(context),
+          expectedSeqNumber,
+          expectedView,
+          expectedDigest,
           candidateCombinedSignatureMsg->signatureBody(),
-          candidateCombinedSignatureMsg->signatureLen(), context);
+          candidateCombinedSignatureMsg->signatureLen(),
+          context);
 
       ExternalFunc::threadPool(context).add(bkJob);
     } else if (numberOfUnknownSignatures >= numOfRequiredSigs) {
@@ -202,8 +210,12 @@ class CollectorOfThresholdSignatures {
 
       SignaturesProcessingJob* bkJob = new SignaturesProcessingJob(
           ExternalFunc::thresholdVerifier(context),
-          &ExternalFunc::incomingMsgsStorage(context), expectedSeqNumber,
-          expectedView, expectedDigest, numOfRequiredSigs, context);
+          &ExternalFunc::incomingMsgsStorage(context),
+          expectedSeqNumber,
+          expectedView,
+          expectedDigest,
+          numOfRequiredSigs,
+          context);
 
       uint16_t numOfPartSigsInJob = 0;
       for (std::pair<uint16_t, RepInfo>&& info : replicasInfo) {
@@ -252,8 +264,11 @@ class CollectorOfThresholdSignatures {
    public:
     SignaturesProcessingJob(IThresholdVerifier* const thresholdVerifier,
                             IncomingMsgsStorage* const replicaMsgsStorage,
-                            SeqNum seqNum, ViewNum view, Digest& digest,
-                            uint16_t numOfRequired, void* cnt)
+                            SeqNum seqNum,
+                            ViewNum view,
+                            Digest& digest,
+                            uint16_t numOfRequired,
+                            void* cnt)
         : verifier{thresholdVerifier},
           repMsgsStorage{replicaMsgsStorage},
           expectedSeqNumber{seqNum},
@@ -315,8 +330,10 @@ class CollectorOfThresholdSignatures {
         verifier->release(acc);
       }
 
-      bool succ = verifier->verify((char*)&expectedDigest, sizeof(Digest),
-                                   bufferForSigComputations, bufferSize);
+      bool succ = verifier->verify((char*)&expectedDigest,
+                                   sizeof(Digest),
+                                   bufferForSigComputations,
+                                   bufferSize);
 
       if (!succ) {
         std::set<ReplicaId> replicasWithBadSigs;
@@ -352,7 +369,10 @@ class CollectorOfThresholdSignatures {
       } else {
         // send internal message with the results
         InternalMessage* iMsg = ExternalFunc::createInterCombinedSigSucceeded(
-            context, expectedSeqNumber, expectedView, bufferForSigComputations,
+            context,
+            expectedSeqNumber,
+            expectedView,
+            bufferForSigComputations,
             bufferSize);
         repMsgsStorage->pushInternalMsg(iMsg);
       }
@@ -375,9 +395,12 @@ class CollectorOfThresholdSignatures {
    public:
     CombinedSigVerificationJob(IThresholdVerifier* const thresholdVerifier,
                                IncomingMsgsStorage* const replicaMsgsStorage,
-                               SeqNum seqNum, ViewNum view, Digest& digest,
+                               SeqNum seqNum,
+                               ViewNum view,
+                               Digest& digest,
                                char* const combinedSigBody,
-                               uint16_t combinedSigLength, void* cnt)
+                               uint16_t combinedSigLength,
+                               void* cnt)
         : verifier{thresholdVerifier},
           repMsgsStorage{replicaMsgsStorage},
           expectedSeqNumber{seqNum},
@@ -396,8 +419,8 @@ class CollectorOfThresholdSignatures {
     }
 
     virtual void execute() override {
-      bool succ = verifier->verify((char*)&expectedDigest, sizeof(Digest),
-                                   combinedSig, combinedSigLen);
+      bool succ = verifier->verify(
+          (char*)&expectedDigest, sizeof(Digest), combinedSig, combinedSigLen);
 
       InternalMessage* iMsg = ExternalFunc::createInterVerifyCombinedSigResult(
           context, expectedSeqNumber, expectedView, succ);

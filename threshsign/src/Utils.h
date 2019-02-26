@@ -130,12 +130,17 @@ class Utils {
     }
   }
 
-  static void hex2bin(const char* hexBuf, int hexBufLen, unsigned char* bin,
+  static void hex2bin(const char* hexBuf,
+                      int hexBufLen,
+                      unsigned char* bin,
                       int binCapacity);
-  static void bin2hex(const void* data, int dataLen, char* hexBuf,
+  static void bin2hex(const void* data,
+                      int dataLen,
+                      char* hexBuf,
                       int hexBufCapacity);
 
   static std::string bin2hex(const void* data, int dataLen);
-  static void hex2bin(const std::string& hexStr, unsigned char* bin,
+  static void hex2bin(const std::string& hexStr,
+                      unsigned char* bin,
                       int binCapacity);
 };

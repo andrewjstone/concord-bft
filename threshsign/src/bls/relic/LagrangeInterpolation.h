@@ -160,7 +160,8 @@ void lagrangeCoeffNaive(const VectorOfShares& signers,
  * WARNING: Still slow because reduces too often.
  */
 void lagrangeCoeffNaiveReduced(const VectorOfShares& signers,
-                               std::vector<BNT>& coeffs, const BNT& fieldOrder);
+                               std::vector<BNT>& coeffs,
+                               const BNT& fieldOrder);
 
 /**
  * Computes the numerator and denominator with modular reduction as necessary.

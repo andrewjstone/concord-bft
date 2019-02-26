@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -59,13 +60,17 @@ class RetransmissionsLogic {
                                       // new view
   {
     pendingRetransmissionsHeap =
-        std::priority_queue<PendingRetran, std::vector<PendingRetran>,
+        std::priority_queue<PendingRetran,
+                            std::vector<PendingRetran>,
                             PendingRetran::Comparator>();
     Assert(pendingRetransmissionsHeap.empty());
   }
 
-  void processSend(Time time, uint16_t replicaId, SeqNum msgSeqNum,
-                   uint16_t msgType, bool ignorePreviousAcks) {
+  void processSend(Time time,
+                   uint16_t replicaId,
+                   SeqNum msgSeqNum,
+                   uint16_t msgType,
+                   bool ignorePreviousAcks) {
     if ((msgSeqNum <= lastStable) ||
         (msgSeqNum > lastStable + maxOutSeqNumbers))
       return;
@@ -126,7 +131,9 @@ class RetransmissionsLogic {
     pendingRetransmissionsHeap.push(pr);
   }
 
-  void processAck(Time time, uint16_t replicaId, SeqNum msgSeqNum,
+  void processAck(Time time,
+                  uint16_t replicaId,
+                  SeqNum msgSeqNum,
                   uint16_t msgType) {
     if ((msgSeqNum <= lastStable) ||
         (msgSeqNum > lastStable + maxOutSeqNumbers))
@@ -245,7 +252,8 @@ class RetransmissionsLogic {
     uint64_t retranTimeMilli;
   };
 
-  inline TrackedItem* getTrackedItem(uint16_t replicaId, uint16_t msgType,
+  inline TrackedItem* getTrackedItem(uint16_t replicaId,
+                                     uint16_t msgType,
                                      SeqNum msgSeqNum) {
     const uint16_t seqNumIdx = msgSeqNum % (this->maxOutSeqNumbers * 2);
 
@@ -322,7 +330,8 @@ class RetransmissionsLogic {
     };
   };
 
-  std::priority_queue<PendingRetran, std::vector<PendingRetran>,
+  std::priority_queue<PendingRetran,
+                      std::vector<PendingRetran>,
                       PendingRetran::Comparator>
       pendingRetransmissionsHeap;
 };
@@ -340,7 +349,9 @@ class RetranProcResultInternalMsg : public InternalMessage {
   RetransmissionsManager* const retransmissionsMgr;
 
  public:
-  RetranProcResultInternalMsg(InternalReplicaApi* r, SeqNum s, ViewNum v,
+  RetranProcResultInternalMsg(InternalReplicaApi* r,
+                              SeqNum s,
+                              ViewNum v,
                               std::forward_list<RetSuggestion>* suggestedRetran,
                               RetransmissionsManager* retransmissionsManager)
       : replica{r},
@@ -357,8 +368,8 @@ class RetranProcResultInternalMsg : public InternalMessage {
   }
 
   virtual void handle() override {
-    replica->onRetransmissionsProcessingResults(lastStableSeqNum, view,
-                                                suggestedRetransmissions);
+    replica->onRetransmissionsProcessingResults(
+        lastStableSeqNum, view, suggestedRetransmissions);
 
     retransmissionsMgr->OnProcessingComplete();
   }
@@ -369,9 +380,11 @@ class RetranProcResultInternalMsg : public InternalMessage {
 ///////////////////////////////////////////////////////////////////////////////
 
 RetransmissionsManager::RetransmissionsManager(
-    InternalReplicaApi* r, SimpleThreadPool* threadPool,
+    InternalReplicaApi* r,
+    SimpleThreadPool* threadPool,
     IncomingMsgsStorage* const incomingMsgsStorage,
-    uint16_t maxOutNumOfSeqNumbers, SeqNum lastStableSeqNum)
+    uint16_t maxOutNumOfSeqNumbers,
+    SeqNum lastStableSeqNum)
     : replica{r},
       pool{threadPool},
       incomingMsgs{incomingMsgsStorage},
@@ -403,8 +416,10 @@ RetransmissionsManager::~RetransmissionsManager() {
   delete logic;
 }
 
-void RetransmissionsManager::onSend(uint16_t replicaId, SeqNum msgSeqNum,
-                                    uint16_t msgType, bool ignorePreviousAcks) {
+void RetransmissionsManager::onSend(uint16_t replicaId,
+                                    SeqNum msgSeqNum,
+                                    uint16_t msgType,
+                                    bool ignorePreviousAcks) {
   if (pool == nullptr) return;  // if disabled
 
   if ((msgSeqNum <= lastStable) || (msgSeqNum > lastStable + maxOutSeqNumbers))
@@ -420,7 +435,8 @@ void RetransmissionsManager::onSend(uint16_t replicaId, SeqNum msgSeqNum,
   add(e);
 }
 
-void RetransmissionsManager::onAck(uint16_t replicaId, SeqNum msgSeqNum,
+void RetransmissionsManager::onAck(uint16_t replicaId,
+                                   SeqNum msgSeqNum,
                                    uint16_t msgType) {
   if (pool == nullptr) return;  // if disabled
 
@@ -497,8 +513,10 @@ bool RetransmissionsManager::tryToStartProcessing() {
         RetransmissionsManager* const retransmissionsManager,
         IncomingMsgsStorage* const incomingMsgsStorage,
         std::vector<RetransmissionsManager::Event>* events,
-        RetransmissionsLogic* retransmissionsLogic, SeqNum lastStableSeqNum,
-        ViewNum v, bool clearPendingRetransmissions)
+        RetransmissionsLogic* retransmissionsLogic,
+        SeqNum lastStableSeqNum,
+        ViewNum v,
+        bool clearPendingRetransmissions)
         : replica{r},
           retranManager{retransmissionsManager},
           incomingMsgs{incomingMsgsStorage},
@@ -525,14 +543,14 @@ bool RetransmissionsManager::tryToStartProcessing() {
           RetransmissionsManager::Event& e = setOfEvents->at(i);
 
           if (e.etype == RetransmissionsManager::EType::SENT)
-            logic->processSend(e.time, e.replicaId, e.msgSeqNum, e.msgType,
-                               false);
+            logic->processSend(
+                e.time, e.replicaId, e.msgSeqNum, e.msgType, false);
           else if (e.etype == RetransmissionsManager::EType::ACK)
             logic->processAck(e.time, e.replicaId, e.msgSeqNum, e.msgType);
           else if (e.etype ==
                    RetransmissionsManager::EType::SENT_AND_IGNORE_PREV)
-            logic->processSend(e.time, e.replicaId, e.msgSeqNum, e.msgType,
-                               true);
+            logic->processSend(
+                e.time, e.replicaId, e.msgSeqNum, e.msgType, true);
           else
             Assert(false);
         }
@@ -545,9 +563,12 @@ bool RetransmissionsManager::tryToStartProcessing() {
 
       logic->getSuggestedRetransmissions(currTime, *suggestedRetransmissions);
 
-      RetranProcResultInternalMsg* iMsg = new RetranProcResultInternalMsg(
-          replica, lastStable, lastView, suggestedRetransmissions,
-          retranManager);
+      RetranProcResultInternalMsg* iMsg =
+          new RetranProcResultInternalMsg(replica,
+                                          lastStable,
+                                          lastView,
+                                          suggestedRetransmissions,
+                                          retranManager);
 
       // send to main thread
       incomingMsgs->pushInternalMsg(iMsg);
@@ -570,9 +591,15 @@ bool RetransmissionsManager::tryToStartProcessing() {
   // send work to thread pool
   RetransmissionsLogic* logic = (RetransmissionsLogic*)internalLogicInfo;
 
-  RetransmissionsProcessingJob* j = new RetransmissionsProcessingJob(
-      replica, this, incomingMsgs, eventsToProcess, logic, lastStable, lastView,
-      needToClearPendingRetransmissions);
+  RetransmissionsProcessingJob* j =
+      new RetransmissionsProcessingJob(replica,
+                                       this,
+                                       incomingMsgs,
+                                       eventsToProcess,
+                                       logic,
+                                       lastStable,
+                                       lastView,
+                                       needToClearPendingRetransmissions);
 
   pool->add(j);
 

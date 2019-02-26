@@ -35,7 +35,9 @@ class IThresholdFactory {
    * always!
    */
   virtual IThresholdVerifier* newVerifier(
-      ShareID reqSigners, ShareID totalSigners, const char* publicKeyStr,
+      ShareID reqSigners,
+      ShareID totalSigners,
+      const char* publicKeyStr,
       const std::vector<std::string>& verifKeysStr) const = 0;
 
   virtual IThresholdSigner* newSigner(ShareID id,

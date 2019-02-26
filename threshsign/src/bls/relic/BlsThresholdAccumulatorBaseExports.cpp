@@ -28,5 +28,6 @@
 
 #include "threshsign/bls/relic/BlsThresholdScheme.h"
 
-template class ThresholdAccumulatorBase<
-    BLS::Relic::BlsPublicKey, BLS::Relic::G1T, BLS::Relic::BlsSigshareParser>;
+template class ThresholdAccumulatorBase<BLS::Relic::BlsPublicKey,
+                                        BLS::Relic::G1T,
+                                        BLS::Relic::BlsSigshareParser>;

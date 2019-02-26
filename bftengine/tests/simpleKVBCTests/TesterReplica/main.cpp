@@ -107,8 +107,9 @@ int main(int argc, char** argv) {
 
   std::unordered_map<NodeNum, NodeInfo> nodes;
   for (int i = 0; i < (numOfReplicas + numOfClientProxies); i++) {
-    nodes.insert({i, NodeInfo{ipAddress, (uint16_t)(basePort + i * 2),
-                              i < numOfReplicas}});
+    nodes.insert(
+        {i,
+         NodeInfo{ipAddress, (uint16_t)(basePort + i * 2), i < numOfReplicas}});
   }
 
   bftEngine::PlainUdpConfig commConfig(

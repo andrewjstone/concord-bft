@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -20,8 +21,11 @@ namespace impl {
 // TODO(GG): use SignedShareBase
 class FullCommitProofMsg : public MessageBase {
  public:
-  FullCommitProofMsg(ReplicaId senderId, ViewNum v, SeqNum s,
-                     const char* commitProofSig, uint16_t commitProofSigLength);
+  FullCommitProofMsg(ReplicaId senderId,
+                     ViewNum v,
+                     SeqNum s,
+                     const char* commitProofSig,
+                     uint16_t commitProofSigLength);
 
   ViewNum viewNumber() const { return b()->viewNum; }
 
@@ -35,7 +39,8 @@ class FullCommitProofMsg : public MessageBase {
     return body() + sizeof(FullCommitProofMsgHeader);
   }
 
-  static bool ToActualMsgType(const ReplicasInfo& repInfo, MessageBase* inMsg,
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              MessageBase* inMsg,
                               FullCommitProofMsg*& outMsg);
 
  protected:

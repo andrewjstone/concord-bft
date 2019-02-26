@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -25,12 +26,15 @@
 #define PRINT_STACK
 #endif
 
-#define Assert(expr)                                                  \
-  {                                                                   \
-    if ((expr) != true) {                                             \
-      PRINT_STACK;                                                    \
-      printf("'%s' is NOT true (in function '%s' in %s:%d)\n", #expr, \
-             __FUNCTION__, __FILE__, __LINE__);                       \
-      assert(false);                                                  \
-    }                                                                 \
+#define Assert(expr)                                           \
+  {                                                            \
+    if ((expr) != true) {                                      \
+      PRINT_STACK;                                             \
+      printf("'%s' is NOT true (in function '%s' in %s:%d)\n", \
+             #expr,                                            \
+             __FUNCTION__,                                     \
+             __FILE__,                                         \
+             __LINE__);                                        \
+      assert(false);                                           \
+    }                                                          \
   }

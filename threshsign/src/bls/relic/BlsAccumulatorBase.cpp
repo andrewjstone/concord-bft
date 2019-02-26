@@ -49,12 +49,15 @@ std::pair<ShareID, G1T> BlsSigshareParser::operator()(const char* sigShare,
 }
 
 BlsAccumulatorBase::BlsAccumulatorBase(
-    const std::vector<BlsPublicKey>& verifKeys, NumSharesType reqSigners,
-    NumSharesType totalSigners, bool withShareVerification)
+    const std::vector<BlsPublicKey>& verifKeys,
+    NumSharesType reqSigners,
+    NumSharesType totalSigners,
+    bool withShareVerification)
     : ThresholdAccumulatorBase(verifKeys, reqSigners, totalSigners),
       shareVerificationEnabled(withShareVerification) {
-  assertEqual(vks.size(), static_cast<std::vector<BlsPublicKey>::size_type>(
-                              totalSigners + 1));
+  assertEqual(
+      vks.size(),
+      static_cast<std::vector<BlsPublicKey>::size_type>(totalSigners + 1));
 
   g2_get_gen(
       gen2);  // NOTE: requires BLS::Relic::Library::Get() call above to be made

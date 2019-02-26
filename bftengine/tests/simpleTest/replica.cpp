@@ -108,9 +108,11 @@ using namespace std;
 
 // Declarations of functions from config.cpp.
 void getReplicaConfig(uint16_t replicaId, bftEngine::ReplicaConfig* outConfig);
-extern PlainUdpConfig getUDPConfig(uint16_t id, int numOfClients,
+extern PlainUdpConfig getUDPConfig(uint16_t id,
+                                   int numOfClients,
                                    int numOfReplicas);
-extern PlainTcpConfig getTCPConfig(uint16_t id, int numOfClients,
+extern PlainTcpConfig getTCPConfig(uint16_t id,
+                                   int numOfClients,
                                    int numOfReplicas);
 
 void parse_params(int argc, char** argv) {
@@ -137,8 +139,8 @@ void parse_params(int argc, char** argv) {
         if (p == "-r") {
           auto numRep = std::stoi(argv[i + 1]);
           if (numRep < min16_t_u || numRep > max16_t_u) {
-            printf("-r value is out of range (%hu - %hu)", min16_t_u,
-                   max16_t_u);
+            printf(
+                "-r value is out of range (%hu - %hu)", min16_t_u, max16_t_u);
             exit(-1);
           }
           rp.numOfReplicas = numRep;
@@ -146,8 +148,8 @@ void parse_params(int argc, char** argv) {
         } else if (p == "-id") {
           auto repId = std::stoi(argv[i + 1]);
           if (repId < min16_t_u || repId > max16_t_u) {
-            printf("-id value is out of range (%hu - %hu)", min16_t_u,
-                   max16_t_u);
+            printf(
+                "-id value is out of range (%hu - %hu)", min16_t_u, max16_t_u);
             exit(-1);
           }
           rp.replicaId = repId;
@@ -155,8 +157,8 @@ void parse_params(int argc, char** argv) {
         } else if (p == "-c") {
           auto numCl = std::stoi(argv[i + 1]);
           if (numCl < min16_t_u || numCl > max16_t_u) {
-            printf("-c value is out of range (%hu - %hu)", min16_t_u,
-                   max16_t_u);
+            printf(
+                "-c value is out of range (%hu - %hu)", min16_t_u, max16_t_u);
             exit(-1);
           }
           rp.numOfClients = numCl;
@@ -170,8 +172,8 @@ void parse_params(int argc, char** argv) {
         } else if (p == "-vct") {
           auto vct = std::stoi(argv[i + 1]);
           if (vct < min32_t_u || vct > max32_t_u) {
-            printf("-vct value is out of range (%u - %u)", min16_t_u,
-                   max16_t_u);
+            printf(
+                "-vct value is out of range (%u - %u)", min16_t_u, max16_t_u);
             exit(-1);
           }
           rp.viewChangeTimeout = vct;
@@ -232,8 +234,12 @@ class SimpleAppState : public RequestsHandler {
         numOfReplicas{numRep} {}
 
   // Handler for the upcall from Concord-BFT.
-  int execute(uint16_t clientId, bool readOnly, uint32_t requestSize,
-              const char* request, uint32_t maxReplySize, char* outReply,
+  int execute(uint16_t clientId,
+              bool readOnly,
+              uint32_t requestSize,
+              const char* request,
+              uint32_t maxReplySize,
+              char* outReply,
               uint32_t& outActualReplySize) override {
     if (readOnly) {
       // Our read-only request includes only a type, no argument.
@@ -347,13 +353,15 @@ int main(int argc, char** argv) {
       bftEngine::SimpleInMemoryStateTransfer::create(
           simpleAppState.statePtr,
           sizeof(SimpleAppState::State) * rp.numOfClients,
-          replicaConfig.replicaId, replicaConfig.fVal, replicaConfig.cVal,
+          replicaConfig.replicaId,
+          replicaConfig.fVal,
+          replicaConfig.cVal,
           true);
 
   simpleAppState.st = st;
 
-  replica = Replica::createNewReplica(&replicaConfig, &simpleAppState, st, comm,
-                                      nullptr);
+  replica = Replica::createNewReplica(
+      &replicaConfig, &simpleAppState, st, comm, nullptr);
 
   replica->start();
 

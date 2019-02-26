@@ -42,8 +42,8 @@ BlsPublicParameters::BlsPublicParameters(int securityLevel, const int curveType)
 }
 
 BlsPublicParameters::BlsPublicParameters(const BlsPublicParameters& params)
-    : IPublicParameters(params.getSecurityLevel(), params.getName(),
-                        params.getLibrary()),
+    : IPublicParameters(
+          params.getSecurityLevel(), params.getName(), params.getLibrary()),
       curveType(params.curveType) {
   g1_copy(gen1, params.gen1);
   g2_copy(gen2, const_cast<G2T&>(params.gen2));

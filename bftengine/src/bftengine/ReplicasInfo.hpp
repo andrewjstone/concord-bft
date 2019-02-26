@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -19,8 +20,11 @@ namespace impl {
 
 class ReplicasInfo {
  public:
-  ReplicasInfo(ReplicaId myId, const SigManager& sigManager,
-               int16_t numberOfReplicas, int16_t fVal, int16_t cVal,
+  ReplicasInfo(ReplicaId myId,
+               const SigManager& sigManager,
+               int16_t numberOfReplicas,
+               int16_t fVal,
+               int16_t cVal,
                bool dynamicCollectorForPartialProofs,
                bool dynamicCollectorForExecutionProofs);
 
@@ -51,11 +55,13 @@ class ReplicasInfo {
   // iterators or something similar)
 
   bool getCollectorsForPartialProofs(const ReplicaId refReplica,
-                                     const ViewNum v, const SeqNum n,
+                                     const ViewNum v,
+                                     const SeqNum n,
                                      int8_t* outNumOfCollectors,
                                      ReplicaId* outCollectorsArray) const;
 
-  bool getCollectorsForPartialProofs(const ViewNum v, const SeqNum n,
+  bool getCollectorsForPartialProofs(const ViewNum v,
+                                     const SeqNum n,
                                      int8_t* outNumOfCollectors,
                                      ReplicaId* outCollectorsArray) const;
 
@@ -66,7 +72,8 @@ class ReplicasInfo {
     return getCollectorsForPartialProofs(v, n, nullptr, nullptr);
   }
 
-  bool getExecutionCollectors(const ViewNum v, const SeqNum n,
+  bool getExecutionCollectors(const ViewNum v,
+                              const SeqNum n,
                               int8_t* outNumOfCollectors,
                               ReplicaId* outCollectorsArray) const;
 

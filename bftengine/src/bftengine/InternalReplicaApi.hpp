@@ -3,7 +3,8 @@
 // Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License").
-// You may not use this product except in compliance with the Apache 2.0 License.
+// You may not use this product except in compliance with the Apache 2.0
+// License.
 //
 // This product may include a number of subcomponents with separate copyright
 // notices and license terms. Your use of these subcomponents is subject to the
@@ -36,30 +37,38 @@ class InternalReplicaApi  // TODO(GG): rename + clean + split to several classes
 {
  public:
   virtual void onPrepareCombinedSigFailed(
-      SeqNum seqNumber, ViewNum view,
+      SeqNum seqNumber,
+      ViewNum view,
       const std::set<uint16_t>& replicasWithBadSigs) = 0;
-  virtual void onPrepareCombinedSigSucceeded(SeqNum seqNumber, ViewNum view,
+  virtual void onPrepareCombinedSigSucceeded(SeqNum seqNumber,
+                                             ViewNum view,
                                              const char* combinedSig,
                                              uint16_t combinedSigLen) = 0;
-  virtual void onPrepareVerifyCombinedSigResult(SeqNum seqNumber, ViewNum view,
+  virtual void onPrepareVerifyCombinedSigResult(SeqNum seqNumber,
+                                                ViewNum view,
                                                 bool isValid) = 0;
 
   virtual void onCommitCombinedSigFailed(
-      SeqNum seqNumber, ViewNum view,
+      SeqNum seqNumber,
+      ViewNum view,
       const std::set<uint16_t>& replicasWithBadSigs) = 0;
-  virtual void onCommitCombinedSigSucceeded(SeqNum seqNumber, ViewNum view,
+  virtual void onCommitCombinedSigSucceeded(SeqNum seqNumber,
+                                            ViewNum view,
                                             const char* combinedSig,
                                             uint16_t combinedSigLen) = 0;
-  virtual void onCommitVerifyCombinedSigResult(SeqNum seqNumber, ViewNum view,
+  virtual void onCommitVerifyCombinedSigResult(SeqNum seqNumber,
+                                               ViewNum view,
                                                bool isValid) = 0;
 
   virtual void onInternalMsg(FullCommitProofMsg* m) = 0;
-  virtual void onMerkleExecSignature(ViewNum view, SeqNum seqNum,
+  virtual void onMerkleExecSignature(ViewNum view,
+                                     SeqNum seqNum,
                                      uint16_t signatureLength,
                                      const char* signature) = 0;
 
   virtual void onRetransmissionsProcessingResults(
-      SeqNum relatedLastStableSeqNum, const ViewNum relatedViewNumber,
+      SeqNum relatedLastStableSeqNum,
+      const ViewNum relatedViewNumber,
       const std::forward_list<RetSuggestion>* const
           suggestedRetransmissions) = 0;  // TODO(GG): use generic iterators
 
