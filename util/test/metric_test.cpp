@@ -11,6 +11,9 @@
 // terms and conditions of the subcomponent's license, as noted in the LICENSE
 // file.
 //
+
+#include <iostream>
+#include <cstdlib>
 #include "gtest/gtest.h"
 #include "Metrics.hpp"
 
@@ -67,6 +70,26 @@ TEST(MetricsTest, Aggregator) {
   ASSERT_EQ(5, aggregator->GetGauge(c.Name(), "connected_peers").Get());
   ASSERT_EQ("backup", aggregator->GetStatus(c.Name(), "state").Get());
   ASSERT_EQ(1, aggregator->GetCounter(c.Name(), "messages_sent").Get());
+}
+
+// ToJson is a simple hand written serializer. We don't have a corresponding
+// deserializer, since it isn't strictly necessary. We use the builtin json_pp
+// program included with Ubuntu to verify that the output is valid json.
+//
+// System tests will actually use the JSON output, so we'll get extra validation
+// there.
+TEST(MetricTest, ToJson) {
+  auto aggregator = std::make_shared<Aggregator>();
+  Component c("replica", aggregator);
+  c.RegisterGauge("connected_peers", 3);
+  c.RegisterStatus("state", "primary");
+  c.RegisterCounter("messages_sent", 0);
+  c.Register();
+
+  ostringstream oss;
+  oss << "echo '" << aggregator->ToJson() << "' | json_pp" << endl;
+
+  ASSERT_EQ(0, system(oss.str().c_str()));
 }
 
 }  // namespace concordMetrics
