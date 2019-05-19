@@ -118,24 +118,15 @@ class SkvbcTracker:
     def handle_write_reply(self, client_id, seq_num, reply):
         rpy = SkvbcWriteReply(client_id, seq_num, reply),
         self.history.apend(rpy)
-        req_index = self.get_matching_request_index(rpy)
+        req = self.get_matching_request(rpy)
         if reply.success:
             if reply.last_block_id in self.blocks:
                 # This block_id has already been written!
-                # TODO: Throw an error
-                pass
+                orig_req = self.blocks[reply.last_block_id]
+                raise ConflictingBlockWrite(reply.last_block_id, orig_req, req)
             else:
-                self.blocks[reply.last_block_id] = req_index
-                # TODO: Check that for each key in the readset, there have been
-                # no writes to those keys for each block after the block version
-                # in the conditional write up to, but not including this block.
-                # Note that we may have unknown blocks due to missing responses.
-                # We just skip these blocks, as we can't tell if there's a
-                # conflict or not. We have to assume there isn't a conflict in
-                # this case.
-                #
-                # If there is a conflicting block then there is a bug in the
-                # consensus algorithm.
+                self.blocks[reply.last_block_id] = req
+                self.verify_successful_write(reply.last_block_id, req)
 
                 # TODO: There may be concurrent requests that have already
                 # responded with written blocks later than this one. They would
@@ -217,7 +208,38 @@ class SkvbcTracker:
         """
         pass
 
-    def get_matching_request_index(self, rpy):
+    def verify_successful_write(self, written_block_id, req):
+        """
+        Check that for each key in the readset, there have been no writes to
+        those keys for each block after the block version in the conditional
+        write up to, but not including this block. An example of failure is:
+
+          * We read block id = X
+          * We write block id = X + 2
+          * We notice that block id X + 1 has written a key in the readset of
+            this request that created block X + 2.
+
+        Note that we may have unknown blocks due to missing responses.  We just
+        skip these blocks, as we can't tell if there's a conflict or not. We
+        have to assume there isn't a conflict in this case.
+
+        If there is a conflicting block then there is a bug in the consensus
+        algorithm, and we raise a StaleReadInSuccessfulWrite error.
+        """
+        for i in range(req.block_id + 1, written_block_id):
+            intermediate_req = self.blocks[i]
+            # Ensure we have learned about the block. Move on if we have not.
+            if intermediate_req is None:
+                continue
+
+            # If the writeset of the request that created intermediate blocks
+            # intersects the readset of this request, then we have a conflict.
+            if len(req.readset.intersection(intermediate_req.writeset)) != 0:
+                raise StaleReadInSuccessfulWrite(req.block_id,
+                                                 i,
+                                                 written_block_id)
+
+    def get_matching_request(self, rpy):
         """Return the request that matches rpy"""
         index = self.outstanding[(rpy.client_id, rpy.seq_num)]
         return self.history[index]

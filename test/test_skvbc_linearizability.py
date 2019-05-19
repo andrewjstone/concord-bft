@@ -10,18 +10,4 @@
 # terms and conditions of the subcomponent's license, as noted in the LICENSE
 # file.
 
-class Error(Exception):
-    """Base class for exceptions in this module."""
-    pass
 
-class AlreadyRunningError(Error):
-    def __init__(self, replica):
-        self.replica = replica
-
-class AlreadyStoppedError(Error):
-    def __init__(self, replica):
-        self.replica = replica
-
-class BadReplyError(Error):
-    def __init__(self):
-        pass
