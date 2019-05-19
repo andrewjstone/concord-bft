@@ -11,6 +11,7 @@
 # file.
 
 import struct
+import time
 
 from collections import namedtuple
 
@@ -30,8 +31,7 @@ class SimpleKVBCProtocol:
         self.READ = 2
         self.GET_LAST_BLOCK = 3
 
-    def write_req(self, readset, writeset):
-        block_id = 0
+    def write_req(self, readset, writeset, block_id=0):
         data = bytearray()
         # A conditional write request type
         data.append(self.WRITE)
@@ -87,5 +87,5 @@ class SimpleKVBCProtocol:
                 data = data[2*KV_LEN:]
         return kv_pairs
 
-    def parse_get_last_block_reply(self, data): 
+    def parse_get_last_block_reply(self, data):
         return struct.unpack("<Q", data)[0]
