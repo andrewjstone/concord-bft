@@ -44,16 +44,5 @@ namespace bftEngine
 
 			return true;
 		}
-
-		MsgSize FullCommitProofMsg::maxSizeOfFullCommitProofMsg()
-		{
-			return sizeof(FullCommitProofMsgHeader) + maxSizeOfCombinedsignature;
-		}
-
-		MsgSize FullCommitProofMsg::maxSizeOfFullCommitProofMsgInLocalBuffer()
-		{
-			return maxSizeOfFullCommitProofMsg() + sizeof(RawHeaderOfObjAndMsg);
-		}
-
 	}
 }

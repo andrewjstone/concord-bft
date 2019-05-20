@@ -20,10 +20,6 @@ namespace bftEngine
 		{
 
 		public:
-
-			static MsgSize maxSizeOfNewViewMsg();
-			static MsgSize maxSizeOfNewViewMsgInLocalBuffer();
-
 			NewViewMsg(ReplicaId senderId, ViewNum newView);
 
 			void addElement(ReplicaId replicaId, Digest& viewChangeDigest);

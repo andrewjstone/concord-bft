@@ -113,17 +113,6 @@ namespace bftEngine
 		// PrepareFullMsg
 		///////////////////////////////////////////////////////////////////////////////
 
-		MsgSize PrepareFullMsg::maxSizeOfPrepareFull()
-		{
-			return sizeof(SignedShareBaseHeader) + maxSizeOfCombinedsignature;
-		}
-
-		MsgSize PrepareFullMsg::maxSizeOfPrepareFullInLocalBuffer()
-		{
-			return maxSizeOfPrepareFull() + sizeof(RawHeaderOfObjAndMsg);
-		}
-
-
 		PrepareFullMsg* PrepareFullMsg::create(ViewNum v, SeqNum s, ReplicaId senderId, const char* sig, uint16_t sigLen)
 		{
 			return (PrepareFullMsg*)SignedShareBase::create(MsgCode::PrepareFull, v, s, senderId, sig, sigLen);
@@ -163,16 +152,6 @@ namespace bftEngine
 		///////////////////////////////////////////////////////////////////////////////
 		// CommitFullMsg
 		///////////////////////////////////////////////////////////////////////////////
-
-		MsgSize CommitFullMsg::maxSizeOfCommitFull()
-		{
-			return sizeof(SignedShareBaseHeader) + maxSizeOfCombinedsignature;
-		}
-
-		MsgSize CommitFullMsg::maxSizeOfCommitFullInLocalBuffer()
-		{
-			return maxSizeOfCommitFull() + sizeof(RawHeaderOfObjAndMsg);
-		}
 
 		CommitFullMsg* CommitFullMsg::create(ViewNum v, SeqNum s, int16_t senderId, const char* sig, uint16_t sigLen)
 		{

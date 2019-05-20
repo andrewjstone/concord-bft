@@ -120,16 +120,5 @@ namespace bftEngine
 			return false;
 		}
 
-		MsgSize NewViewMsg::maxSizeOfNewViewMsg()
-		{
-			return maxExternalMessageSize;
-		}
-
-		MsgSize NewViewMsg::maxSizeOfNewViewMsgInLocalBuffer()
-		{
-			return maxSizeOfNewViewMsg() + sizeof(RawHeaderOfObjAndMsg);
-		}
-
-
 	}
 }
