@@ -128,17 +128,10 @@ class SkvbcTracker:
                 self.blocks[reply.last_block_id] = req
                 self.verify_successful_write(reply.last_block_id, req)
 
-                # TODO: There may be concurrent requests that have already
-                # responded with written blocks later than this one. They would
-                # have seen unkown blocks when checking the readset. For every
-                # block up until self.last_known_block, check that the written
-                # values in this block don't conflict with the readsets in the
-                # later blocks. Conflict means that the block version in the
-                # conditional write for requests that created blocks after this
-                # one had a version less than the block_id here.
-                #
-                # If there is a conflicting block then there is a bug in the
-                # consensus algorithm.
+                if reply.last_block_id > self.last_known_block:
+                    self.last_known_block = reply.last_block_id
+                else:
+                    self.verify_blocks_after(reply.last_block_id, req)
 
                 # TODO: Check that failed concurrent replies shouldn't have
                 # succeeded
@@ -227,10 +220,11 @@ class SkvbcTracker:
         algorithm, and we raise a StaleReadInSuccessfulWrite error.
         """
         for i in range(req.block_id + 1, written_block_id):
-            intermediate_req = self.blocks[i]
-            # Ensure we have learned about the block. Move on if we have not.
-            if intermediate_req is None:
+            if i not in self.blocks:
+                # Ensure we have learned about this block.
+                # Move on if we have not.
                 continue
+            intermediate_req = self.blocks[i]
 
             # If the writeset of the request that created intermediate blocks
             # intersects the readset of this request, then we have a conflict.
@@ -238,6 +232,40 @@ class SkvbcTracker:
                 raise StaleReadInSuccessfulWrite(req.block_id,
                                                  i,
                                                  written_block_id)
+
+    def verify_blocks_after(self, written_block_id, req):
+        """
+        There were concurrent requests that have already responded with written
+        blocks later than this one. They would have seen unkown blocks when
+        checking their readset in verify_successful_write.
+
+        For every block up until self.last_known_block, check that the written
+        values in this block don't conflict with the readsets in the later
+        blocks. Conflict means that the block version in the conditional write
+        for requests that created blocks after this one had a version less than
+        the block_id here.
+
+        If there is a conflicting block then there is a bug in the consensus
+        algorithm.
+        """
+        for i in range(written_block_id, self.last_known_block+1):
+            if i not in self.blocks:
+                # Ensure we have learned about this block.
+                # Move on if we have not.
+                continue
+            later_block = self.blocks[i]
+
+            # Is there a possible conflict between this block and the later
+            # block? A possible conflict exists if the readset block_id in the
+            # later block is less than the block_id for this block.
+            if later_block.block_id < written_block_id:
+                # If the writeset of this request intersects the readset of the
+                # later block, then we have a conflict.
+                if len(later_block.readset.intersection(req.writeset)) != 0:
+                    raise StaleReadInSuccessfulWrite(later_block.block_id,
+                                                     written_block_id,
+                                                     i)
+
 
     def get_matching_request(self, rpy):
         """Return the request that matches rpy"""

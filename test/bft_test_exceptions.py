@@ -47,4 +47,18 @@ class StaleReadInSuccessfulWrite(Error):
     created. As an example, The readset block version was X, an update was made
     to a key in the readset in block X+1, and this write successfully wrote
     block X+2.
+
+    In our example the parameters to the constructor would be set as:
+
+        readset_block_id = X
+        block_with_conflicting_writeset = X + 1
+        block_being_checked = X + 2
+
     """
+    def __init__(self,
+                 readset_block_id,
+                 block_with_conflicting_writeset,
+                 block_being_checked):
+        self.readset_block_id = readset_block_id
+        self.block_with_conflicting_writeset = block_with_conflicting_writeset
+        self.block_being_checked = block_being_checked
