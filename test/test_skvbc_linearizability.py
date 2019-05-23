@@ -16,7 +16,7 @@ import skvbc_linearizability
 
 from bft_test_exceptions import(
     ConflictingBlockWriteError,
-    StaleReadInSuccessfulWriteError,
+    StaleReadError,
     NoConflictError
 )
 
@@ -33,7 +33,7 @@ class TestCompleteHistories(unittest.TestCase):
         """
         client_id = 0
         seq_num = 0
-        readset = []
+        readset = set()
         read_block_id = 0
         writeset = [("a", "a")]
         self.tracker.send_write(
@@ -50,7 +50,7 @@ class TestCompleteHistories(unittest.TestCase):
         """
         client_id = 0
         seq_num = 0
-        readset = []
+        readset = set()
         read_block_id = 0
         writeset = [("a", "a")]
         self.tracker.send_write(
@@ -60,6 +60,68 @@ class TestCompleteHistories(unittest.TestCase):
         with self.assertRaises(NoConflictError) as err:
             self.tracker.handle_write_reply(client_id, seq_num, reply)
         self.assertEqual(err.exception.concurrent_requests, {})
+
+    def test_contentious_writes_one_success_one_fail(self):
+        """
+        Two writes contend for the same key. Only one should succeed.
+        The checker should not see an error.
+        """
+        # First create an initial block so we can contend with it
+        self.test_sucessful_write()
+        # Send 2 concurrent writes with the same readset and writeset
+        readset = set("a")
+        writeset = [("a", "a")]
+        self.tracker.send_write(0, 1, readset, writeset, 1)
+        self.tracker.send_write(1, 1, readset, writeset, 1)
+        self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
+        self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(False, 0))
+        pass
+
+    def test_contentious_writes_both_succeed(self):
+        """
+        Two writes contend for the same key. Both succeed.
+        The checker should raise a StaleReadError, since only one should have
+        succeeded.
+        """
+        # First create an initial block so we can contend with it
+        self.test_sucessful_write()
+        # Send 2 concurrent writes with the same readset and writeset
+        readset = set("a")
+        writeset = [("a", "a")]
+        self.tracker.send_write(0, 1, readset, writeset, 1)
+        self.tracker.send_write(1, 1, readset, writeset, 1)
+        self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
+
+        with self.assertRaises(StaleReadError) as err:
+            self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(True, 3))
+
+        # Check the exception detected the error correctly
+        self.assertEqual(err.exception.readset_block_id, 1)
+        self.assertEqual(err.exception.block_with_conflicting_writeset, 2)
+        self.assertEqual(err.exception.block_being_checked, 3)
+
+    def test_contentious_writes_both_succeed_same_block(self):
+        """
+        Two writes contend for the same key. Both succeed, apparently
+        creating the same block.
+
+        The checker should raise a ConflictingBlockWriteError, since two
+        requests cannot create the same block.
+        """
+        # First create an initial block so we can contend with it
+        self.test_sucessful_write()
+        # Send 2 concurrent writes with the same readset and writeset
+        readset = set("a")
+        writeset = [("a", "a")]
+        self.tracker.send_write(0, 1, readset, writeset, 1)
+        self.tracker.send_write(1, 1, readset, writeset, 1)
+        self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
+
+        with self.assertRaises(ConflictingBlockWriteError) as err:
+            self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(True, 2))
+
+        # The conflicting block id was block 2
+        self.assertEqual(err.exception.block_id, 2)
 
 if __name__ == '__main__':
     unittest.main()

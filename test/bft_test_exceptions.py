@@ -40,7 +40,7 @@ class ConflictingBlockWriteError(Error):
         self.original_request = original_request
         self.new_request = new_request
 
-class StaleReadInSuccessfulWriteError(Error):
+class StaleReadError(Error):
     """
     A conditional write did not see that a key in its readset was written after
     the block it was attempting to read from, but before the block the write

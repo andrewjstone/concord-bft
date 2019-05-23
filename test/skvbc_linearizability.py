@@ -15,7 +15,7 @@ from enum import Enum
 
 from bft_test_exceptions import(
     ConflictingBlockWriteError,
-    StaleReadInSuccessfulWriteError,
+    StaleReadError,
     NoConflictError
 )
 
@@ -247,7 +247,7 @@ class SkvbcTracker:
         have to assume there isn't a conflict in this case.
 
         If there is a conflicting block then there is a bug in the consensus
-        algorithm, and we raise a StaleReadInSuccessfulWriteError.
+        algorithm, and we raise a StaleReadError.
         """
         for i in range(req.read_block_id + 1, written_block_id):
             if i not in self.blocks:
@@ -259,9 +259,7 @@ class SkvbcTracker:
             # If the writeset of the request that created intermediate blocks
             # intersects the readset of this request, then we have a conflict.
             if len(req.readset.intersection(intermediate_req.writeset_keys())) != 0:
-                raise StaleReadInSuccessfulWriteError(req.read_block_id,
-                                                      i,
-                                                      written_block_id)
+                raise StaleReadError(req.read_block_id, i, written_block_id)
 
     def verify_blocks_after(self, written_block_id, req):
         """
@@ -295,10 +293,9 @@ class SkvbcTracker:
                 # If the writeset of this request intersects the readset of the
                 # later block, then we have a conflict.
                 if len(later_block.readset.intersection(req.writeset_keys())) != 0:
-                    raise StaleReadInSuccessfulWriteError(
-                            later_block.read_block_id,
-                            written_block_id,
-                            i)
+                    raise StaleReadError(later_block.read_block_id,
+                                         written_block_id,
+                                         i)
 
     def verify_concurrent_requests_failed_correctly(self, req_index):
         """
@@ -326,13 +323,31 @@ class SkvbcTracker:
 
         It should have succeeded if any blocks written as a result of successful
         concurrent requests after failed_req.read_block_id don't contain
-        writesets interesecting with the readset in failed_req.  If *all* blocks
+        writesets interesecting with the readset in failed_req. If *all* blocks
         that result from *all* successful concurrent writes don't conflict, and
         there are no UNKNOWN results, then there is a bug in consensus.
 
-        Note that we are only considering explicit failures returned from the
-        SimpleKVBC TesterReplica here, and not timeouts caused by lack of
-        response.
+        *** --- CHECKER CONSTRAINTS --- ***
+
+        1. We are only considering explicit failures returned from the
+           SimpleKVBC TesterReplica here, and not timeouts caused by lack of
+           response.
+
+        2. This strategy only works if we assume in the absence of
+           concurrent writes with contention that all writes will succeed. In
+           other words, the readset should always be the latest block for the
+           given keys.  This is easy to guarantee in tests, since we can just
+           always set the block_id of the request to the latest block_id before
+           sending concurrent requests. If we didn't want this restriction, then
+           the verification procedure would become more expensive. We'd have to
+           check all blocks from the aribtrarily early block id for the readset
+           up until the latest successfull block write of the concurrent
+           request. This could be a lot of blocks in long histories if we
+           randomly pick a block to read from. By constraining ourselves to only
+           failing due to concurrent writes we can limit our search and as far
+           as I can tell don't lose anything with regards to testing for
+           consistency anomalies.
+
         """
         for i, result in self.concurrent[failed_req_index].items():
             # If there are any unknown results, it's possible that there was a
