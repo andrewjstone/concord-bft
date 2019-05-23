@@ -10,30 +10,40 @@
 # terms and conditions of the subcomponent's license, as noted in the LICENSE
 # file.
 
+import time
 from enum import Enum
+
+from bft_test_exceptions import(
+    ConflictingBlockWriteError,
+    StaleReadInSuccessfulWriteError,
+    NoConflictError
+)
 
 class SkvbcWriteRequest:
     """
     A write request sent to an Skvbc cluster. A request may or may not complete.
     """
-    def __init__(self, client_id, seq_num, readset, writeset, block_id=0):
+    def __init__(self, client_id, seq_num, readset, writeset, read_block_id=0):
         self.timestamp = time.monotonic()
         self.client_id = client_id
-        self.client_seq_num = seq_num
+        self.seq_num = seq_num
         self.readset = readset
         self.writeset = writeset
-        self.block_id = block_id
+        self.read_block_id = read_block_id
+
+    def writeset_keys(self):
+        return set([k for (k, _) in self.writeset])
 
 class SkvbcReadRequest:
     """
     A read request sent to an Skvbc cluster. A request may or may not complete.
     """
-    def __init__(self, client_id, seq_num, readset, block_id=0):
+    def __init__(self, client_id, seq_num, readset, read_block_id=0):
         self.timestamp = time.monotonic()
         self.client_id = client_id
-        self.client_seq_num = seq_num
+        self.seq_num = seq_num
         self.readset = readset
-        self.block_id = block_id
+        self.read_block_id = read_block_id
 
 class SkvbcGetLastBlockReq:
     """
@@ -43,7 +53,7 @@ class SkvbcGetLastBlockReq:
     def __init__(self, client_id, seq_num):
         self.timestamp = time.monotonic()
         self.client_id = client_id
-        self.client_seq_num = seq_num
+        self.seq_num = seq_num
 
 
 class SkvbcWriteReply:
@@ -51,7 +61,7 @@ class SkvbcWriteReply:
     def __init__(self, client_id, seq_num, reply):
         self.timestamp = time.monotonic()
         self.client_id = client_id
-        self.client_seq_num = seq_num
+        self.seq_num = seq_num
         self.reply = reply
 
 class SkvbcReadReply:
@@ -59,7 +69,7 @@ class SkvbcReadReply:
     def __init__(self, client_id, seq_num, reply):
         self.timestamp = time.monotonic()
         self.client_id = client_id
-        self.client_seq_num = seq_num
+        self.seq_num = seq_num
         self.reply = reply
 
 class SkvbcGetLastBlockReply:
@@ -69,7 +79,7 @@ class SkvbcGetLastBlockReply:
     def __init__(self, client_id, seq_num, reply):
         self.timestamp = time.monotonic()
         self.client_id = client_id
-        self.client_seq_num = seq_num
+        self.seq_num = seq_num
         self.reply = reply
 
 class Result(Enum):
@@ -81,10 +91,10 @@ class Result(Enum):
    UNKNOWN = 3
 
 class SkvbcTracker:
-     """
-     Track requests, expected and actual responses from SimpleKVBC test
-     clusters.
-     """
+    """
+    Track requests, expected and actual responses from SimpleKVBC test
+    clusters.
+    """
     def __init__(self):
         # Last block_id received in a response
         self.last_block_id = 0
@@ -111,35 +121,23 @@ class SkvbcTracker:
 
         self.last_known_block = -1
 
-    def send_write(self, client_id, seq_num, request):
-        req = SkvbcWriteRequest(client_id, seq_num, request)
+    def send_write(self, client_id, seq_num, readset, writeset, read_block_id):
+        req = SkvbcWriteRequest(
+                client_id, seq_num, readset, writeset, read_block_id)
         self.history.append(req)
         index = len(self.history) - 1
         self.update_concurrent_requests(index)
         self.outstanding[(client_id, seq_num)] = index
 
-    def update_concurrent_requests(self, index):
-        # Set the concurrent requests for this request to a dictionary of all indexes into
-        # history in self.outstanding mapped to Result.UNKNOWN since a response
-        # hasn't been learned yet.
-        concurrent_indexes = self.outstanding.values()
-        self.concurrent[index] =
-            dict(zip(concurrent_indexes,
-                     [Result.UNKNOWN for _ in range(0, len(concurrent_indexes))]
-
-        # Add this index to the concurrent sets of each outstanding request
-        for i in self.outstanding.values():
-            self.concurrent[i][index] = Result.UNKNOWN
-
     def handle_write_reply(self, client_id, seq_num, reply):
-        rpy = SkvbcWriteReply(client_id, seq_num, reply),
-        self.history.apend(rpy)
+        rpy = SkvbcWriteReply(client_id, seq_num, reply)
+        self.history.append(rpy)
         req, req_index = self.get_matching_request(rpy)
         if reply.success:
             if reply.last_block_id in self.blocks:
                 # This block_id has already been written!
                 orig_req, _ = self.blocks[reply.last_block_id]
-                raise ConflictingBlockWrite(reply.last_block_id, orig_req, req)
+                raise ConflictingBlockWriteError(reply.last_block_id, orig_req, req)
             else:
                 self.record_concurrent_success(req_index,
                                                rpy,
@@ -152,13 +150,26 @@ class SkvbcTracker:
                 else:
                     self.verify_blocks_after(reply.last_block_id, req)
 
-                # TODO: Check that failed concurrent replies shouldn't have
-                # succeeded
+                # Check that failed concurrent replies shouldn't have succeeded.
                 # This is the same check done below for failing requests, but
                 # for each failed concurrent request.
+                self.verify_concurrent_requests_failed_correctly(req_index)
         else:
             self.record_concurrent_failure(req_index, rpy)
             self.verify_failed(req, req_index)
+
+    def update_concurrent_requests(self, index):
+        # Set the concurrent requests for this request to a dictionary of all indexes into
+        # history in self.outstanding mapped to Result.UNKNOWN since a response
+        # hasn't been learned yet.
+        concurrent_indexes = self.outstanding.values()
+        self.concurrent[index] = dict(
+            zip(concurrent_indexes,
+                [Result.UNKNOWN for _ in range(0, len(concurrent_indexes))]))
+
+        # Add this index to the concurrent sets of each outstanding request
+        for i in self.outstanding.values():
+            self.concurrent[i][index] = Result.UNKNOWN
 
     def get_missing_blocks(self):
         """
@@ -213,6 +224,8 @@ class SkvbcTracker:
         the blockchain would contradict the replies from conditional writes.
 
         """
+        # TODO: Implement this. It isn't strictly necessary, but allows us more
+        # chances to check for violations.
         pass
 
     def verify_successful_write(self, written_block_id, req):
@@ -234,9 +247,9 @@ class SkvbcTracker:
         have to assume there isn't a conflict in this case.
 
         If there is a conflicting block then there is a bug in the consensus
-        algorithm, and we raise a StaleReadInSuccessfulWrite error.
+        algorithm, and we raise a StaleReadInSuccessfulWriteError.
         """
-        for i in range(req.block_id + 1, written_block_id):
+        for i in range(req.read_block_id + 1, written_block_id):
             if i not in self.blocks:
                 # Ensure we have learned about this block.
                 # Move on if we have not.
@@ -245,10 +258,10 @@ class SkvbcTracker:
 
             # If the writeset of the request that created intermediate blocks
             # intersects the readset of this request, then we have a conflict.
-            if len(req.readset.intersection(intermediate_req.writeset)) != 0:
-                raise StaleReadInSuccessfulWrite(req.block_id,
-                                                 i,
-                                                 written_block_id)
+            if len(req.readset.intersection(intermediate_req.writeset_keys())) != 0:
+                raise StaleReadInSuccessfulWriteError(req.read_block_id,
+                                                      i,
+                                                      written_block_id)
 
     def verify_blocks_after(self, written_block_id, req):
         """
@@ -278,35 +291,67 @@ class SkvbcTracker:
             # Is there a possible conflict between this block and the later
             # block? A possible conflict exists if the readset block_id in the
             # later block is less than the block_id for this block.
-            if later_block.block_id < written_block_id:
+            if later_block.read_block_id < written_block_id:
                 # If the writeset of this request intersects the readset of the
                 # later block, then we have a conflict.
-                if len(later_block.readset.intersection(req.writeset)) != 0:
-                    raise StaleReadInSuccessfulWrite(later_block.block_id,
-                                                     written_block_id,
-                                                     i)
+                if len(later_block.readset.intersection(req.writeset_keys())) != 0:
+                    raise StaleReadInSuccessfulWriteError(
+                            later_block.read_block_id,
+                            written_block_id,
+                            i)
+
+    def verify_concurrent_requests_failed_correctly(self, req_index):
+        """
+        Ensure that all requests concurrent with the request at req_index that
+        failed should not have succeeded.
+
+        This method is needed because some failed requests can reply before
+        concurrent requests that are successful. We can only detect that failed
+        requests should have succeeded if we have received responses for all
+        concurrent requests. Therefore everytime a request succeeds we have to
+        check all its failed concurrent_requests.
+
+        TODO: We may be able to optimize how frequently this runs by keeping
+        track of when a request has received replies for all concurrent requests
+        and only running when it has.
+        """
+        for i, result in self.concurrent[req_index].items():
+            if result.FAIL:
+                failed_req = self.history[i]
+                self.verify_failed(failed_req, i)
 
     def verify_failed(self, failed_req, failed_req_index):
         """
         Ensure that this request shouldn't have succeeded.
 
         It should have succeeded if any blocks written as a result of successful
-        concurrent requests after the read block version in the failed request
-        don't contain writesets interesecting with the readset in the failed
-        request.  If *all* blocks that result from *all* successful concurrent
-        writes don't conflict, and there are no UNKNOWN results, then there is a
-        bug in consensus.
+        concurrent requests after failed_req.read_block_id don't contain
+        writesets interesecting with the readset in failed_req.  If *all* blocks
+        that result from *all* successful concurrent writes don't conflict, and
+        there are no UNKNOWN results, then there is a bug in consensus.
 
         Note that we are only considering explicit failures returned from the
         SimpleKVBC TesterReplica here, and not timeouts caused by lack of
         response.
         """
-        for i in self.concurrent(failed_req_index):
-            concurrent_req = self.history[i]
-            # Determine if concurrent_req succeeded
-            # If concurrent_req succeeded, then get its block_id
-            # if concurrent_req written_block_id > failed_req.block_id, then
-            # check to see if there is a conflict
+        for i, result in self.concurrent[failed_req_index].items():
+            # If there are any unknown results, it's possible that there was a
+            # conflict. Therefore we must assume that failed_req should have
+            # failed.
+            if result == Result.UNKNOWN:
+                return
+
+            if result == Result.SUCCESS:
+               if result.written_block_id > failed_req.read_block_id:
+                   req = self.history[i]
+                   if len(failed_req.readset.intersection(req.writeset_keys())) != 0:
+                       # We found a concurrent request that conflicts. We must
+                       # assume that failed_req was failed correctly.
+                       return
+
+        # We didn't find any unknown results or conflicting concurrent requests.
+        # failed_req should have succeeded!
+        raise NoConflictError(failed_req, self.concurrent[failed_req_index])
 
     def record_concurrent_success(self, req_index, rpy, written_block_id):
         """Inform all concurrent requests that this request succeeded."""

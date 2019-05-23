@@ -33,14 +33,14 @@ class BadReplyError(Error):
 ##
 ## Exceptions for skvbc_linearizability
 ##
-class ConflictingBlockWrite(Error):
+class ConflictingBlockWriteError(Error):
     """The same block was already written by a different conditional write"""
     def __init__(self, block_id, original_request, new_request):
         self.block_id = block_id
         self.original_request = original_request
         self.new_request = new_request
 
-class StaleReadInSuccessfulWrite(Error):
+class StaleReadInSuccessfulWriteError(Error):
     """
     A conditional write did not see that a key in its readset was written after
     the block it was attempting to read from, but before the block the write
@@ -62,3 +62,14 @@ class StaleReadInSuccessfulWrite(Error):
         self.readset_block_id = readset_block_id
         self.block_with_conflicting_writeset = block_with_conflicting_writeset
         self.block_being_checked = block_being_checked
+
+class NoConflictError(Error):
+    """
+    A conditional write failed when it should have succeeded.
+
+    There were no concurrent write requests that actually conflicted with the
+    stale request.
+    """
+    def __init__(self, failed_req, concurrent_requests):
+        self.failed_req = failed_req
+        self.concurrent_requests = concurrent_requests
