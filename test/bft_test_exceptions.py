@@ -73,3 +73,8 @@ class NoConflictError(Error):
     def __init__(self, failed_req, concurrent_requests):
         self.failed_req = failed_req
         self.concurrent_requests = concurrent_requests
+
+class PhantomKeysError(Error):
+    """A read attempt returned keys that were never written."""
+    def __init__(self, keys):
+        self.keys = keys

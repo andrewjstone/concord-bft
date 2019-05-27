@@ -73,8 +73,8 @@ class TestCompleteHistories(unittest.TestCase):
         writeset = [("a", "a")]
         self.tracker.send_write(0, 1, readset, writeset, 1)
         self.tracker.send_write(1, 1, readset, writeset, 1)
-        self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
         self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(False, 0))
+        #self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
         pass
 
     def test_contentious_writes_both_succeed(self):
@@ -122,6 +122,34 @@ class TestCompleteHistories(unittest.TestCase):
 
         # The conflicting block id was block 2
         self.assertEqual(err.exception.block_id, 2)
+
+    def test_read_between_2_successful_writes(self):
+        """
+        Send 2 concurrent writes that don't conflict, but overwrite the same
+        value, along with a concurrent read. The read sees the first overwrite,
+        and should linearize after the first overwritten value correctly.
+        """
+        # A non-concurrent write
+        self.test_sucessful_write()
+        writeset_1 = [("a", "b")]
+        writeset_2 = [("a", "c")]
+        read_block_id = 1
+        client0 = 0
+        client1 = 1
+        client2 = 2
+
+        # 2 concurrent writes and a concurrent read
+        self.tracker.send_write(client0, 1, set(), writeset_1, read_block_id)
+        self.tracker.send_write(client1, 1, set(), writeset_2, read_block_id)
+        self.tracker.send_read(client2, 1, ["a"])
+
+        # block2/ writeset_2
+        self.tracker.handle_write_reply(client1, 1, skvbc.WriteReply(True, 2))
+        # block3/ writeset_1
+        self.tracker.handle_write_reply(client0, 1, skvbc.WriteReply(True, 3))
+        self.tracker.handle_read_reply(client2, 1, {"a":"b"})
+        self.tracker.linearize()
+        pass
 
 if __name__ == '__main__':
     unittest.main()
