@@ -35,9 +35,9 @@ class BadReplyError(Error):
 ##
 class ConflictingBlockWriteError(Error):
     """The same block was already written by a different conditional write"""
-    def __init__(self, block_id, original_request, new_request):
+    def __init__(self, block_id, block, new_request):
         self.block_id = block_id
-        self.original_request = original_request
+        self.block = block
         self.new_request = new_request
 
 class StaleReadError(Error):
@@ -74,7 +74,11 @@ class NoConflictError(Error):
         self.failed_req = failed_req
         self.concurrent_requests = concurrent_requests
 
-class PhantomKeysError(Error):
-    """A read attempt returned keys that were never written."""
-    def __init__(self, keys):
-        self.keys = keys
+class InvalidReadError(Error):
+    """
+    The values returned by a read did not linearize given the state of the
+    blockchain and concurrent requests.
+    """
+    def __init__(self, read, concurrent_requests):
+        self.read = read
+        self.concurrent_requests = concurrent_requests

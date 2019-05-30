@@ -17,7 +17,8 @@ import skvbc_linearizability
 from bft_test_exceptions import(
     ConflictingBlockWriteError,
     StaleReadError,
-    NoConflictError
+    NoConflictError,
+    InvalidReadError
 )
 
 class TestCompleteHistories(unittest.TestCase):
@@ -35,7 +36,7 @@ class TestCompleteHistories(unittest.TestCase):
         seq_num = 0
         readset = set()
         read_block_id = 0
-        writeset = [("a", "a")]
+        writeset = {'a': 'a'}
         self.tracker.send_write(
                 client_id, seq_num, readset, writeset, read_block_id)
         reply = skvbc.WriteReply(success=True, last_block_id=1)
@@ -52,7 +53,7 @@ class TestCompleteHistories(unittest.TestCase):
         seq_num = 0
         readset = set()
         read_block_id = 0
-        writeset = [("a", "a")]
+        writeset = {'a': 'a'}
         self.tracker.send_write(
                 client_id, seq_num, readset, writeset, read_block_id)
         reply = skvbc.WriteReply(success=False, last_block_id=1)
@@ -70,7 +71,7 @@ class TestCompleteHistories(unittest.TestCase):
         self.test_sucessful_write()
         # Send 2 concurrent writes with the same readset and writeset
         readset = set("a")
-        writeset = [("a", "a")]
+        writeset = {'a': 'a'}
         self.tracker.send_write(0, 1, readset, writeset, 1)
         self.tracker.send_write(1, 1, readset, writeset, 1)
         self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(False, 0))
@@ -87,7 +88,7 @@ class TestCompleteHistories(unittest.TestCase):
         self.test_sucessful_write()
         # Send 2 concurrent writes with the same readset and writeset
         readset = set("a")
-        writeset = [("a", "a")]
+        writeset = {'a': 'a'}
         self.tracker.send_write(0, 1, readset, writeset, 1)
         self.tracker.send_write(1, 1, readset, writeset, 1)
         self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
@@ -112,7 +113,7 @@ class TestCompleteHistories(unittest.TestCase):
         self.test_sucessful_write()
         # Send 2 concurrent writes with the same readset and writeset
         readset = set("a")
-        writeset = [("a", "a")]
+        writeset = {'a': 'a'}
         self.tracker.send_write(0, 1, readset, writeset, 1)
         self.tracker.send_write(1, 1, readset, writeset, 1)
         self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
@@ -131,8 +132,8 @@ class TestCompleteHistories(unittest.TestCase):
         """
         # A non-concurrent write
         self.test_sucessful_write()
-        writeset_1 = [("a", "b")]
-        writeset_2 = [("a", "c")]
+        writeset_1 = {'a': 'b'}
+        writeset_2 = {'a': 'c'}
         read_block_id = 1
         client0 = 0
         client1 = 1
@@ -148,8 +149,170 @@ class TestCompleteHistories(unittest.TestCase):
         # block3/ writeset_1
         self.tracker.handle_write_reply(client0, 1, skvbc.WriteReply(True, 3))
         self.tracker.handle_read_reply(client2, 1, {"a":"b"})
-        self.tracker.linearize()
+        self.tracker.linearize_reads()
+
+    def test_read_does_not_linearize_no_concurrent_writes(self):
+        """
+        Read a value that doesn't exist.
+        This should raise an exception.
+        """
+        # state = {'a':'a'}
+        self.test_sucessful_write()
+
+        self.tracker.send_read(1, 0, ["a"])
+        self.tracker.handle_read_reply(1, 0, {"a":"b"})
+        with self.assertRaises(InvalidReadError) as err:
+            self.tracker.linearize_reads()
+
+        self.assertEqual(0, len(err.exception.concurrent_requests))
+
+    def test_read_does_not_linearize_two_concurrent_writes(self):
+        """
+        Read a value that doesn't exist when concurrent with 2 reads.
+        This should raise an exception.
+        """
+        self.test_sucessful_write()
+        writeset_1 = {'a': 'b'}
+        writeset_2 = {'a': 'c'}
+        read_block_id = 1
+        client0 = 0
+        client1 = 1
+        client2 = 2
+
+        # 2 concurrent writes and a concurrent read
+        self.tracker.send_write(client0, 1, set(), writeset_1, read_block_id)
+        self.tracker.send_write(client1, 1, set(), writeset_2, read_block_id)
+        self.tracker.send_read(client2, 1, ["a"])
+
+        # block2/ writeset_2
+        self.tracker.handle_write_reply(client1, 1, skvbc.WriteReply(True, 2))
+        # block3/ writeset_1
+        self.tracker.handle_write_reply(client0, 1, skvbc.WriteReply(True, 3))
+
+        # Read a value that was never written
+        self.tracker.handle_read_reply(client2, 1, {"a":"d"})
+
+        with self.assertRaises(InvalidReadError) as err:
+            self.tracker.linearize_reads()
+
+        self.assertEqual(2, len(err.exception.concurrent_requests))
+
+    def test_read_is_stale_with_concurrent_writes(self):
+        """
+        Read a value that doesn't exist when concurrent with 2 reads.
+        This should raise an exception.
+        """
+        self.test_sucessful_write()
+        writeset_1 = {'a': 'b'}
+        writeset_2 = {'a': 'c'}
+        read_block_id = 1
+        client0 = 0
+        client1 = 1
+        client2 = 2
+
+        # Another successful write commits.
+        # All subsequent ops should see at least state {'a':'b'}
+        self.tracker.send_write(client0, 1, set(), writeset_1, read_block_id)
+        self.tracker.handle_write_reply(client0, 1, skvbc.WriteReply(True, 2))
+
+        # A concurrent write and a concurrent read
+        self.tracker.send_write(client1, 1, set(), writeset_2, read_block_id)
+        self.tracker.send_read(client2, 1, ["a"])
+
+        # block3/ writeset_2
+        self.tracker.handle_write_reply(client1, 1, skvbc.WriteReply(True, 3))
+
+        # Read a stale value. Key "a" was updated to "b" before the read was
+        # sent. "a" can only be "b" or "c".
+        self.tracker.handle_read_reply(client2, 1, {"a":"a"})
+
+        with self.assertRaises(InvalidReadError) as err:
+            self.tracker.linearize_reads()
+
+        self.assertEqual(1, len(err.exception.concurrent_requests))
+
+
+class TestPartialHistories(unittest.TestCase):
+    """
+    Test histories where some writes don't return replies.
+
+    In these cases, blocks may be generated from the write, but the tracker
+    doesn't know what the values are until after the test iteration, when the
+    tester informs it of the missing blocks values.
+    """
+    def setUp(self):
+        self.tracker = skvbc_linearizability.SkvbcTracker()
+
+    def test_sucessful_write(self):
+        """
+        A single request results in a single successful reply.
+        The checker finds no errors.
+        """
+        client_id = 0
+        seq_num = 0
+        readset = set()
+        read_block_id = 0
+        writeset = {'a': 'a'}
+        self.tracker.send_write(
+                client_id, seq_num, readset, writeset, read_block_id)
+        reply = skvbc.WriteReply(success=True, last_block_id=1)
+        self.tracker.handle_write_reply(client_id, seq_num, reply)
         pass
+
+    def test_2_concurrent_writes_one_missing_two_concurrent_reads(self):
+        """
+        Two concurrent writes are sent with two concurrent reads. One write does
+        not respond.
+
+        One read should linearize correctly based on the write that returned,
+        and the other based on the one that didn't return.
+        """
+        # A non-concurrent write
+        self.test_sucessful_write()
+        writeset_1 = {'a': 'b'}
+        writeset_2 = {'a': 'c'}
+        read_block_id = 1
+        client0 = 0
+        client1 = 1
+        client2 = 2
+        client3 = 3
+
+        # 2 concurrent unconditional writes and a concurrent read
+        self.tracker.send_write(client0, 1, set(), writeset_1, read_block_id)
+        self.tracker.send_write(client1, 1, set(), writeset_2, read_block_id)
+        self.tracker.send_read(client2, 1, ["a"])
+        self.tracker.send_read(client3, 1, ["a"])
+
+        # writeset_2 written at block 3
+        self.tracker.handle_write_reply(client1, 1, skvbc.WriteReply(True, 3))
+        self.tracker.handle_read_reply(client2, 1, writeset_1)
+        self.tracker.handle_read_reply(client3, 1, writeset_2)
+
+        self.assertEqual(3, self.tracker.last_known_block)
+
+        # The test should call these methods when it stops sending
+        # operations.
+        # The test must ask the tracker what blocks are missing
+        missing_block_id = 2
+        last_block = 3
+        missing_blocks = self.tracker.get_missing_blocks(last_block)
+        self.assertSetEqual(set([missing_block_id]), missing_blocks)
+
+        self.assertEqual(3, self.tracker.last_known_block)
+
+        # The test must retrieve the missing blocks from skvbc TesterReplicas
+        # using the clients and them inform the tracker. This is the call that
+        # informs the tracker.
+        self.tracker.fill_missing_blocks({missing_block_id: writeset_1})
+
+        print(self.tracker.blocks)
+
+        print(f'\n{self.tracker.history}')
+        print(f'\nself.outstanding = {self.tracker.outstanding}')
+
+        # The tracker now has all the information it needs. Tell it to verify
+        # that it's read responses linearize.
+        self.tracker.linearize_reads()
 
 if __name__ == '__main__':
     unittest.main()

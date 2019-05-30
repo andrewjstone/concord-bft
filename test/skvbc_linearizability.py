@@ -17,7 +17,7 @@ from bft_test_exceptions import(
     ConflictingBlockWriteError,
     StaleReadError,
     NoConflictError,
-    PhantomKeysError
+    InvalidReadError
 )
 
 class SkvbcWriteRequest:
@@ -42,7 +42,7 @@ class SkvbcWriteRequest:
            f'  read_block_id={self.read_block_id}\n')
 
     def writeset_keys(self):
-        return set([k for (k, _) in self.writeset])
+        return set(self.writeset.keys())
 
 class SkvbcReadRequest:
     """
@@ -102,10 +102,20 @@ class Result(Enum):
    UNKNOWN_READ = 4
    READ_REPLY = 5
 
+class CompletedRead:
+    def __init__(self, causal_state, kvpairs):
+        self.causal_state = causal_state
+        self.kvpairs = kvpairs
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  causal_state={self.causal_state}\n'
+           f'  kvpairs={self.kvpairs}\n')
+
 class CausalState:
     """Relevant state of the tracker before a request is started"""
     def __init__(self, last_known_block, last_consecutive_block, kvpairs):
-        self.last_known_block = 0
+        self.last_known_block = last_known_block
         self.last_consecutive_block = last_consecutive_block
 
         # KV pairs contain the value up keys up until last_consecutive_block
@@ -119,7 +129,7 @@ class CausalState:
 
 class ConcurrentValue:
     """Track the state for a request / reply in self.concurrent"""
-    def __init__(self, is_read, causal_state=None,):
+    def __init__(self, is_read):
         if is_read:
             self.result = Result.UNKNOWN_READ
         else:
@@ -129,16 +139,20 @@ class ConcurrentValue:
         # Set only when writes succeed.
         self.written_block_id = 0
 
-        # Only used in reads
-        self.causal_state = causal_state
-        self.reply = None
-
-
     def __repr__(self):
         return (f'{self.__class__.__name__}:\n'
            f'  result={self.result}\n'
-           f'  written_block_id={self.written_block_id}\n'
-           f'  causal_state={self.causal_state}\n')
+           f'  written_block_id={self.written_block_id}\n')
+
+class Block:
+    def __init__(self, kvpairs, req_index=None):
+        self.kvpairs = kvpairs
+        self.req_index = req_index
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  kvpairs={self.kvpairs}\n'
+           f'  req_index={self.req_index}\n')
 
 class SkvbcTracker:
     """
@@ -162,6 +176,16 @@ class SkvbcTracker:
         # with the call to self.linearize().
         self.outstanding = {}
 
+        # All reads that have not completed
+        # index inot self.history -> CausalState
+        self.outstanding_reads = {}
+
+        # All completed reads by index into history -> CompletedRead
+        #
+        # This gets cleared after the batch of concurrent requests is completed
+        # with the call to self.linearize().
+        self.completed_reads = {}
+
         # A set of all concurrent requests and their results for each request in
         # history
         # index -> dict{index, ConcurrentValue}
@@ -171,8 +195,7 @@ class SkvbcTracker:
         self.concurrent = {}
 
         # All blocks and their kv data based on responses
-        # Each known block is mapped from block id to a tuple containing the
-        # request itself, and the request index into self.history.
+        # Each known block is mapped from block id to a Block
         self.blocks = {}
 
         # The value of all keys at last_consecutive_block
@@ -214,13 +237,13 @@ class SkvbcTracker:
         if reply.success:
             if reply.last_block_id in self.blocks:
                 # This block_id has already been written!
-                orig_req, _ = self.blocks[reply.last_block_id]
-                raise ConflictingBlockWriteError(reply.last_block_id, orig_req, req)
+                block = self.blocks[reply.last_block_id]
+                raise ConflictingBlockWriteError(reply.last_block_id, block, req)
             else:
                 self._record_concurrent_write_success(req_index,
                                                       rpy,
                                                       reply.last_block_id)
-                self.blocks[reply.last_block_id] = (req, req_index)
+                self.blocks[reply.last_block_id] = Block(req.writeset, req_index)
                 self._verify_successful_write(reply.last_block_id, req)
 
                 if reply.last_block_id > self.last_known_block:
@@ -236,7 +259,7 @@ class SkvbcTracker:
                 # Update consecutive kvpairs
                 if reply.last_block_id == self.last_consecutive_block + 1:
                     self.last_consecutive_block += 1
-                    for k,v in req.writeset:
+                    for k,v in req.writeset.items():
                         self.kvpairs[k] = v
         else:
             self._record_concurrent_write_failure(req_index, rpy)
@@ -252,36 +275,131 @@ class SkvbcTracker:
         self.history.append(rpy)
         self._record_read_reply(req_index, rpy)
 
-    def linearize(self):
+    def get_missing_blocks(self, last_block_id):
         """
-        Take outstanding requests, and reads and see if their is a total
-        order they can be placed in that matches the state of the system.
+        Retrieve the set of missing blocks.
 
-        This method should be called when no more requests have been issued and
-        all outstanding requests have resulted in timeouts at clients.
+        This is called during synchronization before continuing with a test,
+        so that the tester can retrieve these blocks and call
+        self.fill_in_missing_blocks().
+
+        After missing blocks are filled in, successful reads can be linearized.
         """
-        pass
+        missing_blocks = set([i for i in range(self.last_consecutive_block + 1,
+                                               self.last_known_block)])
+        # Include last_block_id if not already known
+        for i in range(self.last_known_block + 1, last_block_id + 1):
+            missing_blocks.add(i)
+        return missing_blocks
+
+    def fill_missing_blocks(self, missing_blocks):
+        """
+        Add all missing blocks to self.blocks
+
+        Note that these blocks will not have a matching req_index since we never
+        received a reply for the request that created it. In some histories it's
+        not possible to identify an unambiguous request, since there may be
+        multiple possible requests that could have correctly generated the
+        block. Rather than trying to match the requests, to the missing blocks,
+        we just assume the missing blocks are correct for now, and use the full
+        block history to verify successful conditional writes and reads.
+        """
+        for block_id, kvpairs in missing_blocks.items():
+            self.blocks[block_id] = Block(kvpairs)
+            if block_id > self.last_known_block:
+                self.last_known_block = block_id
+
+    def linearize_reads(self):
+        """
+        At this point, we should know the kv pairs of all blocks.
+
+        Attempt to find linearization points for all reads in
+        self.completed_reads.
+
+        If a read cannot be linearized, then raise an exception.
+        """
+        for req_index, completed_read  in self.completed_reads.items():
+            cs = completed_read.causal_state
+            kv = cs.kvpairs
+            num_intermediate_blocks = (cs.last_known_block
+                                      - cs.last_consecutive_block)
+            # We must check that the read linearizes after
+            # causal_state.last_known_block, since it must have started after
+            # that. Build up the kv state until last_known_block.
+            for block_id in range(cs.last_consecutive_block + 1,
+                                  cs.last_known_block + 1):
+                kv.update(self.blocks[block_id].kvpairs)
+            num_concurrent = self._max_possible_concurrent_writes(req_index)
+
+            # Any missing intermediate block is by definition concurrent, so we
+            # need to subtract it as well.
+            blocks_remaining = (self.last_known_block
+                                - cs.last_known_block
+                                - num_intermediate_blocks)
+            blocks_to_check = min(num_concurrent, blocks_remaining)
+
+            print(f'self.last_known_block = {self.last_known_block}')
+            print(f'num_intermediate_blocks = {num_intermediate_blocks}')
+            print(f'num_concurrent = {num_concurrent}')
+
+            success = False
+            print(f'cs.last_known_block={cs.last_known_block}, \
+                    blocks_to_check={blocks_to_check}')
+            for i in range(cs.last_known_block,
+                           cs.last_known_block + blocks_to_check + 1):
+                if i != cs.last_known_block:
+                    kv.update(self.blocks[i].kvpairs)
+                if self._read_is_valid(kv, completed_read.kvpairs):
+                    # The read linearizes here
+                    success = True
+                    break
+
+            if not success:
+                raise InvalidReadError(completed_read,
+                                       self.concurrent[req_index])
+
+    def _read_is_valid(self, kv_state, read_kvpairs):
+        """Return if a read of read_kvpairs is possible given kv_state."""
+        for k, v in read_kvpairs.items():
+            if kv_state.get(k) != v:
+                return False
+        return True
+
+    def _max_possible_concurrent_writes(self, req_index):
+        """
+        Return the maximum possible number of concurrrent writes.
+        This includes writes that returned successfully but also writes with no
+        return that could have generated missing blocks.
+        """
+        count = 0
+        print("XXXXX req index = {}".format(req_index))
+        print(self.concurrent[req_index])
+        print("\n");
+        for val in self.concurrent[req_index].values():
+            if val.result == Result.WRITE_SUCCESS or \
+               val.result == Result.UNKNOWN_WRITE:
+                   count += 1
+        return count
 
     def _update_concurrent_requests(self, index, is_read):
         # Set the concurrent requests for this request to a dictionary of all
         # indexes into history in self.outstanding mapped to
         # Result.(UNKNOWN_READ | UNKNOWN_WRITE) since a response hasn't been
         # learned yet.
-        val = ConcurrentValue(is_read)
+        self.concurrent[index] = {}
+        for i in self.outstanding.values():
+            is_read_req = isinstance(self.history[i], SkvbcReadRequest)
+            self.concurrent[index][i] = ConcurrentValue(is_read_req)
+
         if is_read:
             cs = CausalState(self.last_known_block,
                              self.last_consecutive_block,
                              self.kvpairs.copy())
-            val = ConcurrentValue(is_read, cs)
-
-        concurrent_indexes = self.outstanding.values()
-        self.concurrent[index] = dict(
-            zip(concurrent_indexes,
-                [val for _ in range(0, len(concurrent_indexes))]))
+            self.outstanding_reads[index] = cs
 
         # Add this index to the concurrent sets of each outstanding request
         for i in self.outstanding.values():
-            self.concurrent[i][index] = val
+            self.concurrent[i][index] = ConcurrentValue(is_read)
 
     def _verify_successful_write(self, written_block_id, req):
         """
@@ -309,11 +427,11 @@ class SkvbcTracker:
                 # Ensure we have learned about this block.
                 # Move on if we have not.
                 continue
-            intermediate_req, _ = self.blocks[i]
+            block = self.blocks[i]
 
             # If the writeset of the request that created intermediate blocks
             # intersects the readset of this request, then we have a conflict.
-            if len(req.readset.intersection(intermediate_req.writeset_keys())) != 0:
+            if len(req.readset.intersection(set(block.kvpairs.keys()))) != 0:
                 raise StaleReadError(req.read_block_id, i, written_block_id)
 
     def _verify_blocks_after(self, written_block_id, req):
@@ -339,16 +457,19 @@ class SkvbcTracker:
                 # Ensure we have learned about this block.
                 # Move on if we have not.
                 continue
-            later_block, _ = self.blocks[i]
+
+            later_req_index = self.blocks[i].req_index
+            if later_req_index:
+                later_req = self.history[later_req_index]
 
             # Is there a possible conflict between this block and the later
             # block? A possible conflict exists if the readset block_id in the
-            # later block is less than the block_id for this block.
-            if later_block.read_block_id < written_block_id:
+            # later_req is less than the block_id for this block.
+            if later_req.read_block_id < written_block_id:
                 # If the writeset of this request intersects the readset of the
                 # later block, then we have a conflict.
-                if len(later_block.readset.intersection(req.writeset_keys())) != 0:
-                    raise StaleReadError(later_block.read_block_id,
+                if len(later_req.readset.intersection(req.writeset_keys())) != 0:
+                    raise StaleReadError(later_req.read_block_id,
                                          written_block_id,
                                          i)
 
@@ -445,9 +566,13 @@ class SkvbcTracker:
         """Inform all concurrent requests about a read reply"""
         del self.outstanding[(rpy.client_id, rpy.seq_num)]
 
+        print("RECORD READ REPLY index = {}".format(req_index))
+        causal_state = self.outstanding_reads.pop(req_index)
+        self.completed_reads[req_index] = CompletedRead(causal_state,
+                                                        rpy.kvpairs)
+
         for i in self.concurrent[req_index].keys():
             self.concurrent[i][req_index].result = Result.READ_REPLY
-            self.concurrent[i][req_index].reply = rpy
 
     def _get_matching_request(self, rpy):
         """
