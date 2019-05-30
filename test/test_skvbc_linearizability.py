@@ -234,6 +234,98 @@ class TestCompleteHistories(unittest.TestCase):
 
         self.assertEqual(1, len(err.exception.concurrent_requests))
 
+    def test_long_correct_history(self):
+        """
+        Launch a batch of unconditional writes along with reads concurrently
+        a few times. The responses should always be correct.
+        """
+        self.test_sucessful_write()
+        writeset_1 = {'a': 'b'}
+        writeset_2 = {'a': 'c'}
+        read_block_id = 1
+
+        written_block_id = 1;
+        for seq_num in range(0, 5):
+
+            # track requests
+            for client_id in range(0, 20):
+                if client_id % 3 == 0:
+                    self.tracker.send_read(client_id, seq_num, ["a"])
+                else:
+                    w = writeset_1
+                    if client_id % 2 == 0:
+                        w = writeset_2
+                    self.tracker.send_write(
+                        client_id, seq_num, set(), w, read_block_id)
+
+            # track replies
+            for client_id in range(0, 20):
+                if client_id % 3 == 0:
+                    # expected doesn't really matter for correctness
+                    # it just has to be one of the two written values because
+                    # all writes and reads in a batch are concurrent.
+                    expected = writeset_2
+                    if client_id % 2 == 0:
+                        expected = writeset_1
+                    self.tracker.handle_read_reply(client_id, seq_num, expected)
+                else:
+                     written_block_id += 1;
+                     reply = skvbc.WriteReply(True, written_block_id)
+                     self.tracker.handle_write_reply(client_id, seq_num, reply)
+
+        self.tracker.verify()
+
+    def test_long_failed_history(self):
+        """
+        Launch a batch of unconditional writes along with reads concurrently
+        a few times. Insert a single incorrect read reply.
+        """
+        self.test_sucessful_write()
+        writeset_1 = {'a': 'b'}
+        writeset_2 = {'a': 'c'}
+        read_block_id = 1
+        stale_read = {'a': 'a'}
+
+        written_block_id = 1;
+        for seq_num in range(0, 5):
+
+            # track requests
+            for client_id in range(0, 20):
+                if client_id % 3 == 0:
+                    self.tracker.send_read(client_id, seq_num, ["a"])
+                else:
+                    w = writeset_1
+                    if client_id % 2 == 0:
+                        w = writeset_2
+                    self.tracker.send_write(
+                        client_id, seq_num, set(), w, read_block_id)
+
+            # track replies
+            for client_id in range(0, 20):
+                if client_id % 3 == 0:
+                    # expected doesn't really matter for correctness
+                    # it just has to be one of the two written values because
+                    # all writes and reads in a batch are concurrent.
+                    expected = writeset_2
+                    if client_id % 2 == 0:
+                        expected = writeset_1
+                    if client_id == 6 and seq_num == 3:
+                        self.tracker.handle_read_reply(
+                                client_id, seq_num, stale_read)
+                    else:
+                        self.tracker.handle_read_reply(client_id, seq_num, expected)
+                else:
+                     written_block_id += 1;
+                     reply = skvbc.WriteReply(True, written_block_id)
+                     self.tracker.handle_write_reply(client_id, seq_num, reply)
+
+        with self.assertRaises(InvalidReadError) as err:
+            self.tracker.verify()
+
+        self.assertEqual(19, len(err.exception.concurrent_requests))
+        self.assertEqual(stale_read, err.exception.read.kvpairs)
+
+
 
 class TestPartialHistories(unittest.TestCase):
     """
