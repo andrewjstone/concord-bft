@@ -148,7 +148,9 @@ class CompletedRead:
 
 class CausalState:
     """Relevant state of the tracker before a request is started"""
-    def __init__(self, last_known_block, last_consecutive_block, kvpairs):
+    def __init__(
+            self, req_index, last_known_block, last_consecutive_block, kvpairs):
+        self.req_index = req_index
         self.last_known_block = last_known_block
         self.last_consecutive_block = last_consecutive_block
 
@@ -204,15 +206,14 @@ class SkvbcTracker:
         self.history = []
 
         # All currently outstanding requests:
-        # (client_id, seq_num) -> index into self.history
+        # (client_id, seq_num) -> CausalState
         self.outstanding = {}
-
-        # All reads that have not completed
-        # index inot self.history -> CausalState
-        self.outstanding_reads = {}
 
         # All completed reads by index into history -> CompletedRead
         self.completed_reads = {}
+
+        # All failed writes by index into history -> CausalState
+        self.failed_writes = {}
 
         # A set of all concurrent requests and their results for each request in
         # history
@@ -249,7 +250,11 @@ class SkvbcTracker:
         self.history.append(req)
         index = len(self.history) - 1
         self._update_concurrent_requests(index, is_read)
-        self.outstanding[(req.client_id, req.seq_num)] = index
+        cs = CausalState(index,
+                         self.last_known_block,
+                         self.last_consecutive_block,
+                         self.kvpairs.copy())
+        self.outstanding[(req.client_id, req.seq_num)] = cs
 
     def handle_write_reply(self, client_id, seq_num, reply):
         """
@@ -409,18 +414,13 @@ class SkvbcTracker:
         concurrent dicts.
         """
         self.concurrent[index] = {}
-        for i in self.outstanding.values():
+        for causal_state in self.outstanding.values():
+            i = causal_state.req_index
             is_read_outstanding = isinstance(self.history[i], SkvbcReadRequest)
             # Add the outstanding request to this request's concurrent dicts
             self.concurrent[index][i] = ConcurrentValue(is_read_outstanding)
             # Add this request to the concurrent dicts of each outstanding req
             self.concurrent[i][index] = ConcurrentValue(is_read)
-
-        if is_read:
-            cs = CausalState(self.last_known_block,
-                             self.last_consecutive_block,
-                             self.kvpairs.copy())
-            self.outstanding_reads[index] = cs
 
     def _verify_successful_write(self, written_block_id, req):
         """
@@ -507,6 +507,7 @@ class SkvbcTracker:
 
     def _record_concurrent_write_success(self, req_index, rpy, block_id):
         """Inform all concurrent requests that this request succeeded."""
+        # We don't need the causal state for verification on write successes
         del self.outstanding[(rpy.client_id, rpy.seq_num)]
 
         val = ConcurrentValue(is_read=False)
@@ -517,7 +518,8 @@ class SkvbcTracker:
 
     def _record_concurrent_write_failure(self, req_index, rpy):
         """Inform all concurrent requests that this request failed."""
-        del self.outstanding[(rpy.client_id, rpy.seq_num)]
+        causal_state = self.outstanding.pop((rpy.client_id, rpy.seq_num))
+        self.failed_writes[req_index] = causal_state
 
         val = ConcurrentValue(is_read=False)
         val.result = Result.WRITE_FAIL
@@ -526,9 +528,7 @@ class SkvbcTracker:
 
     def _record_read_reply(self, req_index, rpy):
         """Inform all concurrent requests about a read reply"""
-        del self.outstanding[(rpy.client_id, rpy.seq_num)]
-
-        causal_state = self.outstanding_reads.pop(req_index)
+        causal_state = self.outstanding.pop((rpy.client_id, rpy.seq_num))
         self.completed_reads[req_index] = CompletedRead(causal_state,
                                                         rpy.kvpairs)
 
@@ -540,6 +540,7 @@ class SkvbcTracker:
         Return the request that matches rpy along with its index into
         self.history.
         """
-        index = self.outstanding[(rpy.client_id, rpy.seq_num)]
+        causal_state = self.outstanding[(rpy.client_id, rpy.seq_num)]
+        index = causal_state.req_index
         return (self.history[index], index)
 
