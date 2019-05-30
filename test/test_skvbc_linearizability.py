@@ -41,7 +41,6 @@ class TestCompleteHistories(unittest.TestCase):
                 client_id, seq_num, readset, writeset, read_block_id)
         reply = skvbc.WriteReply(success=True, last_block_id=1)
         self.tracker.handle_write_reply(client_id, seq_num, reply)
-        pass
 
     def test_failed_write(self):
         """
@@ -75,8 +74,7 @@ class TestCompleteHistories(unittest.TestCase):
         self.tracker.send_write(0, 1, readset, writeset, 1)
         self.tracker.send_write(1, 1, readset, writeset, 1)
         self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(False, 0))
-        #self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
-        pass
+        self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
 
     def test_contentious_writes_both_succeed(self):
         """
@@ -92,9 +90,10 @@ class TestCompleteHistories(unittest.TestCase):
         self.tracker.send_write(0, 1, readset, writeset, 1)
         self.tracker.send_write(1, 1, readset, writeset, 1)
         self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
+        self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(True, 3))
 
         with self.assertRaises(StaleReadError) as err:
-            self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(True, 3))
+            self.tracker.verify()
 
         # Check the exception detected the error correctly
         self.assertEqual(err.exception.readset_block_id, 1)
@@ -149,7 +148,7 @@ class TestCompleteHistories(unittest.TestCase):
         # block3/ writeset_1
         self.tracker.handle_write_reply(client0, 1, skvbc.WriteReply(True, 3))
         self.tracker.handle_read_reply(client2, 1, {"a":"b"})
-        self.tracker.linearize_reads()
+        self.tracker.verify()
 
     def test_read_does_not_linearize_no_concurrent_writes(self):
         """
@@ -162,7 +161,7 @@ class TestCompleteHistories(unittest.TestCase):
         self.tracker.send_read(1, 0, ["a"])
         self.tracker.handle_read_reply(1, 0, {"a":"b"})
         with self.assertRaises(InvalidReadError) as err:
-            self.tracker.linearize_reads()
+            self.tracker.verify()
 
         self.assertEqual(0, len(err.exception.concurrent_requests))
 
@@ -193,7 +192,7 @@ class TestCompleteHistories(unittest.TestCase):
         self.tracker.handle_read_reply(client2, 1, {"a":"d"})
 
         with self.assertRaises(InvalidReadError) as err:
-            self.tracker.linearize_reads()
+            self.tracker.verify()
 
         self.assertEqual(2, len(err.exception.concurrent_requests))
 
@@ -227,7 +226,7 @@ class TestCompleteHistories(unittest.TestCase):
         self.tracker.handle_read_reply(client2, 1, {"a":"a"})
 
         with self.assertRaises(InvalidReadError) as err:
-            self.tracker.linearize_reads()
+            self.tracker.verify()
 
         self.assertEqual(1, len(err.exception.concurrent_requests))
 
@@ -259,7 +258,7 @@ class TestPartialHistories(unittest.TestCase):
         self.tracker.handle_write_reply(client_id, seq_num, reply)
         pass
 
-    def test_2_concurrent_writes_one_missing_two_concurrent_reads(self):
+    def test_2_concurrent_writes_one_missing_success_two_concurrent_reads(self):
         """
         Two concurrent writes are sent with two concurrent reads. One write does
         not respond.
@@ -305,14 +304,53 @@ class TestPartialHistories(unittest.TestCase):
         # informs the tracker.
         self.tracker.fill_missing_blocks({missing_block_id: writeset_1})
 
-        print(self.tracker.blocks)
-
-        print(f'\n{self.tracker.history}')
-        print(f'\nself.outstanding = {self.tracker.outstanding}')
-
         # The tracker now has all the information it needs. Tell it to verify
         # that it's read responses linearize.
-        self.tracker.linearize_reads()
+        self.tracker.verify()
+
+    def test_2_concurrent_writes_one_missing_failure_two_concurrent_reads(self):
+        """
+        Two concurrent writes are sent with two concurrent reads. One write does
+        not respond.
+
+        One read should linearize correctly based on the write that returned,
+        and the other based on the one that didn't return.
+        """
+        # A non-concurrent write
+        self.test_sucessful_write()
+        writeset_1 = {'a': 'b'}
+        writeset_2 = {'a': 'c'}
+        read_block_id = 1
+        client0 = 0
+        client1 = 1
+        client2 = 2
+        client3 = 3
+
+        # 2 concurrent unconditional writes and a concurrent read
+        self.tracker.send_write(client0, 1, set("a"), writeset_1, read_block_id)
+        self.tracker.send_write(client1, 1, set("a"), writeset_2, read_block_id)
+        self.tracker.send_read(client2, 1, ["a"])
+        self.tracker.send_read(client3, 1, ["a"])
+
+        # writeset_2 written at block 3
+        self.tracker.handle_write_reply(client1, 1, skvbc.WriteReply(True, 2))
+        self.tracker.handle_read_reply(client2, 1, writeset_1)
+        self.tracker.handle_read_reply(client3, 1, writeset_2)
+
+        self.assertEqual(2, self.tracker.last_known_block)
+
+        # the last block is 2 because one of the writes conflicted
+        last_block = 2
+        missing_blocks = self.tracker.get_missing_blocks(last_block)
+        self.assertSetEqual(set(), missing_blocks)
+
+        with self.assertRaises(InvalidReadError) as err:
+            self.tracker.verify()
+
+        self.assertEqual(3, len(err.exception.concurrent_requests))
+        # The read of writeset_1 fails, since that was the failed request that
+        # never returned.
+        self.assertEqual(writeset_1, err.exception.read.kvpairs)
 
 if __name__ == '__main__':
     unittest.main()
