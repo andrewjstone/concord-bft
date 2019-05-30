@@ -70,9 +70,9 @@ class NoConflictError(Error):
     There were no concurrent write requests that actually conflicted with the
     stale request.
     """
-    def __init__(self, failed_req, concurrent_requests):
+    def __init__(self, failed_req, causal_state):
         self.failed_req = failed_req
-        self.concurrent_requests = concurrent_requests
+        self.causal_state = causal_state
 
 class InvalidReadError(Error):
     """

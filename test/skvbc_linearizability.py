@@ -41,9 +41,6 @@ class SkvbcWriteRequest:
            f'  writeset={self.writeset}\n'
            f'  read_block_id={self.read_block_id}\n')
 
-    def writeset_keys(self):
-        return set(self.writeset.keys())
-
 class SkvbcReadRequest:
     """
     A read request sent to an Skvbc cluster. A request may or may not complete.
@@ -333,6 +330,7 @@ class SkvbcTracker:
     def verify(self):
         self._verify_successful_writes()
         self._linearize_reads()
+        self._linearize_write_failures()
 
     def _verify_successful_writes(self):
         for i in range(1, self.last_known_block+1):
@@ -341,6 +339,56 @@ class SkvbcTracker:
                 # A reply was received for this request that created the block
                 req = self.history[req_index]
                 self._verify_successful_write(i, req)
+
+    def _linearize_write_failures(self):
+        """
+        Go through all write failures, and determine if they should have failed
+        due to conflict.
+
+        The failure check involves looking for write conflicts based on the
+        causal state at the time the failed request was issued, and any
+        succeeding concurrent writes.
+
+        If no concurrent writes had writesets that intersected with the readset
+        of the failed write, then that write should have succeeded. In this case
+        we raise a NoConflictError.
+
+        Note that we only count failures explicitly returned from skvbc, i.e.
+        those where writes returned success = false due to conflict. Timeouts
+        remain in outstanding requests, since we don't know whether they would
+        have succeeded or failed.
+        """
+        for req_index, causal_state in self.failed_writes.items():
+            num_intermediate_blocks = (causal_state.last_known_block
+                                      - causal_state.last_consecutive_block)
+            num_concurrent = self._max_possible_concurrent_writes(req_index)
+            # Any missing intermediate block is by definition concurrent, so we
+            # need to subtract it as well.
+            blocks_remaining = (self.last_known_block
+                                - causal_state.last_known_block
+                                - num_intermediate_blocks)
+            blocks_to_check = min(num_concurrent, blocks_remaining)
+
+            failed_req = self.history[req_index]
+
+            # Check for writeset intersection at every block from the block
+            # after the readset until the last possible concurrently generated
+            # block.
+            success = False
+            for i in range(failed_req.read_block_id + 1,
+                           causal_state.last_known_block + blocks_to_check + 1):
+                writeset = set(self.blocks[i].kvpairs.keys())
+                if len(failed_req.readset.intersection(writeset)) != 0:
+                       # We found a block that conflicts. We must
+                       # assume that failed_req was failed correctly.
+                       success = True
+                       break
+
+            if not success:
+                # We didn't find any conflicting blocks.
+                # failed_req should have succeeded!
+                raise NoConflictError(failed_req, causal_state)
+
 
     def _linearize_reads(self):
         """
@@ -356,6 +404,7 @@ class SkvbcTracker:
             kv = cs.kvpairs
             num_intermediate_blocks = (cs.last_known_block
                                       - cs.last_consecutive_block)
+
             # We must check that the read linearizes after
             # causal_state.last_known_block, since it must have started after
             # that. Build up the kv state until last_known_block.
@@ -455,56 +504,6 @@ class SkvbcTracker:
             if len(req.readset.intersection(set(block.kvpairs.keys()))) != 0:
                 raise StaleReadError(req.read_block_id, i, written_block_id)
 
-    def _verify_failed(self, failed_req, failed_req_index):
-        """
-        Ensure that this request shouldn't have succeeded.
-
-        It should have succeeded if any blocks written as a result of successful
-        concurrent requests after failed_req.read_block_id don't contain
-        writesets interesecting with the readset in failed_req. If *all* blocks
-        that result from *all* successful concurrent writes don't conflict, and
-        there are no UNKNOWN_WRITE results, then there is a bug in consensus.
-
-        *** --- CHECKER CONSTRAINTS --- ***
-
-        1. We are only considering explicit failures returned from the
-           SimpleKVBC TesterReplica here, and not timeouts caused by lack of
-           response.
-
-        2. This strategy only works if we assume in the absence of
-           concurrent writes with contention that all writes will succeed. In
-           other words, the readset should always be the latest block for the
-           given keys.  This is easy to guarantee in tests, since we can just
-           always set the block_id of the request to the latest block_id before
-           sending concurrent requests. If we didn't want this restriction, then
-           the verification procedure would become more expensive. We'd have to
-           check all blocks from the aribtrarily early block id for the readset
-           up until the latest successfull block write of the concurrent
-           request. This could be a lot of blocks in long histories if we
-           randomly pick a block to read from. By constraining ourselves to only
-           failing due to concurrent writes we can limit our search and as far
-           as I can tell don't lose anything with regards to testing for
-           consistency anomalies.
-        """
-        for i, val in self.concurrent[failed_req_index].items():
-            # If there are any unknown results, it's possible that there was a
-            # conflict. Therefore we must assume that failed_req should have
-            # failed.
-            if val.result == Result.UNKNOWN_WRITE:
-                return
-
-            if val.result == Result.WRITE_SUCCESS:
-               if val.written_block_id > failed_req.read_block_id:
-                   req = self.history[i]
-                   if len(failed_req.readset.intersection(req.writeset_keys())) != 0:
-                       # We found a concurrent request that conflicts. We must
-                       # assume that failed_req was failed correctly.
-                       return
-
-        # We didn't find any unknown results or conflicting concurrent requests.
-        # failed_req should have succeeded!
-        raise NoConflictError(failed_req, self.concurrent[failed_req_index])
-
     def _record_concurrent_write_success(self, req_index, rpy, block_id):
         """Inform all concurrent requests that this request succeeded."""
         # We don't need the causal state for verification on write successes
@@ -543,4 +542,3 @@ class SkvbcTracker:
         causal_state = self.outstanding[(rpy.client_id, rpy.seq_num)]
         index = causal_state.req_index
         return (self.history[index], index)
-

@@ -41,6 +41,7 @@ class TestCompleteHistories(unittest.TestCase):
                 client_id, seq_num, readset, writeset, read_block_id)
         reply = skvbc.WriteReply(success=True, last_block_id=1)
         self.tracker.handle_write_reply(client_id, seq_num, reply)
+        self.tracker.verify()
 
     def test_failed_write(self):
         """
@@ -56,10 +57,12 @@ class TestCompleteHistories(unittest.TestCase):
         self.tracker.send_write(
                 client_id, seq_num, readset, writeset, read_block_id)
         reply = skvbc.WriteReply(success=False, last_block_id=1)
+        self.tracker.handle_write_reply(client_id, seq_num, reply)
 
         with self.assertRaises(NoConflictError) as err:
-            self.tracker.handle_write_reply(client_id, seq_num, reply)
-        self.assertEqual(err.exception.concurrent_requests, {})
+            self.tracker.verify()
+
+        self.assertEqual(0, err.exception.causal_state.req_index)
 
     def test_contentious_writes_one_success_one_fail(self):
         """
@@ -75,6 +78,7 @@ class TestCompleteHistories(unittest.TestCase):
         self.tracker.send_write(1, 1, readset, writeset, 1)
         self.tracker.handle_write_reply(0, 1, skvbc.WriteReply(False, 0))
         self.tracker.handle_write_reply(1, 1, skvbc.WriteReply(True, 2))
+        self.tracker.verify()
 
     def test_contentious_writes_both_succeed(self):
         """
@@ -256,7 +260,7 @@ class TestPartialHistories(unittest.TestCase):
                 client_id, seq_num, readset, writeset, read_block_id)
         reply = skvbc.WriteReply(success=True, last_block_id=1)
         self.tracker.handle_write_reply(client_id, seq_num, reply)
-        pass
+        self.tracker.verify()
 
     def test_2_concurrent_writes_one_missing_success_two_concurrent_reads(self):
         """
@@ -354,5 +358,4 @@ class TestPartialHistories(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
 
