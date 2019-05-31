@@ -297,6 +297,12 @@ class SkvbcTracker:
     reported but existed. In the future we may wish to change this code to track
     all (or most) errors and report a set of exceptions to the caller, to enable better
     debugging.
+
+    One more check that may be useful is to take the complete chain in
+    `self.blocks` and compare it to all blocks in the cluster at the end of the
+    test run. The values should be identical. This can be an expensive check in
+    clusters with lots of blocks, but we may want to add it as an optional check
+    in the future.
     """
     def __init__(self):
         # Last block_id received in a response
