@@ -17,7 +17,8 @@ from bft_test_exceptions import(
     ConflictingBlockWriteError,
     StaleReadError,
     NoConflictError,
-    InvalidReadError
+    InvalidReadError,
+    PhantomBlockError
 )
 
 class SkvbcWriteRequest:
@@ -227,6 +228,10 @@ class SkvbcTracker:
 
         self.last_known_block = 0
 
+        # Blocks that get filled in by the call to fill_missing_blocks
+        # These blocks were created by write requests that never got replies.
+        self.filled_blocks = {}
+
     def send_write(self, client_id, seq_num, readset, writeset, read_block_id):
         """Track the send of a write request"""
         req = SkvbcWriteRequest(
@@ -326,11 +331,52 @@ class SkvbcTracker:
             self.blocks[block_id] = Block(kvpairs)
             if block_id > self.last_known_block:
                 self.last_known_block = block_id
+        self.filled_blocks = missing_blocks
 
     def verify(self):
+        self._match_filled_blocks()
         self._verify_successful_writes()
         self._linearize_reads()
         self._linearize_write_failures()
+
+    def _match_filled_blocks(self):
+        """
+        For every filled block, identify an outstanding write request with a
+        matching writeset.
+
+        If there isn't an outstanding request that could have generated the
+        block raise a PhantomBlockError.
+        """
+
+        # Req/block_id pairs
+        matched_blocks = []
+        write_requests = self._get_all_outstanding_write_requests()
+
+        for block_id, block_kvpairs in self.filled_blocks.items():
+            unmatched = []
+            success = False
+            for _ in range(0, len(write_requests)):
+                req = write_requests.pop()
+                if req.writeset == block_kvpairs:
+                    matched_blocks.append((req, block_id))
+                    success = True
+                    break
+                else:
+                    unmatched.append(req)
+            if not success:
+                raise PhantomBlockError(block_id,
+                                        block_kvpairs,
+                                        matched_blocks,
+                                        unmatched)
+            write_requests.extend(unmatched)
+
+    def _get_all_outstanding_write_requests(self):
+        writes = []
+        for causal_state in self.outstanding.values():
+            req = self.history[causal_state.req_index]
+            if isinstance(req, SkvbcWriteRequest):
+                writes.append(req)
+        return writes
 
     def _verify_successful_writes(self):
         for i in range(1, self.last_known_block+1):

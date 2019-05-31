@@ -21,14 +21,25 @@ class Error(Exception):
 class AlreadyRunningError(Error):
     def __init__(self, replica):
         self.replica = replica
+        j
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  replica={self.replica}\n')
 
 class AlreadyStoppedError(Error):
     def __init__(self, replica):
         self.replica = replica
 
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  replica={self.replica}\n')
+
 class BadReplyError(Error):
     def __init__(self):
         pass
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}\n'
 
 ##
 ## Exceptions for skvbc_linearizability
@@ -39,6 +50,12 @@ class ConflictingBlockWriteError(Error):
         self.block_id = block_id
         self.block = block
         self.new_request = new_request
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  block_id={self.block_id}\n'
+           f'  block={self.block}\n'
+           f'  new_request={self.new_request}\n')
 
 class StaleReadError(Error):
     """
@@ -63,6 +80,14 @@ class StaleReadError(Error):
         self.block_with_conflicting_writeset = block_with_conflicting_writeset
         self.block_being_checked = block_being_checked
 
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  readset_block_id={self.readset_block_id}\n'
+           f'  block_with_conflicting_writeset='
+           f'{self.block_with_conflicting_writeset}\n'
+           f'  block_being_checked={self.block_being_checked}\n')
+
+
 class NoConflictError(Error):
     """
     A conditional write failed when it should have succeeded.
@@ -74,6 +99,11 @@ class NoConflictError(Error):
         self.failed_req = failed_req
         self.causal_state = causal_state
 
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  failed_req={self.failed_req}\n'
+           f'  causal_state={self.causal_state}\n')
+
 class InvalidReadError(Error):
     """
     The values returned by a read did not linearize given the state of the
@@ -82,3 +112,26 @@ class InvalidReadError(Error):
     def __init__(self, read, concurrent_requests):
         self.read = read
         self.concurrent_requests = concurrent_requests
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  read={self.read}\n'
+           f'  concurrent_requests={self.concurrent_requests}\n')
+
+class PhantomBlockError(Error):
+    """
+    A block was created with a given set of kvpairs that no write request
+    generated.
+    """
+    def __init__(self, block_id, kvpairs, matched_blocks, unmatched_requests):
+        self.block_id = block_id
+        self.kvpairs = kvpairs
+        self.matched_blocks = matched_blocks
+        self.unmatched_requests = unmatched_requests
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}:\n'
+           f'  block_id={self.block_id}\n'
+           f'  kvpairs={self.kvpairs}\n'
+           f'  matched_blocks={self.matched_blocks}\n'
+           f'  unmatched_requests={self.unmatched_requests}\n')
