@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "MessageBase.hpp"
 
 namespace bftEngine {
@@ -73,7 +75,7 @@ class ReqMissingDataMsg : public MessageBase {
                 "ReqMissingDataMsgHeader is 58B");
 
   ReqMissingDataMsgHeader* b() const {
-    return (ReqMissingDataMsgHeader*)mut_data();
+    return (ReqMissingDataMsgHeader*)data();
   }
 
 };

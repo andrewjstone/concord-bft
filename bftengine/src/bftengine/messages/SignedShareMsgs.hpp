@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "Digest.hpp"
+#include "../Digest.hpp"
 #include "MessageBase.hpp"
 
 class IThresholdSigner;
@@ -69,7 +69,7 @@ class SignedShareBase : public MessageBase {
 
   SignedShareBase(ReplicaId sender, int16_t type, size_t msgSize);
 
-  SignedShareBaseHeader* b() const { return (SignedShareBaseHeader*)mut_data(); }
+  SignedShareBaseHeader* b() const { return (SignedShareBaseHeader*)body(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////////

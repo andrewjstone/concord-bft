@@ -9,10 +9,8 @@
 
 #pragma once
 
-#include "ViewChangeMsg.hpp"
+#include "messages/ViewChangeMsg.hpp"
 #include <vector>
-
-using std::vector;
 
 class IThresholdVerifier;
 
@@ -49,7 +47,7 @@ namespace bftEngine
 		protected:
 
 
-			bool computeRestrictionsForSeqNum(SeqNum s, vector<ViewChangeMsg::ElementsIterator*>& VCIterators, const SeqNum upperBound, Digest& outRestrictedDigest) const;
+			bool computeRestrictionsForSeqNum(SeqNum s, std::vector<ViewChangeMsg::ElementsIterator*>& VCIterators, const SeqNum upperBound, Digest& outRestrictedDigest) const;
 
 			const uint16_t N;         // number of replicas
 			const uint16_t F;

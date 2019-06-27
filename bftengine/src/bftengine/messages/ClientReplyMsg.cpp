@@ -11,8 +11,9 @@
 // file.
 
 #include <string.h>
+
 #include "ClientReplyMsg.hpp"
-#include "assertUtils.hpp"
+#include "../assertUtils.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -65,12 +66,13 @@ bool ClientReplyMsg::ToActualMsgType(NodeIdType myId,
   Assert(inMsg->type() == MsgCode::Reply);
   if (inMsg->size() < sizeof(ClientReplyMsgHeader)) return false;
 
-  ClientReplyMsg* t = (ClientReplyMsg*)inMsg;
+  ClientReplyMsg* t = (ClientReplyMsg*)inMsg.get();
 
   if (t->size() < ((int)sizeof(ClientReplyMsgHeader) + t->replyLength()))
     return false;
 
-  outMsg.swap(inMsg);
+  inMsg.release()
+  outMsg.reset(t);
 
   return true;
 

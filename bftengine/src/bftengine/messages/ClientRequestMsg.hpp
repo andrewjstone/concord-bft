@@ -12,8 +12,10 @@
 
 #pragma once
 
+#include <memory>
+
 #include "MessageBase.hpp"
-#include "ReplicasInfo.hpp"
+#include "../ReplicasInfo.hpp"
 #include "ClientMsgs.hpp"
 
 namespace bftEngine {
@@ -47,7 +49,7 @@ class ClientRequestMsg : public MessageBase {
   ClientRequestMsg(ClientRequestMsgHeader* body);
 
   uint32_t maxRequestLength() const {
-    return internalStorageSize() - sizeof(ClientRequestMsgHeader);
+    return size() - sizeof(ClientRequestMsgHeader);
   }
 
   uint16_t clientProxyId() const { return b()->idOfClientProxy; }

@@ -12,7 +12,7 @@
 
 #include <cstring>
 #include "ClientRequestMsg.hpp"
-#include "assertUtils.hpp"
+#include "../assertUtils.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -63,12 +63,13 @@ bool ClientRequestMsg::ToActualMsgType(const ReplicasInfo& repInfo,
   Assert(inMsg->type() == MsgCode::Request);
   if (inMsg->size() < sizeof(ClientRequestMsgHeader)) return false;
 
-  const ClientRequestMsg* t = (ClientRequestMsg*)inMsg;
+  ClientRequestMsg* t = (ClientRequestMsg*)inMsg.get();
 
   if (t->size() < (sizeof(ClientRequestMsgHeader) + t->b()->requestLength))
     return false;
 
-  outMsg.swap(inMsg);
+  inMsg.release();
+  outMsg.reset(t);
 
   return true;
 }

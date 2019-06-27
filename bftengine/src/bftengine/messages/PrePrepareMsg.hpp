@@ -12,11 +12,12 @@
 
 #pragma once
 
+#include <memory>
 #include <stdint.h>
 
-#include "PrimitiveTypes.hpp"
-#include "assertUtils.hpp"
-#include "Digest.hpp"
+#include "../PrimitiveTypes.hpp"
+#include "../assertUtils.hpp"
+#include "../Digest.hpp"
 #include "MessageBase.hpp"
 
 namespace bftEngine {

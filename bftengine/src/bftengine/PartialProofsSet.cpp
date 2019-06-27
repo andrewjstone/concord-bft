@@ -11,8 +11,8 @@
 
 #include "PartialProofsSet.hpp"
 #include "Logger.hpp"
-#include "PartialCommitProofMsg.hpp"
-#include "FullCommitProofMsg.hpp"
+#include "messages/PartialCommitProofMsg.hpp"
+#include "messages/FullCommitProofMsg.hpp"
 #include "Crypto.hpp"
 #include "assertUtils.hpp"
 #include "InternalReplicaApi.hpp"
@@ -209,8 +209,6 @@ namespace bftEngine
 		}
 
 
-
-
 		bool PartialProofsSet::hasFullProof()
 		{
 			return (fullCommitProof != nullptr);
@@ -224,7 +222,7 @@ namespace bftEngine
 		class PassFullCommitProofAsInternalMsg : public InternalMessage
 		{
 		protected:
-			FullCommitProofMsg* selfFcp;
+                        std::unique_ptr<FullCommitProofMsg> selfFcp;
 			InternalReplicaApi* r;
 		public:
 			PassFullCommitProofAsInternalMsg(InternalReplicaApi* replica, FullCommitProofMsg* selfFcpMsg) : selfFcp(selfFcpMsg), r(replica)
@@ -237,7 +235,7 @@ namespace bftEngine
 
 			virtual void handle() override
 			{
-				r->onInternalMsg(selfFcp);
+				r->onInternalMsg(std::move(selfFcp));
 			}
 		};
 
@@ -292,8 +290,8 @@ namespace bftEngine
 
 					//			me->sendToAllOtherReplicas(fcpMsg);
 
-					PassFullCommitProofAsInternalMsg* p = new PassFullCommitProofAsInternalMsg(me, fcpMsg);
-					me->getIncomingMsgsStorage().pushInternalMsg(p);
+                                        std::unique_ptr<InternalMessage> p(new PassFullCommitProofAsInternalMsg(me, fcpMsg));
+					me->getIncomingMsgsStorage().pushInternalMsg(std::move(p));
 				}
 
 				LOG_INFO_F(GL, "PartialProofsSet::AsynchProofCreationJob::execute - end (for seqNumber %" PRId64 ")", seqNumber);

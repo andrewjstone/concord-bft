@@ -16,10 +16,10 @@
 #include <vector>
 #include <cstring>
 
-#include "SysConsts.hpp"
-#include "PrimitiveTypes.hpp"
-#include "MsgCode.hpp"
-#include "ReplicasInfo.hpp"
+#include "../SysConsts.hpp"
+#include "../PrimitiveTypes.hpp"
+#include "../MsgCode.hpp"
+#include "../ReplicasInfo.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -63,6 +63,8 @@ class MessageBase {
     return reinterpret_cast<const Header*>(data_.data())->msgType;
   }
 
+  const char* body() const { return data_.data(); }
+
 #ifdef DEBUG_MEMORY_MSG
   static void printLiveMessages();
 #endif
@@ -78,14 +80,12 @@ class MessageBase {
 #pragma pack(pop)
 
   static const uint32_t magicNumOfRawFormat = 0x5555897BU;
-
   const char* data() const { return data_.data(); }
-  const char* body() const { return data_.data(); }
 
   char* mut_data() { return data_.data(); }
 
-  void resize(size_t n) { data.resize(n); }
-  void shrinkToFit() { data.shrink_to_fit(); } 
+  void resize(size_t n) { data_.resize(n); }
+  void shrinkToFit() { data_.shrink_to_fit(); } 
 
  private:
   NodeIdType sender_;

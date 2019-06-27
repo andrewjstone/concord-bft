@@ -11,7 +11,7 @@
 // file.
 
 #include "StartSlowCommitMsg.hpp"
-#include "assertUtils.hpp"
+#include "../assertUtils.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -30,11 +30,12 @@ bool StartSlowCommitMsg::ToActualMsgType(const ReplicasInfo& repInfo,
   Assert(inMsg->type() == MsgCode::StartSlowCommit);
   if (inMsg->size() < sizeof(StartSlowCommitMsgHeader)) return false;
 
-  const StartSlowCommitMsg* t = (StartSlowCommitMsg*)inMsg;
+  StartSlowCommitMsg* t = (StartSlowCommitMsg*)inMsg.get();
 
   if (repInfo.primaryOfView(t->viewNumber()) != t->senderId()) return false;
 
-  outMsg.swap(inMsg);
+  inMsg.release();
+  outMsg.reset(t);
   return true;
 }
 

@@ -125,7 +125,7 @@ namespace bftEngine
 			outLatestTime = c.latestReplyTime;
 		}
 
-		ClientReplyMsg* ClientsManager::allocateNewReplyMsgAndWriteToStorage(NodeIdType clientId, ReqId requestSeqNum, uint16_t currentPrimaryId, char* reply, uint32_t replyLength)
+                std::unique_ptr<ClientReplyMsg> ClientsManager::allocateNewReplyMsgAndWriteToStorage(NodeIdType clientId, ReqId requestSeqNum, uint16_t currentPrimaryId, char* reply, uint32_t replyLength)
 		{
 			//Assert(replyLength <= .... ) - TODO(GG)
 
@@ -171,11 +171,10 @@ namespace bftEngine
 
 			LOG_INFO_F(GL, "allocateNewReplyMsgAndWriteToStorage returns reply with hash=%" PRIu64"", r->debugHash());
 
-
-			return r;
+			return std::unique_ptr<ClientReplyMsg>(r);
 		}
 
-		ClientReplyMsg* ClientsManager::allocateMsgWithLatestReply(NodeIdType clientId, uint16_t currentPrimaryId)
+                std::unique_ptr<ClientReplyMsg> ClientsManager::allocateMsgWithLatestReply(NodeIdType clientId, uint16_t currentPrimaryId)
 		{
 			const uint16_t clientIdx = clientIdToIndex_.at(clientId);
 
@@ -224,7 +223,7 @@ namespace bftEngine
 
 			LOG_INFO_F(GL, "allocateMsgWithLatestReply returns reply with hash=%" PRIu64"", r->debugHash());
 			
-			return r;
+			return std::move(r);
 		}
 
 

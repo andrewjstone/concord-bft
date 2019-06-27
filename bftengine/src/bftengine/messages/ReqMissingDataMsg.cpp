@@ -11,8 +11,8 @@
 // file.
 
 #include "ReqMissingDataMsg.hpp"
-#include "assertUtils.hpp"
-#include "Crypto.hpp"
+#include "../assertUtils.hpp"
+#include "../Crypto.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -33,7 +33,7 @@ bool ReqMissingDataMsg::ToActualMsgType(const ReplicasInfo& repInfo,
   Assert(inMsg->type() == MsgCode::ReqMissingData);
   if (inMsg->size() < sizeof(ReqMissingDataMsgHeader)) return false;
 
-  const ReqMissingDataMsg* t = (ReqMissingDataMsg*)inMsg;
+  ReqMissingDataMsg* t = (ReqMissingDataMsg*)inMsg.get();
 
   if (t->senderId() == repInfo.myId())
     return false;  // TODO(GG) - TBD: we should use Assert for this condition
@@ -41,7 +41,8 @@ bool ReqMissingDataMsg::ToActualMsgType(const ReplicasInfo& repInfo,
 
   if (!repInfo.isIdOfReplica(t->senderId())) return false;
 
-  outMsg.swap(inMsg);
+  inMsg.release();
+  outMsg.reset(t);
   return true;
 }
 

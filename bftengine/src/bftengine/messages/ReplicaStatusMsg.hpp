@@ -11,6 +11,9 @@
 // file.
 
 #pragma once
+
+#include <memory>
+
 #include "MessageBase.hpp"
 
 namespace bftEngine {
@@ -87,7 +90,7 @@ class ReplicaStatusMsg : public MessageBase {
       bool listOfMissingPrePrepareMsgForViewChange);
 
   ReplicaStatusMsgHeader* b() const {
-    return (ReplicaStatusMsgHeader*)mut_data();
+    return (ReplicaStatusMsgHeader*)data();
   }
 
 };

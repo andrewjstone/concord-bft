@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "MessageBase.hpp"
 
 namespace bftEngine {
@@ -48,7 +50,7 @@ class SimpleAckMsg : public MessageBase {
   static_assert(sizeof(SimpleAckMsgHeader) == (2 + 8 + 8 + 8),
                 "SimpleAckMsgHeader is 26B");
 
-  SimpleAckMsgHeader* b() const { return (SimpleAckMsgHeader*)mut_data(); }
+  SimpleAckMsgHeader* b() const { return (SimpleAckMsgHeader*)data(); }
 };
 
 }  // namespace impl

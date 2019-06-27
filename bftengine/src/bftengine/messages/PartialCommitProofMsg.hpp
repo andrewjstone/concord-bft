@@ -12,8 +12,10 @@
 
 #pragma once
 
+#include <memory>
+
 #include "MessageBase.hpp"
-#include "Digest.hpp"
+#include "../Digest.hpp"
 
 class IThresholdSigner;
 

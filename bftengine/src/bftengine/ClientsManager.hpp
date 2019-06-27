@@ -12,6 +12,7 @@
 #include "TimeUtils.hpp"
 
 #include <map>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -46,9 +47,9 @@ namespace bftEngine
 
 			void getInfoAboutLastReplyToClient(NodeIdType clientId, ReqId& outseqNumber, Time& outSentTime);
 
-			ClientReplyMsg* allocateNewReplyMsgAndWriteToStorage(NodeIdType clientId, ReqId requestSeqNum, uint16_t currentPrimaryId, char* reply, uint32_t replyLength);
+                        std::unique_ptr<ClientReplyMsg> allocateNewReplyMsgAndWriteToStorage(NodeIdType clientId, ReqId requestSeqNum, uint16_t currentPrimaryId, char* reply, uint32_t replyLength);
 
-			ClientReplyMsg* allocateMsgWithLatestReply(NodeIdType clientId, uint16_t currentPrimaryId);
+                        std::unique_ptr<ClientReplyMsg> allocateMsgWithLatestReply(NodeIdType clientId, uint16_t currentPrimaryId);
 
 			// Requests
 

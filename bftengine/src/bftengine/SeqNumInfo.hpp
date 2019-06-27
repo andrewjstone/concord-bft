@@ -1,185 +1,229 @@
-//Concord
+// Concord
 //
-//Copyright (c) 2018 VMware, Inc. All Rights Reserved.
+// Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
-//This product is licensed to you under the Apache 2.0 license (the "License").  You may not use this product except in compliance with the Apache 2.0 License. 
+// This product is licensed to you under the Apache 2.0 license (the "License").
+// You may not use this product except in compliance with the Apache 2.0 License.
 //
-//This product may include a number of subcomponents with separate copyright notices and license terms. Your use of these subcomponents is subject to the terms and conditions of the subcomponent's license, as noted in the LICENSE file.
+// This product may include a number of subcomponents with separate copyright
+// notices and license terms. Your use of these subcomponents is subject to the
+// terms and conditions of the subcomponent's license, as noted in the LICENSE
+// file.
 
 #pragma once
 
-#include<set>
+#include <set>
 
 // TODO(GG): clean/move 'include' statements
 #include "PrimitiveTypes.hpp"
 #include "SysConsts.hpp"
-#include "PrePrepareMsg.hpp"
-#include "SignedShareMsgs.hpp"
+#include "messages/PrePrepareMsg.hpp"
+#include "messages/SignedShareMsgs.hpp"
 #include "PartialProofsSet.hpp"
 #include "PartialExecProofsSet.hpp"
 #include "Logger.hpp"
 #include "CollectorOfThresholdSignatures.hpp"
 #include "SequenceWithActiveWindow.hpp"
 
-namespace util
-{
+namespace util {
 class SimpleThreadPool;
 }
-namespace bftEngine
-{
-	namespace impl
-	{
+namespace bftEngine {
+namespace impl {
 
-		class SeqNumInfo
-		{
-		public:
+class SeqNumInfo {
+ public:
+  SeqNumInfo();
+  ~SeqNumInfo();
 
-			SeqNumInfo();
-			~SeqNumInfo();
+  void resetAndFree();
+  void getAndReset(std::unique_ptr<PrePrepareMsg>& outPrePrepare,
+                   std::unique_ptr<PrepareFullMsg>& outcombinedValidSignatureMsg);
 
-			void resetAndFree(); // TODO(GG): name
-			void getAndReset(PrePrepareMsg*& outPrePrepare, PrepareFullMsg*& outcombinedValidSignatureMsg);
+  bool addMsg(std::unique_ptr<PrePrepareMsg> m);
+  bool addSelfMsg(std::unique_ptr<PrePrepareMsg> m);
 
+  bool addMsg(std::unique_ptr<PreparePartialMsg> m);
+  bool addSelfMsg(std::unique_ptr<PreparePartialMsg> m);
 
-			bool addMsg(PrePrepareMsg* m);
-			bool addSelfMsg(PrePrepareMsg* m);
+  bool addMsg(std::unique_ptr<PrepareFullMsg> m);
 
-			bool addMsg(PreparePartialMsg* m);
-			bool addSelfMsg(PreparePartialMsg* m);
+  bool addMsg(std::unique_ptr<CommitPartialMsg> m);
+  bool addSelfCommitPartialMsgAndDigest(std::unique_ptr<CommitPartialMsg> m,
+                                        Digest& commitDigest);
 
-			bool addMsg(PrepareFullMsg* m);
+  bool addMsg(std::unique_ptr<CommitFullMsg> m);
 
-			bool addMsg(CommitPartialMsg* m);
-			bool addSelfCommitPartialMsgAndDigest(CommitPartialMsg* m, Digest& commitDigest);
+  void forceComplete();
 
-			bool addMsg(CommitFullMsg* m);
+  const PrePrepareMsg* getPrePrepareMsg() const;
+  const PrePrepareMsg* getSelfPrePrepareMsg() const;
 
-			void forceComplete();
+  const PreparePartialMsg* getSelfPreparePartialMsg() const;
+  const PrepareFullMsg* getValidPrepareFullMsg() const;
 
-			PrePrepareMsg* getPrePrepareMsg() const;
-			PrePrepareMsg* getSelfPrePrepareMsg() const;
+  const CommitPartialMsg* getSelfCommitPartialMsg() const;
+  const CommitFullMsg* getValidCommitFullMsg() const;
 
-			PreparePartialMsg* getSelfPreparePartialMsg() const;
-			PrepareFullMsg* getValidPrepareFullMsg() const;
+  bool hasPrePrepareMsg() const;
 
-			CommitPartialMsg* getSelfCommitPartialMsg() const;
-			CommitFullMsg* getValidCommitFullMsg() const;
+  bool isPrepared() const;
 
-			bool hasPrePrepareMsg() const;
+  // TODO(GG): beware this name may mislead (not sure...). rename ??
+  bool isCommitted__gg() const;  
 
-			bool isPrepared() const;
-			bool isCommitted__gg() const; // TODO(GG): beware this name may mislead (not sure...). rename ??
+  bool preparedOrHasPreparePartialFromReplica(ReplicaId repId) const;
+  bool committedOrHasCommitPartialFromReplica(ReplicaId repId) const;
 
-			bool preparedOrHasPreparePartialFromReplica(ReplicaId repId) const;
-			bool committedOrHasCommitPartialFromReplica(ReplicaId repId) const;
+  Time getTimeOfFisrtRelevantInfoFromPrimary() const;
+  Time getTimeOfLastInfoRequest() const;
+  Time lastUpdateTimeOfCommitMsgs() const {
+    return commitUpdateTime;
+  }  // TODO(GG): check usage....
 
-			Time getTimeOfFisrtRelevantInfoFromPrimary() const;
-			Time getTimeOfLastInfoRequest() const;
-			Time lastUpdateTimeOfCommitMsgs() const { return commitUpdateTime; }  // TODO(GG): check usage....
+  PartialProofsSet& partialProofs();
+  PartialExecProofsSet& partialExecProofs();
+  void startSlowPath();
+  bool slowPathStarted();
 
-			PartialProofsSet& partialProofs();
-			PartialExecProofsSet& partialExecProofs();
-			void startSlowPath();
-			bool slowPathStarted();
+  void setTimeOfLastInfoRequest(Time t);
 
-			void setTimeOfLastInfoRequest(Time t);
+  void onCompletionOfPrepareSignaturesProcessing(
+      SeqNum seqNumber,
+      ViewNum viewNumber,
+      const std::set<ReplicaId>& replicasWithBadSigs);
+  void onCompletionOfPrepareSignaturesProcessing(SeqNum seqNumber,
+                                                 ViewNum viewNumber,
+                                                 const char* combinedSig,
+                                                 uint16_t combinedSigLen);
+  void onCompletionOfCombinedPrepareSigVerification(SeqNum seqNumber,
+                                                    ViewNum viewNumber,
+                                                    bool isValid);
 
+  void onCompletionOfCommitSignaturesProcessing(
+      SeqNum seqNumber,
+      ViewNum viewNumber,
+      const std::set<uint16_t>& replicasWithBadSigs) {
+    commitMsgsCollector->onCompletionOfSignaturesProcessing(
+        seqNumber, viewNumber, replicasWithBadSigs);
+  }
 
-			void onCompletionOfPrepareSignaturesProcessing(SeqNum seqNumber, ViewNum  viewNumber, const std::set<ReplicaId>& replicasWithBadSigs);
-			void onCompletionOfPrepareSignaturesProcessing(SeqNum seqNumber, ViewNum  viewNumber, const char* combinedSig, uint16_t combinedSigLen);
-			void onCompletionOfCombinedPrepareSigVerification(SeqNum seqNumber, ViewNum  viewNumber, bool isValid);
+  void onCompletionOfCommitSignaturesProcessing(SeqNum seqNumber,
+                                                ViewNum viewNumber,
+                                                const char* combinedSig,
+                                                uint16_t combinedSigLen) {
+    commitMsgsCollector->onCompletionOfSignaturesProcessing(
+        seqNumber, viewNumber, combinedSig, combinedSigLen);
+  }
 
-			void onCompletionOfCommitSignaturesProcessing(SeqNum seqNumber, ViewNum  viewNumber, const std::set<uint16_t>& replicasWithBadSigs)
-			{
-				commitMsgsCollector->onCompletionOfSignaturesProcessing(seqNumber, viewNumber, replicasWithBadSigs);
-			}
+  void onCompletionOfCombinedCommitSigVerification(SeqNum seqNumber,
+                                                   ViewNum viewNumber,
+                                                   bool isValid) {
+    commitMsgsCollector->onCompletionOfCombinedSigVerification(
+        seqNumber, viewNumber, isValid);
+  }
 
-			void onCompletionOfCommitSignaturesProcessing(SeqNum seqNumber, ViewNum  viewNumber, const char* combinedSig, uint16_t combinedSigLen)
-			{
-				commitMsgsCollector->onCompletionOfSignaturesProcessing(seqNumber, viewNumber, combinedSig, combinedSigLen);
-			}
+ protected:
+  class ExFuncForPrepareCollector {
+   public:
+    // external messages
+    static std::unique_ptr<PrepareFullMsg> createCombinedSignatureMsg(
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        const char* const combinedSig,
+        uint16_t combinedSigLen);
 
-			void onCompletionOfCombinedCommitSigVerification(SeqNum seqNumber, ViewNum  viewNumber, bool isValid)
-			{
-				commitMsgsCollector->onCompletionOfCombinedSigVerification(seqNumber, viewNumber, isValid);
-			}
+    // internal messages
+    static InternalMessage* createInterCombinedSigFailed(
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        std::set<uint16_t> replicasWithBadSigs);
+    static InternalMessage* createInterCombinedSigSucceeded(
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        const char* combinedSig,
+        uint16_t combinedSigLen);
+    static InternalMessage* createInterVerifyCombinedSigResult(
+        void* context, SeqNum seqNumber, ViewNum viewNumber, bool isValid);
 
+    // from the Replica object
+    static uint16_t numberOfRequiredSignatures(void* context);
+    static IThresholdVerifier* thresholdVerifier(void* context);
+    static util::SimpleThreadPool& threadPool(void* context);
+    static IncomingMsgsStorage& incomingMsgsStorage(void* context);
+  };
 
-		protected:
+  class ExFuncForCommitCollector {
+   public:
+    // external messages
+    static std::unique_ptr<CommitFullMsg> createCombinedSignatureMsg(
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        const char* const combinedSig,
+        uint16_t combinedSigLen);
 
-			class ExFuncForPrepareCollector
-			{
-			public:
-				// external messages
-				static PrepareFullMsg* createCombinedSignatureMsg(void* context, SeqNum seqNumber, ViewNum  viewNumber, const char* const combinedSig, uint16_t combinedSigLen);
+    // internal messages
+    static InternalMessage* createInterCombinedSigFailed(
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        std::set<uint16_t> replicasWithBadSigs);
+    static InternalMessage* createInterCombinedSigSucceeded(
+        void* context,
+        SeqNum seqNumber,
+        ViewNum viewNumber,
+        const char* combinedSig,
+        uint16_t combinedSigLen);
+    static InternalMessage* createInterVerifyCombinedSigResult(
+        void* context, SeqNum seqNumber, ViewNum viewNumber, bool isValid);
 
-				// internal messages
-				static InternalMessage* createInterCombinedSigFailed(void* context, SeqNum seqNumber, ViewNum  viewNumber, std::set<uint16_t> replicasWithBadSigs);
-				static InternalMessage* createInterCombinedSigSucceeded(void* context, SeqNum seqNumber, ViewNum  viewNumber, const char* combinedSig, uint16_t combinedSigLen);
-				static InternalMessage* createInterVerifyCombinedSigResult(void* context, SeqNum seqNumber, ViewNum  viewNumber, bool isValid);
+    // from the ReplicaImp object
+    static uint16_t numberOfRequiredSignatures(void* context);
+    static IThresholdVerifier* thresholdVerifier(void* context);
+    static util::SimpleThreadPool& threadPool(void* context);
+    static IncomingMsgsStorage& incomingMsgsStorage(void* context);
+  };
 
-				// from the Replica object
-				static uint16_t numberOfRequiredSignatures(void* context);
-				static IThresholdVerifier* thresholdVerifier(void* context);
-				static util::SimpleThreadPool& threadPool(void* context);
-				static IncomingMsgsStorage& incomingMsgsStorage(void* context);
+  InternalReplicaApi* replica = nullptr;
 
+  std::unique_ptr<PrePrepareMsg> prePrepareMsg;
 
-			};
+  CollectorOfThresholdSignatures<PreparePartialMsg,
+                                 PrepareFullMsg,
+                                 ExFuncForPrepareCollector>*
+      prepareSigCollector;
+  CollectorOfThresholdSignatures<CommitPartialMsg,
+                                 CommitFullMsg,
+                                 ExFuncForCommitCollector>* commitMsgsCollector;
 
-			class ExFuncForCommitCollector
-			{
-			public:
-				// external messages
-				static CommitFullMsg* createCombinedSignatureMsg(void* context, SeqNum seqNumber, ViewNum  viewNumber, const char* const combinedSig, uint16_t combinedSigLen);
+  PartialProofsSet* partialProofsSet;  // TODO(GG): replace with an instance of
+                                       // CollectorOfThresholdSignatures
+  PartialExecProofsSet*
+      partialExecProofsSet;  // TODO(GG): replace with an instance of
+                             // CollectorOfThresholdSignatures
 
-				// internal messages
-				static InternalMessage* createInterCombinedSigFailed(void* context, SeqNum seqNumber, ViewNum  viewNumber, std::set<uint16_t> replicasWithBadSigs);
-				static InternalMessage* createInterCombinedSigSucceeded(void* context, SeqNum seqNumber, ViewNum  viewNumber, const char* combinedSig, uint16_t combinedSigLen);
-				static InternalMessage* createInterVerifyCombinedSigResult(void* context, SeqNum seqNumber, ViewNum  viewNumber, bool isValid);
+  bool primary;  // true iff PrePrepareMsg was added with addSelfMsg
 
-				// from the ReplicaImp object
-				static uint16_t numberOfRequiredSignatures(void* context);
-				static IThresholdVerifier* thresholdVerifier(void* context);
-				static util::SimpleThreadPool& threadPool(void* context);
-				static IncomingMsgsStorage& incomingMsgsStorage(void* context);
-			};
+  bool forcedCompleted;
 
-			InternalReplicaApi* replica = nullptr;
+  bool slowPathHasStarted;
 
-			PrePrepareMsg* prePrepareMsg;
+  Time firstSeenFromPrimary;
+  Time timeOfLastInfoRequest;
+  Time commitUpdateTime;
 
-			CollectorOfThresholdSignatures<PreparePartialMsg, PrepareFullMsg, ExFuncForPrepareCollector>* prepareSigCollector;
-			CollectorOfThresholdSignatures<CommitPartialMsg, CommitFullMsg, ExFuncForCommitCollector>* commitMsgsCollector;
+ public:
+  // methods for SequenceWithActiveWindow
+  static void init(SeqNumInfo& i, void* d);
 
-			PartialProofsSet* partialProofsSet; // TODO(GG): replace with an instance of CollectorOfThresholdSignatures
-			PartialExecProofsSet* partialExecProofsSet; // TODO(GG): replace with an instance of CollectorOfThresholdSignatures
+  static void free(SeqNumInfo& i) { i.resetAndFree(); }
 
-			bool primary; // true iff PrePrepareMsg was added with addSelfMsg
+  static void reset(SeqNumInfo& i) { i.resetAndFree(); }
+};
 
-			bool forcedCompleted;
-
-			bool slowPathHasStarted;
-
-			Time firstSeenFromPrimary;
-			Time timeOfLastInfoRequest;
-			Time commitUpdateTime;
-
-		public:
-			// methods for SequenceWithActiveWindow
-			static void init(SeqNumInfo& i, void* d);
-
-			static void free(SeqNumInfo& i)
-			{
-				i.resetAndFree();
-			}
-
-			static void reset(SeqNumInfo& i)
-			{
-				i.resetAndFree();
-			}
-
-		};
-
-	}
-}
+}  // namespace impl
+}  // namespace bftEngine

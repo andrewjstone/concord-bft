@@ -43,7 +43,7 @@ class ClientReplyMsg : public MessageBase {
   ClientReplyMsg(ReplicaId replicaId, uint32_t replyLength);
 
   uint32_t maxReplyLength() const {
-    return internalStorageSize() - sizeof(ClientReplyMsgHeader);
+    return size() - sizeof(ClientReplyMsgHeader);
   }
 
   ReqId reqSeqNum() const { return b()->reqSeqNum; }
@@ -64,7 +64,7 @@ class ClientReplyMsg : public MessageBase {
                               MessageBase* inMsg,
                               ClientReplyMsg*& outMsg);
 
-  void setMsgSize(MsgSize size) { MessageBase::setMsgSize(size); }
+  void setMsgSize(MsgSize size) { MessageBase::resize(size); }
 
   const ClientReplyMsgHeader* b() const { return (ClientReplyMsgHeader*)data(); }
 };

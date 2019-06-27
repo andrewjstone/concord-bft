@@ -104,7 +104,7 @@ bool ReplicaStatusMsg::ToActualMsgType(const ReplicasInfo& repInfo,
   Assert(inMsg->type() == MsgCode::ReplicaStatus);
   if (inMsg->size() < sizeof(ReplicaStatusMsgHeader)) return false;
 
-  const ReplicaStatusMsg* t = (ReplicaStatusMsg*)inMsg;
+  ReplicaStatusMsg* t = (ReplicaStatusMsg*)inMsg.get();
 
   if (t->senderId() == repInfo.myId()) return false;
 
@@ -149,7 +149,8 @@ bool ReplicaStatusMsg::ToActualMsgType(const ReplicasInfo& repInfo,
                                               listOfMissingPPForVC))
     return false;
 
-  outMsg.swap(inMsg); 
+  inMsg.release();
+  outMsg.reset(t); 
 
   return true;
 }

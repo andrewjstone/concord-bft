@@ -2,46 +2,48 @@ project (bftengine LANGUAGES CXX)
 
 set(corebft_source_files
     src/bftengine/PrimitiveTypes.cpp
-    src/bftengine/PrePrepareMsg.cpp
-    src/bftengine/CheckpointMsg.cpp
     src/bftengine/DebugStatistics.cpp
     src/bftengine/Digest.cpp
-    src/bftengine/FullCommitProofMsg.cpp
-    src/bftengine/FullExecProofMsg.cpp
     src/bftengine/TimeUtils.cpp
     src/bftengine/Logger.cpp
-    src/bftengine/MessageBase.cpp
-    src/bftengine/PartialCommitProofMsg.cpp
-    src/bftengine/PartialExecProofMsg.cpp
     src/bftengine/PartialExecProofsSet.cpp
     src/bftengine/PartialProofsSet.cpp
     src/bftengine/SeqNumInfo.cpp
-    src/bftengine/SignedShareMsgs.cpp
     src/bftengine/ReplicaImp.cpp
-    src/bftengine/ClientReplyMsg.cpp
-    src/bftengine/ReqMissingDataMsg.cpp
-    src/bftengine/ClientRequestMsg.cpp
-    src/bftengine/StartSlowCommitMsg.cpp
     src/bftengine/ControllerBase.cpp
     src/bftengine/ControllerWithSimpleHistory.cpp
     src/bftengine/IncomingMsgsStorage.cpp
-    src/bftengine/SimpleAckMsg.cpp
     src/bftengine/RetransmissionsManager.cpp
-    src/bftengine/NewViewMsg.cpp
     src/bftengine/SigManager.cpp
     src/bftengine/ReplicasInfo.cpp
-    src/bftengine/ViewChangeMsg.cpp
     src/bftengine/ViewChangeSafetyLogic.cpp
     src/bftengine/ViewsManager.cpp
     src/bftengine/CheckpointInfo.cpp
-    src/bftengine/ReplicaStatusMsg.cpp
-    src/bftengine/StateTransferMsg.cpp
     src/bftengine/ClientsManager.cpp
     src/bftengine/Crypto.cpp
 	src/bftengine/NullStateTransfer.cpp
     src/bftengine/BFTEngine.cpp
     src/bftengine/SimpleClient.cpp
     src/bftengine/DebugPersistentStorage.cpp
+
+    src/bftengine/messages/PrePrepareMsg.cpp
+    src/bftengine/messages/MessageBase.cpp
+    src/bftengine/messages/CheckpointMsg.cpp
+    src/bftengine/messages/FullCommitProofMsg.cpp
+    src/bftengine/messages/FullExecProofMsg.cpp
+    src/bftengine/messages/PartialCommitProofMsg.cpp
+    src/bftengine/messages/PartialExecProofMsg.cpp
+    src/bftengine/messages/SignedShareMsgs.cpp
+    src/bftengine/messages/ClientReplyMsg.cpp
+    src/bftengine/messages/ReqMissingDataMsg.cpp
+    src/bftengine/messages/ClientRequestMsg.cpp
+    src/bftengine/messages/StartSlowCommitMsg.cpp
+    src/bftengine/messages/SimpleAckMsg.cpp
+    src/bftengine/messages/NewViewMsg.cpp
+    src/bftengine/messages/ViewChangeMsg.cpp
+    src/bftengine/messages/ReplicaStatusMsg.cpp
+    src/bftengine/messages/StateTransferMsg.cpp
+
     src/communication/PlainUDPCommunication.cpp
     src/communication/CommFactory.cpp
 	src/bcstatetransfer/BCStateTran.cpp

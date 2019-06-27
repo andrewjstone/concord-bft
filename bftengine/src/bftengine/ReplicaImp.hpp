@@ -23,7 +23,7 @@
 #include "DebugStatistics.hpp"
 #include "SimpleThreadPool.hpp"
 #include "ControllerBase.hpp"
-#include "CheckpointMsg.hpp"
+#include "messages/CheckpointMsg.hpp"
 #include "RetransmissionsManager.hpp"
 #include "DynamicUpperLimitWithSimpleFilter2.hpp"
 #include "ViewsManager.hpp"
@@ -130,9 +130,8 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   //
   SeqNum maxSeqNumTransferredFromPrevViews;
 
-  // requests queue (used by the primary)
-  std::queue<std::unique_ptr<ClientRequestMsg>>
-      requestsQueueOfPrimary;  // only used by the primary
+  // requests queue (only used by the primary)
+  std::queue<std::unique_ptr<ClientRequestMsg>> requestsQueueOfPrimary;
 
   // bounded log used to store information about SeqNums in the range
   // (lastStableSeqNum,lastStableSeqNum + kWorkWindowSize]
@@ -292,7 +291,7 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   bool isRunning() const;
   SeqNum getLastExecutedSequenceNum() const;
 
-  void recvMsg(void*& item, bool& external);
+  IncomingMsg recvMsg();
 
   void processMessages();
 
@@ -330,9 +329,9 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   bool isCurrentPrimary() const { return (currentPrimary() == myReplicaId); }
 
   static const uint16_t ALL_OTHER_REPLICAS = UINT16_MAX;
-  void send(std::unique_ptr<MessageBase> m, NodeIdType dest);
-  void sendToAllOtherReplicas(std::unique_ptr<MessageBase> m);
-  void sendRaw(char* m, NodeIdType dest, uint16_t type, MsgSize size);
+  void send(const MessageBase* m, NodeIdType dest);
+  void sendToAllOtherReplicas(std::unique_ptr<MessageBase>& m);
+  void sendRaw(const char* m, NodeIdType dest, uint16_t type, MsgSize size);
 
   bool tryToEnterView();
   void onNewView(
@@ -374,11 +373,11 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
                                        const SeqNum seqNum,
                                        const uint16_t msgType);
 
-  void sendRetransmittableMsgToReplica(std::unique_ptr<MessageBase> m,
+  void sendRetransmittableMsgToReplica(const MessageBase* m,
                                        ReplicaId destReplica,
                                        SeqNum s,
                                        bool ignorePreviousAcks = false);
-  void sendAckIfNeeded(std::unique_ptr<MessageBase> msg,
+  void sendAckIfNeeded(const MessageBase* msg,
                        const NodeIdType sourceNode,
                        const SeqNum seqNum);
 
@@ -411,7 +410,7 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   }
 
   template <typename T>
-  bool relevantMsgForActiveView(const std::unique_ptr<T> msg);
+  bool relevantMsgForActiveView(const std::unique_ptr<T>& msg);
 
   void onReportAboutAdvancedReplica(ReplicaId reportedReplica,
                                     SeqNum seqNum,
@@ -422,7 +421,7 @@ class ReplicaImp : public InternalReplicaApi, public IReplicaForStateTransfer {
   void onReportAboutAdvancedReplica(ReplicaId reportedReplica, SeqNum seqNum);
   void onReportAboutLateReplica(ReplicaId reportedReplica, SeqNum seqNum);
 
-  void onReportAboutInvalidMessage(std::unique_ptr<MessageBase> msg);
+  void onReportAboutInvalidMessage(const MessageBase* msg);
 
   void sendCheckpointIfNeeded();
 

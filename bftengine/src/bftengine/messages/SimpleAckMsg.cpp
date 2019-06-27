@@ -11,8 +11,8 @@
 // file.
 
 #include "SimpleAckMsg.hpp"
-#include "ReplicasInfo.hpp"
-#include "assertUtils.hpp"
+#include "../ReplicasInfo.hpp"
+#include "../assertUtils.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -33,14 +33,15 @@ bool SimpleAckMsg::ToActualMsgType(const ReplicasInfo& repInfo,
   Assert(inMsg->type() == MsgCode::SimpleAckMsg);
   if (inMsg->size() < sizeof(SimpleAckMsgHeader)) return false;
 
-  const SimpleAckMsg* t = (SimpleAckMsg*)inMsg;
+  SimpleAckMsg* t = (SimpleAckMsg*)inMsg.get();
 
   // sent from another replica (otherwise, we don't need to convert)
   if (t->senderId() == repInfo.myId()) return false;
 
   if (!repInfo.isIdOfReplica(t->senderId())) return false;
 
-  outMsg.swap(inMsg);
+  inMsg.release();
+  outMsg.reset(t);
   return true;
 }
 }  // namespace impl

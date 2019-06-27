@@ -15,6 +15,7 @@
 #define BFTENGINE_SRC_BFTENGINE_VIEWSMANAGER_HPP_
 #pragma once
 
+#include <memory>
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -53,8 +54,8 @@ class ViewsManager {
   // should always return non-null (unless we are at the first view)
   ViewChangeMsg* getMyLatestViewChangeMsg() const;
 
-  bool add(NewViewMsg* m);
-  bool add(ViewChangeMsg* m);
+  bool add(std::unique_ptr<NewViewMsg> m);
+  bool add(std::unique_ptr<ViewChangeMsg> m);
 
   void computeCorrectRelevantViewNumbers(ViewNum* outMaxKnownCorrectView,
                                          ViewNum* outMaxKnownAgreedView) const;
@@ -96,7 +97,7 @@ class ViewsManager {
                       SeqNum currentLastExecuted,
                       std::vector<PrePrepareMsg*>* outPrePrepareMsgsOfView);
 
-  bool addPotentiallyMissingPP(PrePrepareMsg* p, SeqNum currentLastStable);
+  bool addPotentiallyMissingPP(std::unique_ptr<PrePrepareMsg> p, SeqNum currentLastStable);
 
   PrePrepareMsg* getPrePrepare(SeqNum s);
 

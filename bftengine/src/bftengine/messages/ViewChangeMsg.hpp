@@ -13,8 +13,8 @@
 #pragma once
 
 #include "MessageBase.hpp"
-#include "Digest.hpp"
-#include "ReplicasInfo.hpp"
+#include "../Digest.hpp"
+#include "../ReplicasInfo.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -122,7 +122,7 @@ class ViewChangeMsg : public MessageBase {
   static_assert(sizeof(ViewChangeMsgHeader) == (2 + 2 + 8 + 8 + 2 + 2),
                 "ViewChangeMsgHeader is 24B");
 
-  ViewChangeMsgHeader* b() const { return ((ViewChangeMsgHeader*)mut_data()); }
+  ViewChangeMsgHeader* b() const { return ((ViewChangeMsgHeader*)data()); }
 
   bool checkElements(uint16_t sigSize) const;
 };

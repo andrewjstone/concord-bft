@@ -10,9 +10,11 @@
 // terms and conditions of the subcomponent's license, as noted in the LICENSE
 // file.
 
+#include <memory>
+
 #include "SignedShareMsgs.hpp"
-#include "Crypto.hpp"
-#include "assertUtils.hpp"
+#include "../Crypto.hpp"
+#include "../assertUtils.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -103,6 +105,11 @@ std::unique_ptr<PreparePartialMsg> PreparePartialMsg::create(
     IThresholdSigner* thresholdSigner) {
   return std::move(SignedShareBase::create(
       MsgCode::PreparePartial, v, s, senderId, ppDigest, thresholdSigner));
+}
+
+std::unique_ptr<PreparePartialMsg> PreparePartialMsg::clone() {
+  std::unique_ptr<PreparePartialMsg> p(new PreparePartialMsg(
+        )
 }
 
 bool PreparePartialMsg::ToActualMsgType(const ReplicasInfo& repInfo,

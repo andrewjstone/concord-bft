@@ -71,7 +71,7 @@ bool NewViewMsg::ToActualMsgType(const ReplicasInfo& repInfo,
   const uint16_t C = repInfo.cVal();
   const uint16_t expectedElements = (2 * F + 2 * C + 1);
 
-  const NewViewMsg* t = (NewViewMsg*)inMsg;
+  NewViewMsg* t = (NewViewMsg*)inMsg.get();
 
   // size
   const uint16_t contentSize =
@@ -102,7 +102,8 @@ bool NewViewMsg::ToActualMsgType(const ReplicasInfo& repInfo,
 
   // TODO(GG): more?
 
-  outMsg.swap(t);
+  inMsg.release();
+  outMsg.reset(t);
 
   return true;
 }

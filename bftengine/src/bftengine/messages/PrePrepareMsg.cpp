@@ -11,8 +11,8 @@
 // file.
 
 #include "PrePrepareMsg.hpp"
-#include "SysConsts.hpp"
-#include "Crypto.hpp"
+#include "../SysConsts.hpp"
+#include "../Crypto.hpp"
 
 namespace bftEngine {
 namespace impl {

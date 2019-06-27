@@ -12,9 +12,9 @@
 
 #include <string.h>
 
-#include "assertUtils.hpp"
+#include "../assertUtils.hpp"
 #include "ViewChangeMsg.hpp"
-#include "Crypto.hpp"
+#include "../Crypto.hpp"
 
 namespace bftEngine {
 namespace impl {

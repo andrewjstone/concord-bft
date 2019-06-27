@@ -9,8 +9,8 @@
 // TODO(GG): this class/file should be replaced by an instance of CollectorOfThresholdSignatures (or a similar module)
 
 #include "PartialExecProofsSet.hpp"
-#include "FullExecProofMsg.hpp"
-#include "PartialExecProofMsg.hpp"
+#include "messages/FullExecProofMsg.hpp"
+#include "messages/PartialExecProofMsg.hpp"
 #include "Crypto.hpp"
 #include "assertUtils.hpp"
 #include "Logger.hpp"
@@ -188,8 +188,8 @@ namespace bftEngine
 				}
 				else
 				{
-					MerkleExecSignatureInternalMsg* pInMsg = new MerkleExecSignatureInternalMsg(replicaApi, view, seqNumber, (uint16_t)sigLength, bufferForSigComputations);
-					replicaApi->getIncomingMsgsStorage().pushInternalMsg(pInMsg);
+                                         std::unique_ptr<InternalMessage> pInMsg(new MerkleExecSignatureInternalMsg(replicaApi, view, seqNumber, (uint16_t)sigLength, bufferForSigComputations));
+                                         replicaApi->getIncomingMsgsStorage().pushInternalMsg(std::move(pInMsg));
 				}
 				LOG_INFO_F(GL, "PartialExecProofsSet::AsynchProofCreationJob::execute - end (for seqNumber %" PRId64 ")", seqNumber);
 			}

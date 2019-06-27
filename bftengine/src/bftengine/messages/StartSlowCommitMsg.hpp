@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "MessageBase.hpp"
 
 namespace bftEngine {
@@ -43,7 +45,7 @@ class StartSlowCommitMsg : public MessageBase {
                 "StartSlowCommitMsgHeader is 12B");
 
   StartSlowCommitMsgHeader* b() const {
-    return (StartSlowCommitMsgHeader*)mut_data();
+    return (StartSlowCommitMsgHeader*)data();
   }
 };
 

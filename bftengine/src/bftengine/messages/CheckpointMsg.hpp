@@ -12,8 +12,10 @@
 
 #pragma once
 
+#include <memory>
+
 #include "MessageBase.hpp"
-#include "Digest.hpp"
+#include "../Digest.hpp"
 
 namespace bftEngine {
 namespace impl {
@@ -55,7 +57,7 @@ class CheckpointMsg : public MessageBase {
   static_assert(sizeof(CheckpointMsgHeader) == (2 + 8 + DIGEST_SIZE + 1),
                 "CheckpointMsgHeader is 43B");
 
-  const CheckpointMsgHeader* b() const { return (CheckpointMsgHeader*)body(); }
+  CheckpointMsgHeader* b() const { return (CheckpointMsgHeader*)body(); }
 };
 }  // namespace impl
 }  // namespace bftEngine

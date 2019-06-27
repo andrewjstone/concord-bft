@@ -119,7 +119,7 @@ ViewChangeMsg* ViewsManager::getMyLatestViewChangeMsg() const {
 
 
 
-bool ViewsManager::add(NewViewMsg* m) {
+bool ViewsManager::add(std::unique_ptr<NewViewMsg> m) {
   const uint16_t sId = m->senderId();
   const ViewNum v = m->newView();
 
@@ -139,7 +139,7 @@ bool ViewsManager::add(NewViewMsg* m) {
   return true;
 }
 
-bool ViewsManager::add(ViewChangeMsg* m) {
+bool ViewsManager::add(std::unique_ptr<ViewChangeMsg> m) {
   const ViewNum v = m->newView();
   const uint16_t id = m->idOfGeneratedReplica();
 
@@ -856,7 +856,7 @@ void ViewsManager::resetDataOfLatestPendingAndKeepMyViewChange() {
   newViewMsgOfOfPendingView = nullptr;
 }
 
-bool ViewsManager::addPotentiallyMissingPP(PrePrepareMsg* p,
+bool ViewsManager::addPotentiallyMissingPP(std::unique_ptr<PrePrepareMsg> p,
                                            SeqNum currentLastStable) {
   Assert(stat == Stat::PENDING_WITH_RESTRICTIONS);
   Assert(!p->isNull());
