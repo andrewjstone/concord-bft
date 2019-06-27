@@ -145,36 +145,28 @@ namespace bftEngine
 		}
 
 
-		template <typename T> void ReplicaImp::metaMessageHandler(MessageBase* msg)
+		template <typename T> 
+                void ReplicaImp::metaMessageHandler(std::unique_ptr<MessageBase> msg)
 		{
-			T* validMsg = nullptr;
-			bool isValid = T::ToActualMsgType(*repsInfo, msg, validMsg);
+                  std::unique_ptr<T> validMsg;
+                  bool isValid = T::ToActualMsgType(*repsInfo, msg, &validMsg);
 
-			if (isValid)
-			{
-				onMessage(validMsg);
-			}
-			else
-			{
-				onReportAboutInvalidMessage(msg);
-				delete msg;
-				return;
-			}	
+                  if (isValid) {
+                    onMessage(validMsg);
+                  } else {
+                    onReportAboutInvalidMessage(msg);
+                  }	
 		}
  
-		template <typename T> void ReplicaImp::metaMessageHandler_IgnoreWhenCollectingState(MessageBase* msg)
-		{
-			if (stateTransfer->isCollectingState())
-			{
-				delete msg;
-			}
-			else
-			{
-				metaMessageHandler<T>(msg);
-			}
-		}
+		template <typename T> 
+                void ReplicaImp::metaMessageHandler_IgnoreWhenCollectingState(
+                    std::unique_ptr<MessageBase> msg) {
+                  if (!stateTransfer->isCollectingState()) {
+                    metaMessageHandler<T>(msg);
+                  }
+                }
 
-		void ReplicaImp::onReportAboutInvalidMessage(MessageBase* msg)
+		void ReplicaImp::onReportAboutInvalidMessage(std::unique_ptr<MessageBase> msg)
 		{
 			LOG_WARN_F(GL, "Node %d received invalid message from Node %d (type==%d)", (int)myReplicaId, (int)msg->senderId(), (int)msg->type());
 
@@ -183,7 +175,7 @@ namespace bftEngine
 
 
 
-		void ReplicaImp::send(MessageBase* m, NodeIdType dest)
+		void ReplicaImp::send(std::unique_ptr<MessageBase> m, NodeIdType dest)
 		{
 			// debug code begin 
 
@@ -201,14 +193,14 @@ namespace bftEngine
 			sendRaw(m->body(), dest, m->type(), m->size());
 		}
 
-		void ReplicaImp::sendToAllOtherReplicas(MessageBase *m)
+		void ReplicaImp::sendToAllOtherReplicas(std::unique_ptr<MessageBase>& m)
 		{
 			for (ReplicaId dest : repsInfo->idsOfPeerReplicas())
-				sendRaw(m->body(), dest, m->type(), m->size());
+				sendRaw(m->data(), dest, m->type(), m->size());
 		}
 
 
-		void ReplicaImp::sendRaw(char* m, NodeIdType dest, uint16_t type, MsgSize size)
+		void ReplicaImp::sendRaw(const char* m, NodeIdType dest, uint16_t type, MsgSize size)
 		{
 			int errorCode = 0;
 
@@ -232,16 +224,17 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::recvMsg(void*& item, bool& external)
-		{
-			bool newMsg = false;
-			while (!newMsg)
-			{
-				newMsg = incomingMsgsStorage.pop(item, external, timersResolution);
-
-				if (!newMsg) timersScheduler.evaluate(); // TODO(GG): make sure that we don't check timers too often (i.e. much faster than timersResolution)
-			}
-		}
+                IncomingMsg ReplicaImp::recvMsg() {
+                  while (true) {
+                    auto msg = incomingMsgsStorage.pop(timersResolution);
+                    if (msg.tag != IncomingMsg::INVALID) {
+                      return msg;
+                    }
+                    // TODO(GG): make sure that we don't check timers too
+                    // often (i.e. much faster than timersResolution)
+                    timersScheduler.evaluate(); 
+                  }
+                }
 
 		ReplicaImp::MsgReceiver::MsgReceiver(IncomingMsgsStorage& queue)
 			:  incomingMsgs{ queue }
@@ -249,24 +242,23 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::MsgReceiver::onNewMessage(
-			const NodeNum sourceNode,
-			const char* const message,
-			const size_t messageLength)
-		{
-			if (messageLength > maxExternalMessageSize) return;
-			if (messageLength < sizeof(MessageBase::Header)) return;
+                void ReplicaImp::MsgReceiver::onNewMessage(
+                    const NodeNum sourceNode,
+                    const char* const message,
+                    const size_t messageLength) {
 
-			MessageBase::Header* msgBody = (MessageBase::Header*)std::malloc(messageLength);
-			memcpy(msgBody, message, messageLength);
+                  // TODO(AJS) Log these errors ?
+                  if (messageLength > maxExternalMessageSize) return;
+                  if (messageLength < sizeof(MessageBase::Header)) return;
 
-			NodeIdType n = (uint16_t)sourceNode; // TODO(GG): make sure that this casting is okay
+                  // TODO(GG): make sure that this casting is okay
+                  NodeIdType n = (uint16_t)sourceNode; 
 
-			MessageBase* pMsg = new MessageBase(n, msgBody, messageLength, true);
+                  std::unique_ptr<MessageBase> m(new MessageBase(n, message, messageLength));
 
-			// TODO(GG): TBD: do we want to verify messages in this thread (communication) ?
+                  // TODO(GG): TBD: do we want to verify messages in this thread (communication) ?
 
-			incomingMsgs.pushExternalMsg(pMsg);
+                  incomingMsgs.pushExternalMsg(m);
 		}
 
 
@@ -275,7 +267,7 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::onMessage(ClientRequestMsg *m)
+		void ReplicaImp::onMessage(std::unique_ptr<ClientRequestMsg> m)
 		{
                         metric_received_client_requests_.Get().Inc();
 			const NodeIdType senderId = m->senderId();
@@ -288,7 +280,6 @@ namespace bftEngine
 			if (stateTransfer->isCollectingState())
 			{
 				LOG_INFO_F(GL, "ClientRequestMsg is ignored becuase this replica is collecting missing state from the other replicas");
-				delete m;
 				return;
 			}
 
@@ -300,21 +291,18 @@ namespace bftEngine
 			{
 				LOG_INFO_F(GL, "ClientRequestMsg is invalid");
 				onReportAboutInvalidMessage(m);
-				delete m;
 				return;
 			}
 
 			if (readOnly)
 			{
 				executeReadOnlyRequest(m);
-				delete m;
 				return;
 			}
 
 			if (!currentViewIsActive())
 			{
 				LOG_INFO_F(GL, "ClientRequestMsg is ignored becuase current view is inactive");
-				delete m;
 				return;
 			}
 
@@ -355,19 +343,14 @@ namespace bftEngine
 			{
 				LOG_INFO_F(GL, "ClientRequestMsg has already been executed - retransmit reply to client");
 
-				ClientReplyMsg* repMsg = clientsManager->allocateMsgWithLatestReply(clientId, currentPrimary());
+                                auto repMsg = clientsManager->allocateMsgWithLatestReply(clientId, currentPrimary());
 
 				send(repMsg, clientId);
-
-				delete repMsg;
 			}
 			else
 			{
 				LOG_INFO_F(GL, "ClientRequestMsg is ignored becuase request is old");
 			}
-
-
-			delete m;
 		}
 
 		void ReplicaImp::tryToSendPrePrepareMsg(bool batchingLogic)
@@ -510,7 +493,7 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::onMessage(PrePrepareMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<PrePrepareMsg> msg)
 		{
                         metric_received_pre_prepares_.Get().Inc();
 			const SeqNum msgSeqNum = msg->seqNumber();
@@ -545,8 +528,6 @@ namespace bftEngine
 
 				if (seqNumInfo.addMsg(msg))
 				{
-					msgAdded = true;
-
 					if (msg->firstPath() != CommitPath::SLOW && !seqNumInfo.slowPathStarted()) // TODO(GG): make sure we correctly handle a situation where StartSlowCommitMsg is handled before PrePrepareMsg
 					{
 						sendPartialProof(seqNumInfo);
@@ -559,8 +540,6 @@ namespace bftEngine
 					}
 				}
 			}
-
-			if (!msgAdded) delete msg;
 		}
 
 
@@ -697,7 +676,7 @@ namespace bftEngine
 
 
 
-		void ReplicaImp::onMessage(StartSlowCommitMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<StartSlowCommitMsg> msg)
 		{
                         metric_received_start_slow_commits_.Get().Inc();
 			const SeqNum msgSeqNum = msg->seqNumber();
@@ -723,8 +702,6 @@ namespace bftEngine
 						sendPreparePartial(seqNumInfo);
 				}
 			}
-
-			delete msg;
 		}
 
 
@@ -840,7 +817,7 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::onMessage(PartialCommitProofMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<PartialCommitProofMsg> msg)
 		{
                         metric_received_partial_commit_proofs_.Get().Inc();
 			const SeqNum msgSeqNum = msg->seqNumber();
@@ -870,36 +847,29 @@ namespace bftEngine
 							Assert(seqNumInfo.hasPrePrepareMsg());
 							commitAndSendFullCommitProof(msgSeqNum, seqNumInfo, pps);
 						}
-
-						return;
 					}
 				}
 			}
-
-			delete msg;
-			return;
 		}
 
 
 
 
-		void ReplicaImp::onInternalMsg(FullCommitProofMsg* msg)
+		void ReplicaImp::onInternalMsg(std::unique_ptr<FullCommitProofMsg> msg)
 		{
 			if ((stateTransfer->isCollectingState()) || 
 				(!currentViewIsActive()) || 
 				(curView != msg->viewNumber()) || 
 				(!mainLog->insideActiveWindow(msg->seqNumber())))
 			{
-				delete msg;
 				return;
 			}
 
 			sendToAllOtherReplicas(msg);
-
 			onMessage(msg);
 		}
 
-		void ReplicaImp::onMessage(FullCommitProofMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<FullCommitProofMsg> msg)
 		{
 
                         metric_received_full_commit_proofs_.Get().Inc();
@@ -916,20 +886,13 @@ namespace bftEngine
 				if (!pps.hasFullProof() && pps.addMsg(msg)) // TODO(GG): consider to verify the signature in another thread
 				{
 					Assert(seqNumInfo.hasPrePrepareMsg());
-
 					commitFullCommitProof(msgSeqNum, seqNumInfo);
-
-					return;
 				}
 			}
-
-			delete msg;
-			return;
 		}
 
 
-
-		void ReplicaImp::onMessage(PreparePartialMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<PreparePartialMsg> msg)
 		{
                         metric_received_prepare_partials_.Get().Inc();
 			const SeqNum msgSeqNum = msg->seqNumber();
@@ -976,12 +939,11 @@ namespace bftEngine
 			if (!msgAdded)
 			{
 				LOG_INFO_F(GL, "Node %d ignored the PreparePartialMsg from node %d (seqNumber %" PRId64 ")", (int)myReplicaId, (int)msgSender, msgSeqNum);
-				delete msg;
 			}
 		}
 
 
-		void ReplicaImp::onMessage(CommitPartialMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<CommitPartialMsg> msg)
 		{
                         metric_received_commit_partials_.Get().Inc();
 			const SeqNum msgSeqNum = msg->seqNumber();
@@ -1020,11 +982,10 @@ namespace bftEngine
 			if (!msgAdded)
 			{
 				LOG_INFO_F(GL, "Node %d ignored the CommitPartialMsg from node %d (seqNumber %" PRId64 ")", (int)myReplicaId, (int)msgSender, msgSeqNum);
-				delete msg;
 			}
 		}
 
-		void ReplicaImp::onMessage(PrepareFullMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<PrepareFullMsg> msg)
 		{
                         metric_received_prepare_fulls_.Get().Inc();
 			const SeqNum msgSeqNum = msg->seqNumber();
@@ -1067,12 +1028,11 @@ namespace bftEngine
 			if (!msgAdded)
 			{
 				LOG_INFO_F(GL, "Node %d ignored the PrepareFullMsg from node %d (seqNumber %" PRId64 ")", (int)myReplicaId, (int)msgSender, msgSeqNum);
-				delete msg;
 			}
 		}
 
 
-		void ReplicaImp::onMessage(CommitFullMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<CommitFullMsg> msg)
 		{
                         metric_received_commit_fulls_.Get().Inc();
 			const SeqNum msgSeqNum = msg->seqNumber();
@@ -1109,7 +1069,6 @@ namespace bftEngine
 			if (!msgAdded)
 			{
 				LOG_INFO_F(GL, "Node %d ignored the CommitFullMsg from node %d (seqNumber %" PRId64 ")", (int)myReplicaId, (int)msgSender, msgSeqNum);
-				delete msg;
 			}
 		}
 
@@ -1294,7 +1253,7 @@ namespace bftEngine
 
 
 
-		void ReplicaImp::onMessage(CheckpointMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<CheckpointMsg> msg)
 		{
                         metric_received_checkpoints_.Get().Inc();
 			const ReplicaId msgSenderId = msg->senderId();
@@ -1321,10 +1280,6 @@ namespace bftEngine
 
 					return;
 				}
-			}
-			else
-			{
-				delete msg;
 			}
 
 			bool askForStateTransfer = false;
@@ -1424,7 +1379,7 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::sendAckIfNeeded(MessageBase* msg, const NodeIdType sourceNode, const SeqNum seqNum)
+		void ReplicaImp::sendAckIfNeeded(std::unique_ptr<MessageBase> msg, const NodeIdType sourceNode, const SeqNum seqNum)
 		{
 			if (!retransmissionsLogicEnabled) return;
 
@@ -1441,7 +1396,7 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::sendRetransmittableMsgToReplica(MessageBase* msg, ReplicaId destReplica, SeqNum s, bool ignorePreviousAcks)
+		void ReplicaImp::sendRetransmittableMsgToReplica(std::unique_ptr<MessageBase> msg, ReplicaId destReplica, SeqNum s, bool ignorePreviousAcks)
 		{
 			send(msg, destReplica);
 
@@ -1557,7 +1512,7 @@ namespace bftEngine
 
 
 
-		void ReplicaImp::onMessage(ReplicaStatusMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<ReplicaStatusMsg> msg)
 		{
                         metric_received_replica_statuses_.Get().Inc();
 			// TODO(GG): we need filter for msgs (to avoid denial of service attack) + avoid sending messages at a high rate.
@@ -1587,7 +1542,6 @@ namespace bftEngine
 					send(checkMsg, msgSenderId);
 				}
 
-				delete msg;
 				return;
 			}
 			else if (msgLastStable > lastStableSeqNum + kWorkWindowSize)
@@ -1740,7 +1694,6 @@ namespace bftEngine
 				tryToSendStatusReport();
 			}
 
-			delete msg;
 		}
 
 
@@ -1808,10 +1761,10 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::onMessage(ViewChangeMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<ViewChangeMsg> msg)
 		{
                         metric_received_view_changes_.Get().Inc();
-			if (!viewChangeProtocolEnabled) { delete msg; return; }
+			if (!viewChangeProtocolEnabled) { return; }
 
 			const ReplicaId generatedReplicaId = msg->idOfGeneratedReplica(); // Notice that generatedReplicaId may be != msg->senderId()
 			Assert(generatedReplicaId != myReplicaId);
@@ -1823,7 +1776,9 @@ namespace bftEngine
 
 			LOG_INFO_F(GL, "ViewChangeMsg add=%d", (int)msgAdded);
 
-			if (!msgAdded) return;
+			if (!msgAdded) {
+                          return;
+                        }
 
 			// if the current primary wants to leave view
 			if (generatedReplicaId == currentPrimary() && msg->newView() > curView)
@@ -1864,7 +1819,7 @@ namespace bftEngine
 		}
 
 
-		void ReplicaImp::onMessage(NewViewMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<NewViewMsg> msg)
 		{
                         metric_received_new_views_.Get().Inc();
 			if (!viewChangeProtocolEnabled) { delete msg; return; }
@@ -2403,7 +2358,7 @@ namespace bftEngine
 			}
 		}
 
-		void ReplicaImp::onMessage(ReqMissingDataMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<ReqMissingDataMsg> msg)
 		{
                         metric_received_req_missing_datas_.Get().Inc();
 			const SeqNum msgSeqNum = msg->seqNumber();
@@ -2479,10 +2434,7 @@ namespace bftEngine
 			{
 				LOG_INFO_F(GL, "Node %d ignores the ReqMissingDataMsg message from Node %d", (int)myReplicaId, (int)msgSender);
 			}
-
-			delete msg;
 		}
-
 
 		void ReplicaImp::onViewsChangeTimer(Time cTime, Timer& timer) // TODO(GG): review/update logic
 		{
@@ -2630,7 +2582,7 @@ namespace bftEngine
 
 
 
-		void ReplicaImp::onMessage(SimpleAckMsg* msg)
+		void ReplicaImp::onMessage(std::unique_ptr<SimpleAckMsg> msg)
 		{
                         metric_received_simple_acks_.Get().Inc();
 			if (retransmissionsLogicEnabled)
@@ -2645,11 +2597,9 @@ namespace bftEngine
 			{
 				// TODO(GG): print warning ?
 			}
-
-			delete msg;
 		}
 
-		void ReplicaImp::onMessage(StateTransferMsg* m)
+		void ReplicaImp::onMessage(std::unique_ptr<StateTransferMsg> m)
 		{
                         metric_received_state_transfers_.Get().Inc();
 			size_t h = sizeof(MessageBase::Header);
@@ -2668,25 +2618,25 @@ namespace bftEngine
 
 
 
-		void ReplicaImp::sendStateTransferMessage(char* m, uint32_t size, uint16_t replicaId)
-		{
-			// This method may be called by external threads
-			// TODO(GG): if this method is invoked by an external thread, then send an "internal message" to the replica's main thread 
+                void ReplicaImp::sendStateTransferMessage(char* m, uint32_t size, uint16_t replicaId)
+                {
+                  // This method may be called by external threads
+                  // TODO(GG): if this method is invoked by an external
+                  // thread, then send an "internal message" to the
+                  // replica's main thread 
 
-			if (mainThread.get_id() == std::this_thread::get_id())
-			{
-				MessageBase* p = new MessageBase(myReplicaId, MsgCode::StateTransfer, size + sizeof(MessageBase::Header));
-				char* x = p->body() + sizeof(MessageBase::Header);
-				memcpy(x, m, size);
-				send(p, replicaId);
-				delete p;
-			}
-			else
-			{
-				//TODO(GG): implement
-				Assert(false);
-			}
-		}
+                  if (mainThread.get_id() == std::this_thread::get_id())
+                  {
+                    std::unique_ptr<MessageBase> p(
+                        new MessageBase(myReplicaId, MsgCode::StateTransfer, m, size));
+                    send(p, replicaId);
+                  }
+                  else
+                  {
+                    //TODO(GG): implement
+                    Assert(false);
+                  }
+                }
 
 
 		void ReplicaImp::onTransferringComplete(int64_t checkpointNumberOfNewState)
@@ -2733,7 +2683,7 @@ namespace bftEngine
 
 
 
-		void ReplicaImp::onMessage(PartialExecProofMsg* m)
+		void ReplicaImp::onMessage(std::unique_ptr<PartialExecProofMsg> m)
 		{
 			Assert(false);
 			// TODO(GG): use code from previous drafts
@@ -3091,21 +3041,13 @@ namespace bftEngine
 
 			while (!mainThreadShouldStop)
 			{
-				void* absMsg = nullptr;
-				bool externalMsg = false;
-
-				recvMsg(absMsg, externalMsg); // wait for a message
-				if (!externalMsg) // if internal message
-				{
-					// TODO(GG): clean
-                                        metric_received_internal_msgs_.Get().Inc();
-					InternalMessage* inMsg = (InternalMessage*)absMsg;
-					inMsg->handle();
-					delete inMsg;
-					continue;
+				auto msg = recvMsg(); // wait for a message
+				if (msg.tag == IncomingMsg::INTERNAL) {
+                                  metric_received_internal_msgs_.Get().Inc();
+                                  msg.internal->handle();
+                                  continue;
 				}
-
-				MessageBase* m = (MessageBase*)absMsg;
+                                auto m = std::move(msg.external);
 
 		#ifdef DEBUG_STATISTICS
 				DebugStatistics::onReceivedExMessage(m->type());
@@ -3120,7 +3062,6 @@ namespace bftEngine
 				else
 				{
 					LOG_WARN_F(GL, "Unknown message");
-					delete m;
 				}
 			}
 		}

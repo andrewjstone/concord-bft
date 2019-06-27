@@ -10,41 +10,21 @@
 // terms and conditions of the subcomponent's license, as noted in the LICENSE
 // file.
 
-#pragma once
-
-#include <stdint.h>
+#include "StateTransferMsg.hpp"
+#include "assertUtils.hpp"
 
 namespace bftEngine {
 namespace impl {
+bool StateTransferMsg::ToActualMsgType(const ReplicasInfo& repInfo,
+                                       std::unique_ptr<MessageBase>& inMsg,
+                                       std::unique_ptr<StateTransferMsg>& outMsg) {
+  Assert(inMsg->type() == MsgCode::StateTransfer);
+  if (inMsg->size() < sizeof(MessageBase::Header)) return false;
 
-class MsgCode {
- public:
-  enum : uint16_t {
-    None = 0,
+  outMsg.swap(inMsg);
 
-    Checkpoint = 100,
-    CommitPartial,
-    CommitFull,
-    FullCommitProof,
-    FullExecProof,
-    NewView,
-    PrePrepare,
-    PartialCommitProof,
-    PartialExecProof,
-    PreparePartial,
-    PrepareFull,
-    ReqMissingData,
-    SimpleAckMsg,
-    StartSlowCommit,
-    ViewChange,
-    ReplicaStatus,
-    StateTransfer,
-
-    Request = 700,
-    Reply = 800,
-
-  };
-};
+  return true;
+}
 
 }  // namespace impl
 }  // namespace bftEngine

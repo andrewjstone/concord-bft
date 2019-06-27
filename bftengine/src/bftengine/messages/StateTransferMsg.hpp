@@ -12,38 +12,16 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "MessageBase.hpp"
 
 namespace bftEngine {
 namespace impl {
 
-class MsgCode {
+class StateTransferMsg : public MessageBase {
  public:
-  enum : uint16_t {
-    None = 0,
-
-    Checkpoint = 100,
-    CommitPartial,
-    CommitFull,
-    FullCommitProof,
-    FullExecProof,
-    NewView,
-    PrePrepare,
-    PartialCommitProof,
-    PartialExecProof,
-    PreparePartial,
-    PrepareFull,
-    ReqMissingData,
-    SimpleAckMsg,
-    StartSlowCommit,
-    ViewChange,
-    ReplicaStatus,
-    StateTransfer,
-
-    Request = 700,
-    Reply = 800,
-
-  };
+  static bool ToActualMsgType(const ReplicasInfo& repInfo,
+                              std::unique_ptr<MessageBase>& inMsg,
+                              std::unique_ptr<StateTransferMsg>& outMsg);
 };
 
 }  // namespace impl
