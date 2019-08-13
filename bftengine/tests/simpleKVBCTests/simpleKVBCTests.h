@@ -11,11 +11,11 @@
 // terms and conditions of the subcomponent's license, as noted in the LICENSE
 // file.
 
-#pragma once 
+#pragma once
 
 #include "KVBCInterfaces.h"
 
 namespace BasicRandomTests {
-  void run(SimpleKVBC::IClient* client, const size_t numOfOperations);
-  SimpleKVBC::ICommandsHandler* commandsHandler();
-}
+void run(SimpleKVBC::IClient* client, const size_t numOfOperations);
+SimpleKVBC::ICommandsHandler* commandsHandler();
+}  // namespace BasicRandomTests
