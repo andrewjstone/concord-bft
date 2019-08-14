@@ -8,6 +8,7 @@ target_include_directories(concordbft_storage_blockchain PUBLIC
     ${bftengine_SOURCE_DIR}/include/bftengine
     .
 )
+target_include_directories(concordbft_storage_blockchain PUBLIC include)
 
 target_link_libraries(concordbft_storage_blockchain PUBLIC util)
 
