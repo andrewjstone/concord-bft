@@ -28,8 +28,66 @@
 
 #include <ios>
 #include <memory>
+#include <cassert>
 
 namespace concordUtils {
+
+class ISliver {
+  public:
+
+    virtual size_t length() const;
+    virtual const char* data() const;
+
+//    virtual std::ostream& operator<<(std::ostream& s) const;
+//   virtual bool operator==(const ISliver& other) const;
+//   virtual bool operator!=(const ISliver& other) const;
+//   virtual int compare(const ISliver& other) const;
+};
+
+// A subsliver should only live inside a shared_ptr<ISliver>.
+// It gets created by calling ISliver::subsliver().
+class SubSliver : public ISliver {
+
+  size_t length() const override { return length_; }
+    const char* data() const override { return data_->data() + offset_; }
+
+  private:
+    SubSliver(std::shared_ptr<ISliver> s, const size_t offset, const size_t length) : data_(s), offset_(offset), length_(length) {
+      assert(offset + length < s->length());
+    }
+
+    std::shared_ptr<ISliver> data_;
+    size_t offset_;
+    size_t length_;
+
+    friend class ISliver;
+};
+
+// A BufSliver is an ISliver backed by a std::unique_ptr<char[]>
+class BufSliver : public ISliver {
+  public:
+    BufSliver(char* data, const size_t length) : data_(data), length_(length) {}
+
+    size_t length() const override { return length_; }
+    const char* data() const override { return data_.get(); }
+
+  private:
+    std::unique_ptr<char[]> data_;
+    size_t length_;
+};
+
+// A StringSliver is an ISliver backed by a std::string
+class StringSliver : public ISliver {
+  public:
+    StringSliver(const std::string& s): data_(s) {}
+    StringSliver(const std::string&& s): data_(s) {}
+
+    size_t length() const override { return data_.size(); }
+    const char* data() const override { return data_.data(); }
+
+  private:
+    std::string data_;
+};
 
 class Sliver {
  public:
@@ -75,6 +133,6 @@ std::ostream& operator<<(std::ostream& s, const Sliver& sliver);
 bool copyToAndAdvance(uint8_t* _buf, size_t* _offset, size_t _maxOffset,
                       uint8_t* _src, size_t _srcSize);
 
-}  // namespace concordUtils 
+}  // namespace concordUtils
 
 #endif  // CONCORD_BFT_UTIL_SLIVER_HPP_
