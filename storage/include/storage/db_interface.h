@@ -70,7 +70,7 @@ class IDBClient {
    public:
     virtual KeyValuePair first() = 0;
     // Returns next keys if not found for this key
-    virtual KeyValuePair seekAtLeast(Sliver _searchKey) = 0;
+    virtual KeyValuePair seekAtLeast(const Sliver& _searchKey) = 0;
     virtual KeyValuePair previous() = 0;
     virtual KeyValuePair next() = 0;
     virtual KeyValuePair getCurrent() = 0;

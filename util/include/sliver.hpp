@@ -3,7 +3,7 @@
 /**
  * Sliver -- Zero-copy management of bytes.
  *
- * Sliver provides a view into an allocated region of memory. Views of
+ * A Sliver provides an immutable view into an allocated region of memory. Views of
  * sub-regions, or "sub-slivers" do not copy data, but instead reference the
  * memory of the "base" sliver.
  *
@@ -27,86 +27,28 @@
 #define CONCORD_BFT_UTIL_SLIVER_HPP_
 
 #include <ios>
+#include <variant>
 #include <memory>
 #include <cassert>
 
 namespace concordUtils {
 
-class ISliver {
-  public:
-
-    virtual size_t length() const;
-    virtual const char* data() const;
-
-//    virtual std::ostream& operator<<(std::ostream& s) const;
-//   virtual bool operator==(const ISliver& other) const;
-//   virtual bool operator!=(const ISliver& other) const;
-//   virtual int compare(const ISliver& other) const;
-};
-
-// A subsliver should only live inside a shared_ptr<ISliver>.
-// It gets created by calling ISliver::subsliver().
-class SubSliver : public ISliver {
-
-  size_t length() const override { return length_; }
-    const char* data() const override { return data_->data() + offset_; }
-
-  private:
-    SubSliver(std::shared_ptr<ISliver> s, const size_t offset, const size_t length) : data_(s), offset_(offset), length_(length) {
-      assert(offset + length < s->length());
-    }
-
-    std::shared_ptr<ISliver> data_;
-    size_t offset_;
-    size_t length_;
-
-    friend class ISliver;
-};
-
-// A BufSliver is an ISliver backed by a std::unique_ptr<char[]>
-class BufSliver : public ISliver {
-  public:
-    BufSliver(char* data, const size_t length) : data_(data), length_(length) {}
-
-    size_t length() const override { return length_; }
-    const char* data() const override { return data_.get(); }
-
-  private:
-    std::unique_ptr<char[]> data_;
-    size_t length_;
-};
-
-// A StringSliver is an ISliver backed by a std::string
-class StringSliver : public ISliver {
-  public:
-    StringSliver(const std::string& s): data_(s) {}
-    StringSliver(const std::string&& s): data_(s) {}
-
-    size_t length() const override { return data_.size(); }
-    const char* data() const override { return data_.data(); }
-
-  private:
-    std::string data_;
-};
-
 class Sliver {
  public:
   Sliver();
-  Sliver(uint8_t* data, const size_t length);
   Sliver(char* data, const size_t length);
-  Sliver(const Sliver& base, const size_t offset, const size_t length);
-  Sliver(const uint8_t* data, const size_t length);
-  Sliver(const char* data, const size_t length);
-  Sliver(const std::string& s):Sliver(s.data(), s.length()){}
-  static Sliver copy(uint8_t* data, const size_t length);
+  Sliver(const std::string& s);
+  Sliver(const std::string&& s);
+  Sliver(Sliver& base, const size_t offset, const size_t length);
   static Sliver copy(char* data, const size_t length);
 
-  uint8_t operator[](const size_t offset) const;
+  char operator[](const size_t offset) const;
 
-  Sliver subsliver(const size_t offset, const size_t length) const;
+  Sliver subsliver(const size_t offset, const size_t length) const ;
+  Sliver clone() const;
 
   size_t length() const;
-  uint8_t* data() const;
+  const char* data() const;
 
   std::ostream& operator<<(std::ostream& s) const;
   bool operator==(const Sliver& other) const;
@@ -114,11 +56,27 @@ class Sliver {
   int compare(const Sliver& other) const;
 
  private:
-  // these are never modified, but need to be non-const to support copy
-  // assignment
-  std::shared_ptr<uint8_t> m_data;
-  size_t m_offset;
-  size_t m_length;
+
+  // A wrapper around a std::string. We need to be able to allocate the wrapper
+  // so that we have a pointer that can be stored in a shared_pointer when
+  // promoted. We don't want allocate a copy of a string we already have.
+  struct StringBuf {
+    std::string s;
+  };
+
+
+
+  // Since this variant contains a move-only type (std::unique_ptr<char[]>) the
+  // copy constructor is implicitly deleted. This is actually a good thing,
+  // since we want to increase performance by not accidentally copying or
+  // promoting a unique_ptr to a shared_ptr.
+  //
+  // Note that we have to put a std::string into a unique_ptr, because you can't
+  // move a non-pointer into a shared_pointer.
+  mutable std::variant<std::string, std::shared_ptr<StringBuf>, std::unique_ptr<char[]>, std::shared_ptr<char[]>> data_;
+
+  size_t offset_;
+  size_t length_;
 
   // Delete new and delete, to force the Sliver to be allocated on the stack, so
   // that it is cleaned up properly via RAII scoping.
@@ -126,6 +84,7 @@ class Sliver {
   static void* operator new[](size_t) = delete;
   static void operator delete(void*) = delete;
   static void operator delete[](void*) = delete;
+
 };
 
 std::ostream& operator<<(std::ostream& s, const Sliver& sliver);

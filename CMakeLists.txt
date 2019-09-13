@@ -9,7 +9,7 @@ project(concord-bft VERSION 0.1.0.0 LANGUAGES CXX)
 #   TODO: change to set_target_properties?
 #   https://crascit.com/2015/03/28/enabling-cxx11-in-cmake/
 #
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -115,12 +115,6 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
             " -fmax-errors=3")
     string(APPEND CMAKE_CXX_FLAGS_DEBUG
             " -fstack-protector-all")
-
-    # TODO: using Intel C++
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
-
-    # TODO: using Visual Studio C++
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 
 endif()
 

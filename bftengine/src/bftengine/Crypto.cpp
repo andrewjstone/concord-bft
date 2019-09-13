@@ -2,7 +2,7 @@
 //
 //Copyright (c) 2018 VMware, Inc. All Rights Reserved.
 //
-//This product is licensed to you under the Apache 2.0 license (the "License").  You may not use this product except in compliance with the Apache 2.0 License. 
+//This product is licensed to you under the Apache 2.0 license (the "License").  You may not use this product except in compliance with the Apache 2.0 License.
 //
 //This product may include a number of subcomponents with separate copyright notices and license terms. Your use of these subcomponents is subject to the terms and conditions of the subcomponent's license, as noted in the LICENSE file.
 
@@ -46,7 +46,7 @@ using namespace std;
 // TODO(GG): TBD
 #  include <iostream>
 #  include <sstream>
-  
+
 
 namespace bftEngine
 {
@@ -65,7 +65,7 @@ void CryptographyWrapper::init(const char* randomSeed)
 {
   string s(randomSeed);
   if (s.length() < 16) s.resize(16, ' ');
-  sGlobalRandGen.IncorporateEntropy((byte *)s.c_str(), s.length());
+  sGlobalRandGen.IncorporateEntropy((CryptoPP::byte *)s.c_str(), s.length());
 
   VERIFY(DigestUtil::digestLength() == DIGEST_SIZE);
 
@@ -109,9 +109,9 @@ bool DigestUtil::compute(const char* input, size_t inputLength, char* outBufferF
 
   SecByteBlock digest(size);
 
-  dig.Update((byte*)input, inputLength);
+  dig.Update((CryptoPP::byte*)input, inputLength);
   dig.Final(digest);
-  const byte* h = digest;
+  const CryptoPP::byte* h = digest;
   memcpy(outBufferForDigest, h, size);
 
   return true;
@@ -127,7 +127,7 @@ void DigestUtil::Context::update(const char* data, size_t len)
 {
   VERIFY(internalState != NULL);
   DigestType* p = (DigestType*)internalState;
-  p->Update((byte*)data, len);
+  p->Update((CryptoPP::byte*)data, len);
 }
 
 void DigestUtil::Context::writeDigest(char* outDigest)
@@ -136,7 +136,7 @@ void DigestUtil::Context::writeDigest(char* outDigest)
   DigestType* p = (DigestType*)internalState;
   SecByteBlock digest(digestLength());
   p->Final(digest);
-  const byte* h = digest;
+  const CryptoPP::byte* h = digest;
   memcpy(outDigest, h, digestLength());
 
   delete p;
@@ -169,7 +169,7 @@ public:
   {
     const size_t sigLen = priv.SignatureLength();
     if (lengthOfOutBuffer < sigLen) return false;
-    lengthOfReturnedData = priv.SignMessage(rand, (byte *)inBuffer, lengthOfInBuffer, (byte*)outBuffer);
+    lengthOfReturnedData = priv.SignMessage(rand, (CryptoPP::byte *)inBuffer, lengthOfInBuffer, (CryptoPP::byte*)outBuffer);
     VERIFY(lengthOfReturnedData == sigLen);
 
     return true;
@@ -194,7 +194,7 @@ public:
 
   bool verify(const char* data, size_t lengthOfData, const char* signature, size_t lengthOfOSignature)
   {
-    bool ok = pub.VerifyMessage((byte *)data, lengthOfData, (byte *)signature, lengthOfOSignature);
+    bool ok = pub.VerifyMessage((CryptoPP::byte *)data, lengthOfData, (CryptoPP::byte *)signature, lengthOfOSignature);
     return ok;
   }
 private:

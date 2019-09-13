@@ -87,8 +87,8 @@ int KeyManipulator::composedKeyComparison( const Sliver& _a,
     }
   }
 
-  Sliver aKey =  extractKeyFromKeyComposedWithBlockId(_a);
-  Sliver bKey =  extractKeyFromKeyComposedWithBlockId(_b);
+  Sliver aKey =  extractKeyFromKeyComposedWithBlockId(_a.clone());
+  Sliver bKey =  extractKeyFromKeyComposedWithBlockId(_b.clone());
 
   int keyComp = aKey.compare(bKey);
 
@@ -123,13 +123,13 @@ int KeyManipulator::composedKeyComparison( const Sliver& _a,
  * @param _blockId BlockId object.
  * @return Sliver object of the generated composite database key.
  */
-Sliver KeyManipulator::genDbKey(EDBKeyType _type, Key _key, BlockId _blockId) {
+Sliver KeyManipulator::genDbKey(EDBKeyType _type, const Key& _key, BlockId _blockId) {
   size_t sz = sizeof(EDBKeyType) + sizeof(BlockId) + _key.length();
-  uint8_t *out = new uint8_t[sz];
+  char* out = new char[sz];
   size_t offset = 0;
-  copyToAndAdvance(out, &offset, sz, (uint8_t *)&_type, sizeof(EDBKeyType));
-  copyToAndAdvance(out, &offset, sz, (uint8_t *)_key.data(), _key.length());
-  copyToAndAdvance(out, &offset, sz, (uint8_t *)&_blockId, sizeof(BlockId));
+  copyToAndAdvance(out, &offset, sz, (char *)&_type, sizeof(EDBKeyType));
+  copyToAndAdvance(out, &offset, sz, (char *)_key.data(), _key.length());
+  copyToAndAdvance(out, &offset, sz, (char *)&_blockId, sizeof(BlockId));
   return Sliver(out, sz);
 }
 
@@ -154,8 +154,8 @@ Sliver KeyManipulator::genBlockDbKey(BlockId _blockId) {
  *                 into the composite database Key.
  * @return Sliver object of the generated composite database key.
  */
-Sliver KeyManipulator::genDataDbKey(Key _key, BlockId _blockId) {
-  return genDbKey(EDBKeyType::E_DB_KEY_TYPE_KEY, _key, _blockId);
+Sliver KeyManipulator::genDataDbKey(const Key& _key, BlockId _blockId) {
+  return genDbKey(EDBKeyType::E_DB_KEY_TYPE_KEY, _key.clone(), _blockId);
 }
 
 /**
@@ -167,7 +167,7 @@ Sliver KeyManipulator::genDataDbKey(Key _key, BlockId _blockId) {
  *             returned.
  * @return The type of the composite database key.
  */
-char KeyManipulator::extractTypeFromKey(Key _key) {
+char KeyManipulator::extractTypeFromKey(const Key& _key) {
   static_assert(sizeof(EDBKeyType) == 1, "Let's avoid byte-order problems.");
   return _key.data()[0];
 }
@@ -181,7 +181,7 @@ char KeyManipulator::extractTypeFromKey(Key _key) {
  *             gets returned.
  * @return The block id of the composite database key.
  */
-BlockId KeyManipulator::extractBlockIdFromKey(Key _key) {
+BlockId KeyManipulator::extractBlockIdFromKey(const Key& _key) {
   size_t offset = _key.length() - sizeof(BlockId);
   BlockId id = *(BlockId *)(_key.data() + offset);
 
@@ -198,7 +198,7 @@ BlockId KeyManipulator::extractBlockIdFromKey(Key _key) {
  *             gets returned.
  * @return The object id of the composite database key.
  */
-ObjectId KeyManipulator::extractObjectIdFromKey(Key _key) {
+ObjectId KeyManipulator::extractObjectIdFromKey(const Key& _key) {
   assert(_key.length() >= sizeof(ObjectId));
   size_t offset = _key.length() - sizeof(ObjectId);
   ObjectId id = *(ObjectId *)(_key.data() + offset);
@@ -228,7 +228,7 @@ Sliver KeyManipulator::extractKeyFromMetadataKey(Key _composedKey) {
   return out;
 }
 
-bool KeyManipulator::isKeyContainBlockId(Key _composedKey) {
+bool KeyManipulator::isKeyContainBlockId(const Key& _composedKey) {
   return (_composedKey.length() > sizeof(BlockId) + sizeof(EDBKeyType));
 }
 
@@ -246,11 +246,11 @@ KeyValuePair KeyManipulator::composedToSimple(KeyValuePair _p) {
   }
   Key key;
   if (isKeyContainBlockId(_p.first))
-    key = extractKeyFromKeyComposedWithBlockId(_p.first);
+    key = extractKeyFromKeyComposedWithBlockId(_p.first.clone());
   else
-    key = extractKeyFromMetadataKey(_p.first);
+    key = extractKeyFromMetadataKey(_p.first.clone());
 
-  return KeyValuePair(key, _p.second);
+  return KeyValuePair(std::move(key), std::move(_p.second));
 }
 
 /**
@@ -266,12 +266,12 @@ KeyValuePair KeyManipulator::composedToSimple(KeyValuePair _p) {
 
 Sliver KeyManipulator::generateMetadataKey(ObjectId objectId) {
   size_t keySize = sizeof(EDBKeyType) + sizeof(objectId);
-  auto keyBuf = new uint8_t[keySize];
+  auto keyBuf = new char[keySize];
   size_t offset = 0;
   EDBKeyType keyType = EDBKeyType::E_DB_KEY_TYPE_BFT_METADATA_KEY;
-  copyToAndAdvance(keyBuf, &offset, keySize, (uint8_t *)&keyType,
+  copyToAndAdvance(keyBuf, &offset, keySize, (char *)&keyType,
                    sizeof(EDBKeyType));
-  copyToAndAdvance(keyBuf, &offset, keySize, (uint8_t *)&objectId,
+  copyToAndAdvance(keyBuf, &offset, keySize, (char *)&objectId,
                    sizeof(objectId));
   return Sliver(keyBuf, keySize);
 }
@@ -290,11 +290,11 @@ Sliver KeyManipulator::generateMetadataKey(ObjectId objectId) {
  */
 Status DBAdapter::addBlock(BlockId _blockId, Sliver _blockRaw) {
   Sliver dbKey = key_manipulator_->genBlockDbKey(_blockId);
-  Status s = db_->put(dbKey, _blockRaw);
+  Status s = db_->put(std::move(dbKey), std::move(_blockRaw));
   return s;
 }
 
-bool KeyManipulator::copyToAndAdvance(uint8_t *_buf, size_t *_offset, size_t _maxOffset, uint8_t *_src, size_t _srcSize) {
+bool KeyManipulator::copyToAndAdvance(char* _buf, size_t *_offset, size_t _maxOffset, char *_src, size_t _srcSize) {
   if (!_buf && !_offset && !_src)
     assert(false);
 
@@ -320,13 +320,13 @@ bool KeyManipulator::copyToAndAdvance(uint8_t *_buf, size_t *_offset, size_t _ma
  * @return Status of the put operation.
  */
 Status DBAdapter::updateKey(Key _key, BlockId _block, Value _value) {
-  Sliver composedKey = key_manipulator_->genDataDbKey(_key, _block);
+  Sliver composedKey = key_manipulator_->genDataDbKey(_key.clone(), _block);
 
   LOG_TRACE(logger_, "Updating composed key " << composedKey
                                                    << " with value " << _value
                                                    << " in block " << _block);
 
-  Status s = db_->put(composedKey, _value);
+  Status s = db_->put(std::move(composedKey), std::move(_value));
   return s;
 }
 
@@ -334,13 +334,13 @@ Status DBAdapter::addBlockAndUpdateMultiKey(
     const SetOfKeyValuePairs &_kvMap, BlockId _block, Sliver _blockRaw) {
   SetOfKeyValuePairs updatedKVMap;
   for (auto &it : _kvMap) {
-    Sliver composedKey = key_manipulator_->genDataDbKey(it.first, _block);
+    Sliver composedKey = key_manipulator_->genDataDbKey(it.first.clone(), _block);
     LOG_TRACE(logger_, "Updating composed key "
                                 << composedKey << " with value " << it.second
                                 << " in block " << _block);
-    updatedKVMap[composedKey] = it.second;
+    updatedKVMap[std::move(composedKey)] = it.second.clone();
   }
-  updatedKVMap[key_manipulator_->genBlockDbKey(_block)] = _blockRaw;
+  updatedKVMap[key_manipulator_->genBlockDbKey(_block)] = std::move(_blockRaw);
   return db_->multiPut(updatedKVMap);
 }
 
@@ -356,9 +356,9 @@ Status DBAdapter::addBlockAndUpdateMultiKey(
  * @return Status of the operation.
  */
 Status DBAdapter::delKey(Sliver _key, BlockId _blockId) {
-  Sliver composedKey = key_manipulator_->genDataDbKey(_key, _blockId);
   LOG_TRACE(logger_, "Deleting key " << _key << " block id " << _blockId);
-  Status s = db_->del(composedKey);
+  Sliver composedKey = key_manipulator_->genDataDbKey(std::move(_key), std::move(_blockId));
+  Status s = db_->del(std::move(composedKey));
   return s;
 }
 
@@ -373,8 +373,8 @@ Status DBAdapter::delKey(Sliver _key, BlockId _blockId) {
  * @return Status of the operation.
  */
 Status DBAdapter::delBlock(BlockId _blockId) {
-  Sliver dbKey = key_manipulator_->genBlockDbKey(_blockId);
-  Status s = db_->del(dbKey);
+  Sliver dbKey = key_manipulator_->genBlockDbKey(std::move(_blockId));
+  Status s = db_->del(std::move(dbKey));
   return s;
 }
 
@@ -426,10 +426,10 @@ Status DBAdapter::getKeyByReadVersion(BlockId readVersion,
   LOG_TRACE(logger_, "Getting value of key " << key << " for read version "  << readVersion);
   IDBClient::IDBClientIterator *iter = db_->getIterator();
   Sliver foundKey, foundValue;
-  Sliver searchKey = key_manipulator_->genDataDbKey(key, readVersion);
+  Sliver searchKey = key_manipulator_->genDataDbKey(std::move(key), readVersion);
   KeyValuePair p = iter->seekAtLeast(searchKey);
-  foundKey = key_manipulator_->composedToSimple(p).first;
-  foundValue = p.second;
+  foundKey = key_manipulator_->composedToSimple(std::move(p)).first;
+  foundValue = std::move(p.second);
 
   LOG_TRACE(logger_, "Found key " << foundKey << " and value " << foundValue);
 
@@ -438,7 +438,7 @@ Status DBAdapter::getKeyByReadVersion(BlockId readVersion,
 
     // TODO(JGC): Ask about reason for version comparison logic
     if (currentReadVersion <= readVersion && foundKey == key) {
-      outValue = foundValue;
+      outValue = std::move(foundValue);
       outBlock = currentReadVersion;
     } else {
       outValue = Sliver();
@@ -468,7 +468,7 @@ Status DBAdapter::getKeyByReadVersion(BlockId readVersion,
 Status DBAdapter::getBlockById(BlockId _blockId, Sliver &_blockRaw,
                                          bool &_found) const {
   Sliver key = key_manipulator_->genBlockDbKey(_blockId);
-  Status s = db_->get(key, _blockRaw);
+  Status s = db_->get(std::move(key), _blockRaw);
   if (s.isNotFound()) {
     _found = false;
     return Status::OK();
@@ -485,8 +485,8 @@ Status DBAdapter::getBlockById(BlockId _blockId, Sliver &_blockRaw,
  * @param _src Sliver object that needs to be copied.
  * @param _trg Sliver object that contains the result.
  */
-inline void CopyKey(Sliver _src, Sliver &_trg) {
-  uint8_t *c = new uint8_t[_src.length()];
+inline void CopyKey(const Sliver& _src, Sliver &_trg) {
+  char *c = new char[_src.length()];
   memcpy(c, _src.data(), _src.length());
   _trg = Sliver(c, _src.length());
 }
@@ -529,7 +529,7 @@ Status DBAdapter::first(IDBClient::IDBClientIterator *iter,
   while (!iter->isEnd() && p.first == firstKey) {
     BlockId currentBlock = key_manipulator_->extractBlockIdFromKey(iter->getCurrent().first);
     if (currentBlock <= readVersion) {
-      value = p.second;
+      value = std::move(p.second);
       actualBlock = currentBlock;
       foundKey = true;
       p = key_manipulator_->composedToSimple(iter->next());
@@ -568,9 +568,9 @@ Status DBAdapter::first(IDBClient::IDBClientIterator *iter,
   m_isEnd = false;
   isEnd = false;
   actualVersion = actualBlock;
-  _key = firstKey;
-  _value = value;
-  m_current = KeyValuePair(_key, _value);
+  _key = std::move(firstKey);
+  _value = std::move(value);
+  m_current = KeyValuePair(_key.clone(), _value.clone());
   return Status::OK();
 }
 
@@ -598,30 +598,25 @@ Status DBAdapter::seekAtLeast(IDBClient::IDBClientIterator *iter,
                                         OUT BlockId &_actualVersion,
                                         OUT Sliver &_key, OUT Sliver &_value,
                                         OUT bool &_isEnd) {
-  Key searchKey = _searchKey;
   BlockId actualBlock = 0;
   Value value;
   bool foundKey = false;
-  Sliver rocksKey = key_manipulator_->genDataDbKey(searchKey, _readVersion);
+  Sliver rocksKey = key_manipulator_->genDataDbKey(_searchKey, _readVersion);
   KeyValuePair p =  key_manipulator_->composedToSimple(iter->seekAtLeast(rocksKey));
 
   if (!iter->isEnd()) {
-    // p.first is src, searchKey is target
-    CopyKey(p.first, searchKey);
+    // p.first is src, _searchKey is target
+    CopyKey(p.first, _searchKey);
   }
 
-  LOG_TRACE(
-      logger_, "Searching " << _searchKey << " and currently iterator returned "
-                           << searchKey << " for rocks key " << rocksKey);
-
-  while (!iter->isEnd() && p.first == searchKey) {
+  while (!iter->isEnd() && p.first == _searchKey) {
     BlockId currentBlockId = key_manipulator_->extractBlockIdFromKey(iter->getCurrent().first);
 
     LOG_TRACE(logger_, "Considering key " << p.first << " with block ID "  << currentBlockId);
 
     if (currentBlockId <= _readVersion) {
       LOG_TRACE(logger_, "Found with Block Id " << currentBlockId << " and value " << p.second);
-      value = p.second;
+      value = std::move(p.second);
       actualBlock = currentBlockId;
       foundKey = true;
       break;
@@ -635,7 +630,7 @@ Status DBAdapter::seekAtLeast(IDBClient::IDBClientIterator *iter,
 
         // Start by exhausting the current key with all the newer blocks
         // records:
-        while (!iter->isEnd() && p.first == searchKey) {
+        while (!iter->isEnd() && p.first == _searchKey) {
           p = key_manipulator_->composedToSimple(iter->next());
         }
 
@@ -643,9 +638,9 @@ Status DBAdapter::seekAtLeast(IDBClient::IDBClientIterator *iter,
           break;
         }
 
-        CopyKey(p.first, searchKey);
+        CopyKey(p.first, _searchKey);
 
-        LOG_TRACE(logger_, "Found new search key " << searchKey);
+        LOG_TRACE(logger_, "Found new search key " << _searchKey);
       } else {
         // If we already found a suitable key, we break when we find the
         // maximal
@@ -666,13 +661,13 @@ Status DBAdapter::seekAtLeast(IDBClient::IDBClientIterator *iter,
   m_isEnd = false;
   _isEnd = false;
   _actualVersion = actualBlock;
-  _key = searchKey;
-  _value = value;
+  _key = std::move(_searchKey);
+  _value = std::move(value);
   LOG_TRACE(logger_, "Returnign key " << _key <<
                      " value " << _value <<
                      " in actual block " << _actualVersion <<
                      ", read version " << _readVersion);
-  m_current = KeyValuePair(_key, _value);
+  m_current = KeyValuePair(_key.clone(), _value.clone());
   return Status::OK();
 }
 
@@ -698,7 +693,7 @@ Status DBAdapter::next(IDBClient::IDBClientIterator *iter,
                                  OUT BlockId &_actualVersion,
                                  OUT bool &_isEnd) {
   KeyValuePair p = key_manipulator_->composedToSimple(iter->getCurrent());
-  Key currentKey = p.first;
+  Key currentKey = std::move(p.first);
 
   // Exhaust all entries for this key
   while (!iter->isEnd() && p.first == currentKey) {
@@ -721,7 +716,7 @@ Status DBAdapter::next(IDBClient::IDBClientIterator *iter,
   while (!iter->isEnd() && p.first == nextKey) {
     BlockId currentBlockId = key_manipulator_->extractBlockIdFromKey(iter->getCurrent().first);
     if (currentBlockId <= _readVersion) {
-      value = p.second;
+      value = std::move(p.second);
       actualBlock = currentBlockId;
       p = key_manipulator_->composedToSimple(iter->next());
     } else {
@@ -751,9 +746,9 @@ Status DBAdapter::next(IDBClient::IDBClientIterator *iter,
   m_isEnd = false;
   _isEnd = false;
   _actualVersion = actualBlock;
-  _key = nextKey;
-  _value = value;
-  m_current = KeyValuePair(_key, _value);
+  _key = std::move(nextKey);
+  _value = std::move(value);
+  m_current = KeyValuePair(_key.clone(), _value.clone());
 
   // TODO return appropriate status?
   return Status::OK();
@@ -773,8 +768,8 @@ Status DBAdapter::getCurrent(IDBClient::IDBClientIterator *iter,
                                        OUT Sliver &_key, OUT Sliver &_value) {
   // Not calling to underlying DB iterator, because it may have next()'d during
   // seekAtLeast
-  _key = m_current.first;
-  _value = m_current.second;
+  _key = m_current.first.clone();
+  _value = m_current.second.clone();
 
   return Status::OK();
 }

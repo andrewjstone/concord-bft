@@ -79,7 +79,7 @@ void DBMetadataStorage::read(uint32_t objectId, uint32_t bufferSize, char *outBu
 
 void DBMetadataStorage::atomicWrite(uint32_t objectId, char *data, uint32_t dataLength) {
   verifyOperation(objectId, dataLength, data, true);
-  auto *dataCopy = new uint8_t[dataLength];
+  auto *dataCopy = new char[dataLength];
   memcpy(dataCopy, data, dataLength);
   lock_guard<mutex> lock(ioMutex_);
   Status status = dbClient_->put(genMetadataKey_(objectId), Sliver(dataCopy, dataLength));
@@ -101,7 +101,7 @@ void DBMetadataStorage::beginAtomicWriteOnlyBatch() {
 void DBMetadataStorage::writeInBatch(uint32_t objectId, char *data, uint32_t dataLength) {
   LOG_TRACE(logger_, "writeInBatch: objectId=" << objectId << ", dataLength=" << dataLength);
   verifyOperation(objectId, dataLength, data, true);
-  auto *dataCopy = new uint8_t[dataLength];
+  auto *dataCopy = new char[dataLength];
   memcpy(dataCopy, data, dataLength);
   lock_guard<mutex> lock(ioMutex_);
   if (!batch_) {
@@ -135,8 +135,8 @@ Status DBMetadataStorage::multiDel(const ObjectIdsVector &objectIds) {
   KeysVector keysVec;
   for (size_t objectId = 0; objectId < objectsNumber; objectId++) {
     auto key = genMetadataKey_(objectId);
-    keysVec.push_back(key);
     LOG_INFO(logger_, "Deleted object id=" << objectId << ", key=" << key);
+    keysVec.push_back(std::move(key));
   }
   return dbClient_->multiDel(keysVec);
 }

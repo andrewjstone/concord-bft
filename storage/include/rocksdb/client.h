@@ -39,7 +39,7 @@ class ClientIterator
 
   // Inherited via IDBClientIterator
   concordUtils::KeyValuePair first() override;
-  concordUtils::KeyValuePair seekAtLeast(concordUtils::Sliver _searchKey) override;
+  concordUtils::KeyValuePair seekAtLeast(const concordUtils::Sliver& _searchKey) override;
   concordUtils::KeyValuePair previous() override;
   KeyValuePair next() override;
   KeyValuePair getCurrent() override;

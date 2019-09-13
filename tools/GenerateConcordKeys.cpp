@@ -43,12 +43,12 @@ static std::pair<std::string, std::string> generateRsaKey() {
   CryptoPP::RSAES<CryptoPP::OAEP<CryptoPP::SHA256>>::Decryptor
     priv(sGlobalRandGen, rsaKeyLength);
   CryptoPP::HexEncoder privEncoder(new CryptoPP::StringSink(keyPair.first));
-  priv.DEREncode(privEncoder);
+  priv.AccessMaterial().Save(privEncoder);
   privEncoder.MessageEnd();
 
   CryptoPP::RSAES<CryptoPP::OAEP<CryptoPP::SHA256>>::Encryptor pub(priv);
   CryptoPP::HexEncoder pubEncoder(new CryptoPP::StringSink(keyPair.second));
-  pub.DEREncode(pubEncoder);
+  pub.AccessMaterial().Save(pubEncoder);
   pubEncoder.MessageEnd();
 
   return keyPair;
@@ -131,7 +131,7 @@ try
     usageMessage += "  " + cryptosystemTypes[i].first + " ("
       + cryptosystemTypes[i].second + ")\n";
   }
-  
+
   usageMessage += "If any of these cryptosystem selections are not made"
     " explictly, a default will\nbe selected.\n\nSpecial options:\n  --help :"
     " display this usage message and exit.\n";
@@ -173,7 +173,7 @@ try
   std::string commitParam = "BN-P254";
   std::string optType = MULTISIG_BLS_SCHEME;
   std::string optParam = "BN-P254";
-  
+
   // Read input from the command line.
   // Note we ignore argv[0] because that just contains the command that was used
   // to launch this executable by convention.

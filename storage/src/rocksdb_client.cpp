@@ -36,7 +36,7 @@ static bool g_rocksdb_print_measurements = false;
  * @param _s Sliver object.
  * @return A RocksDB Slice object.
  */
-::rocksdb::Slice toRocksdbSlice(Sliver _s) {
+::rocksdb::Slice toRocksdbSlice(const Sliver& _s) {
   return ::rocksdb::Slice(reinterpret_cast<const char *>(_s.data()), _s.length());
 }
 
@@ -53,7 +53,7 @@ static bool g_rocksdb_print_measurements = false;
  */
 Sliver fromRocksdbSlice(::rocksdb::Slice _s) {
   char *nonConstData = const_cast<char *>(_s.data());
-  return Sliver(reinterpret_cast<uint8_t *>(nonConstData), _s.size());
+  return Sliver(reinterpret_cast<char *>(nonConstData), _s.size());
 }
 
 /**
@@ -63,7 +63,7 @@ Sliver fromRocksdbSlice(::rocksdb::Slice _s) {
  * @return A Sliver object.
  */
 Sliver copyRocksdbSlice(::rocksdb::Slice _s) {
-  uint8_t *copyData = new uint8_t[_s.size()];
+  char *copyData = new char[_s.size()];
   std::copy(_s.data(), _s.data() + _s.size(), copyData);
   return Sliver(copyData, _s.size());
 }
@@ -155,7 +155,7 @@ Status Client::get(Sliver _key, OUT Sliver &_outValue) const {
 
   size_t valueSize = value.size();
   // Must copy the string data
-  uint8_t *stringCopy = new uint8_t[valueSize];
+  char *stringCopy = new char[valueSize];
   memcpy(stringCopy, value.data(), valueSize);
   _outValue = Sliver(stringCopy, valueSize);
 
@@ -307,7 +307,7 @@ Status Client::multiGet(const KeysVector &_keysVec,
       return Status::GeneralError("Failed to read key");
     }
     size_t valueSize = values[i].size();
-    auto valueStr = new uint8_t[valueSize];
+    auto valueStr = new char[valueSize];
     memcpy(valueStr, values[i].data(), valueSize);
     _valuesVec.push_back(Sliver(valueStr, valueSize));
   }

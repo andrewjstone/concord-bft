@@ -16,95 +16,76 @@
 
 #include "hex_tools.h"
 
+using namespace std;
+
 namespace concordUtils {
 
 /**
  * Create an empty sliver.
+ *
+ * Default to an empty string representation for simplicity.
+ *
+ * Remember the data inside slivers is immutable.
  */
-Sliver::Sliver() : m_data(nullptr), m_offset(0), m_length(0) {}
+Sliver::Sliver() : data_(string()), offset_(0), length_(0) {}
 
 /**
  * Create a new sliver that will own the memory pointed to by `data`, which is
- * `length` bytes in size.
+ * `length` bytes in size. A new sliver created from a char* buffer always
+ * stores a unique_ptr underneath. This has less overhead than always using a
+ * shared pointer. The unique pointer will be converted to a shared pointer if
+ * the Sliver is copied or a subsliver is created.
  *
  * Important: the `data` buffer should have been allocated with `new`, and not
  * `malloc`, because the shared pointer will use `delete` and not `free`.
  */
-Sliver::Sliver(uint8_t* data, const size_t length)
-    : m_data(data, std::default_delete<uint8_t[]>()),
-      m_offset(0),
-      m_length(length) {
-  // Data must be non-null.
-  assert(data);
-}
-
 Sliver::Sliver(char* data, const size_t length)
-    : m_data(reinterpret_cast<uint8_t*>(data),
-             std::default_delete<uint8_t[]>()),
-      m_offset(0),
-      m_length(length) {
-  // Data must be non-null.
-  assert(data);
-}
-/**
- * not owning semantics - empty deleter
- */
-Sliver::Sliver(const uint8_t* data, const size_t length)
-    : m_data(const_cast<uint8_t*>(data), [](uint8_t[]){}),
-      m_offset(0),
-      m_length(length) {
-  // Data must be non-null.
-  assert(data);
-}
-/**
- * not owning semantics - empty deleter
- */
-Sliver::Sliver(const char* data, const size_t length)
-    : m_data(reinterpret_cast<uint8_t*>(const_cast<char*>(data)),[](uint8_t []){}),
-      m_offset(0),
-      m_length(length) {
+    : data_(std::unique_ptr<char[]>(data)),
+      offset_(0),
+      length_(length) {
   // Data must be non-null.
   assert(data);
 }
 
 /**
  * Create a sub-sliver that references a region of a base sliver.
+ *
+ * The Sliver parameter cannot be const because it may be upgraded to a
+ * shared_ptr.
  */
-Sliver::Sliver(const Sliver& base, const size_t offset, const size_t length)
-    : m_data(base.m_data),
-      // This sliver starts offset bytes from the offset of its base.
-      m_offset(base.m_offset + offset),
-      m_length(length) {
-  // This sliver must start no later than the end of the base sliver.
-  assert(offset <= base.m_length);
-  // This sliver must end no later than the end of the base sliver.
-  assert(length <= base.m_length - offset);
-}
+Sliver::Sliver(Sliver& base, const size_t offset, const size_t length) {
+  base.subsliver(offset, length);
+};
 
 /**
  * Create a sliver from a copy of the memory pointed to by `data`, which is
  * `length` bytes in size.
  */
-Sliver Sliver::copy(uint8_t* data, const size_t length) {
-   auto* copy = new uint8_t[length];
+Sliver Sliver::copy(char* data, const size_t length) {
+   auto* copy = new char[length];
    memcpy(copy, data, length);
    return Sliver(copy, length);
-}
-
-Sliver Sliver::copy(char* data, const size_t length) {
-  return Sliver::copy(reinterpret_cast<uint8_t*>(data), length);
 }
 
 /**
  * Get the byte at `offset` in this sliver.
  */
-uint8_t Sliver::operator[](const size_t offset) const {
+char Sliver::operator[](const size_t offset) const {
+  const size_t total_offset = offset_ + offset;
   // This offset must be within this sliver.
-  assert(offset < m_length);
+  assert(total_offset < length_);
 
   // The data for the requested offset is that many bytes after the offset from
   // the base sliver.
-  return m_data.get()[m_offset + offset];
+  if (std::holds_alternative<string>(data_)) {
+    return std::get<string>(data_).data()[total_offset];
+  } else if (std::holds_alternative<shared_ptr<StringBuf>>(data_)) {
+    return std::get<shared_ptr<StringBuf>>(data_)->s.data()[total_offset];
+  } else if (std::holds_alternative<unique_ptr<char[]>>(data_)) {
+    return std::get<unique_ptr<char[]>>(data_).get()[total_offset];
+  } else {
+    return std::get<shared_ptr<char[]>>(data_).get()[total_offset];
+  }
 }
 
 /**
@@ -112,17 +93,53 @@ uint8_t Sliver::operator[](const size_t offset) const {
  * (or its base) still owns the data, so ensure that the lifetime of this Sliver
  * (or its base) is at least as long as the lifetime of the returned pointer.
  */
-uint8_t* Sliver::data() const { return m_data.get() + m_offset; }
-
-/**
- * Create a subsliver. Syntactic sugar for cases where a function call is more
- * natural than using the sub-sliver constructor directly.
- */
-Sliver Sliver::subsliver(const size_t offset, const size_t length) const {
-  return Sliver(*this, offset, length);
+const char* Sliver::data() const {
+  if (std::holds_alternative<string>(data_)) {
+    return std::get<string>(data_).data() + offset_;
+  } else if (std::holds_alternative<shared_ptr<StringBuf>>(data_)) {
+    return std::get<shared_ptr<StringBuf>>(data_)->s.data() + offset_;
+  } else if (std::holds_alternative<unique_ptr<char[]>>(data_)) {
+    return std::get<unique_ptr<char[]>>(data_).get() + offset_;
+  } else {
+    return std::get<shared_ptr<char[]>>(data_).get() + offset_;
+  }
 }
 
-size_t Sliver::length() const { return m_length; }
+/**
+ * Create a subsliver.
+ *
+ * If the backing data type is not a shared_ptr then upgrade it.
+ * */
+Sliver Sliver::subsliver(const size_t offset, const size_t length) const {
+  Sliver s;
+  if (std::holds_alternative<string>(data_)) {
+    // promote data_ to shared_ptr<StringBuf>
+    auto copy = std::make_shared<StringBuf>(StringBuf());
+    copy.get()->s = std::move(std::get<string>(data_));
+    data_ = copy;
+    s.data_ = std::move(copy);
+  } else if (std::holds_alternative<unique_ptr<char[]>>(data_)) {
+    // promote data_ to shared_ptr<char[]>
+    shared_ptr<char[]> copy = std::move(std::get<unique_ptr<char[]>>(data_));
+    data_ = copy;
+    s.data_ = std::move(copy);
+  }
+  s.offset_ = offset_;
+  s.length_ = length_;
+  return s;
+}
+
+/**
+ * Clone a sliver.
+ *
+ * If the backing data type is not a shared_ptr then upgrade it first.
+ * */
+Sliver Sliver::clone() const  {
+  return subsliver(0, length_);
+}
+
+
+size_t Sliver::length() const { return length_; }
 
 std::ostream& Sliver::operator<<(std::ostream& s) const {
   return hexPrint(s, data(), length());
@@ -165,4 +182,4 @@ int Sliver::compare(const Sliver& other) const {
   return comp;
 }
 
-}  // namespace concordUtils 
+}  // namespace concordUtils

@@ -22,20 +22,20 @@ class KeyManipulator: public IDBClient::IKeyManipulator{
   KeyManipulator():logger_(concordlogger::Log::getLogger("concord.storage.blockchain.KeyManipulator")){}
   virtual int   composedKeyComparison(const Sliver&, const Sliver& ) override;
 
-  Sliver        genDbKey(EDBKeyType _type, Key _key, BlockId _blockId);
+  Sliver        genDbKey(EDBKeyType _type, const Key& _key, BlockId _blockId);
   Sliver        genBlockDbKey(BlockId _blockId);
-  Sliver        genDataDbKey(Key _key, BlockId _blockId);
-  char          extractTypeFromKey(Key _key);
-  BlockId       extractBlockIdFromKey(Key _key);
-  ObjectId      extractObjectIdFromKey(Key _key);
+  Sliver        genDataDbKey(const Key& _key, BlockId _blockId);
+  char          extractTypeFromKey(const Key& _key);
+  BlockId       extractBlockIdFromKey(const Key& _key);
+  ObjectId      extractObjectIdFromKey(const Key& _key);
   Sliver        extractKeyFromKeyComposedWithBlockId(Key _composedKey);
   Sliver        extractKeyFromMetadataKey(Key _composedKey);
-  bool          isKeyContainBlockId(Key _composedKey);
+  bool          isKeyContainBlockId(const Key& _composedKey);
   KeyValuePair  composedToSimple(KeyValuePair _p);
   static Sliver generateMetadataKey(ObjectId objectId);
  protected:
 
-  static bool   copyToAndAdvance(uint8_t *_buf, size_t *_offset, size_t _maxOffset, uint8_t *_src, size_t _srcSize);
+  static bool   copyToAndAdvance(char *_buf, size_t *_offset, size_t _maxOffset, char *_src, size_t _srcSize);
 
 
   concordlogger::Logger logger_;
