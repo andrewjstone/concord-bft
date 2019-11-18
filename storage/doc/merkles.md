@@ -27,22 +27,28 @@ that the state tree is a persistent data structure.
 
 ## Logical Architecture and Flow Diagram
 
-A merkle tree based KVB sits at four logical layers, as shown below.
+A merkle tree based KVB sits at five logical layers, as shown below.
 
 ```
--------------------------------
-| KVB API                     |
--------------------------------
-| Merkle Tree Implementations |
--------------------------------
-| Storage API                 |
--------------------------------
-| Storage Implementation      |
--------------------------------
+--------------------------------
+| KVB API                      |
+--------------------------------
+| Merkle API  | Block Get/Put  |
+--------------------------------
+| Merkle Tree Implementations  |
+--------------------------------
+| Storage API                  |
+--------------------------------
+| Storage Implementation       |
+--------------------------------
 ```
 
  * The KVB API provides the ability to fulfill our functional requirements
    directly.
+
+ * The KVB API wraps the Merkle tree APIs and the full block access APIs which
+   dynamically generate blocks containing keys and values from the History and
+   State merkle trees.
 
  * The merkle tree implementations provide a mechanism for providing a
    generalized multi-version key value store that can also support membership
@@ -57,7 +63,9 @@ A merkle tree based KVB sits at four logical layers, as shown below.
 
 ![KVB Merkle Flow](./images/KVB-Merkle-Flow.png)
 
-# State Tree
+## Components
+
+### State Tree
 
 The `StateTree` is a sparse merkle tree optimized to shorten proofs and searches
 by replacing any subtree with 0 or 1 leaf node with a placeholder node
@@ -66,7 +74,7 @@ similar to the one used by
 [`jellyfish_merkle`](https://github.com/libra/libra/blob/master/storage/jellyfish-merkle/src/lib.rs)
 in [Libra](https://github.com/libra/libra).
 
-## Logical Structure
+### Logical Structure
 
 A sparse merkle tree has a leaf for every hash value in a keyspace. So for
 instance a 256 bit hash would generate a tree with 2^256 leaves, and 256
@@ -82,14 +90,57 @@ computing 256 hashes. We can however, optimize this requirement, by forcing the
 value of any empty subtree to be 0. This leads to on average a hash calculation
 of log N, where N is the number of non-empty keys.
 
-<!-TODO: Describe this optimization->
+The following diagram shows a 4 level sparse merkle tree where subtrees with a
+single leaf are replaced by that leaf.
 
-## Storage Interfaces
+<!-TODO: Show Diagram>
+<!-TODO: Describe Proof construction and verification>
+
+### Important Types
+
+#### Tree Deltas
+
+A `TreeDelta` is an analog to the
+[TreeCache](https://github.com/libra/libra/blob/master/storage/jellyfish-merkle/src/tree_cache/mod.rs)
+in Libra.
+
+When updating a tree, we want to create the paths and mark the stale nodes in
+memory first. We then want to write these atomically to persistent storage via a
+`db.update_state` call.
+
+The `TreeDelta` structure is the in-memory structure we construct when updating
+a node. It consists of a (sub) tree of a sparse merkle tree, and a set of
+stale node indexes.
+
+Nodes that are needed to construct a `TreeDelta` are paged in by reading from
+persistent storage.
+
+## History Tree
+
+A `HistoryTree` is an accumulating merkle tree, similar to the [one in
+Libra](https://github.com/libra/libra/blob/master/storage/accumulator/src/lib.rs),
+but specialized to support deletion.
+
+### Logical Structure
+
+<! TODO: Describe how an accumulating tree works>
+<! Show diagram(s) of an accumulating tree>
+
+
+## Interfaces
+
+### History Merkle API
+
+### Block Merkle API
+
+### Storage Interfaces
 
 While we currently use rocksdb, storage should be abstracted out of our merkle
 tree construction, so that we may swap implementations later.
 
-### Key Structure
+#### State Tree
+
+##### Key Structure
 
 For simplicity, each instantiated node in the tree maps to a single RocksDB key.
 Since we are building a persistent tree, each node is versioned and thus the
@@ -120,7 +171,7 @@ We may want to use column families to separate tree state from stale node
 indexes, since the latter is only used for pruning, and is not strictly part of
 the state.
 
-### Write Interface
+##### Write Interface
 Writes to the underlying storage should be done atomically across two different
 sets of key types:
 
@@ -136,7 +187,7 @@ Based on the above, our write interface contains a single method:
 void update_state(Nodes nodes, StaleNodeIndexes stale);
 ```
 
-### Read Interface
+##### Read Interface
 
 Our read interface consists of a single method. Since we need to walk a tree for
 our purpose, we proceed by reading individual nodes starting at the root. Note
@@ -147,53 +198,11 @@ node such that they are read and written together in order to reduce IOPS.
 Node get_node(NodeKey node_key);
 ```
 
-## Tree Deltas
+#### History Tree
 
-A `TreeDelta` is an analog to the
-[TreeCache](https://github.com/libra/libra/blob/master/storage/jellyfish-merkle/src/tree_cache/mod.rs)
-in Libra.
+##### Block Node structure
 
-When updating a tree, we want to create the paths and mark the stale nodes in
-memory first. We then want to write these atomically to persistent storage via a
-`db.update_state` call.
-
-The `TreeDelta` structure is the in-memory structure we construct when updating
-a node. It consists of a (sub) tree of a sparse merkle tree, and a set of
-stale node indexes.
-
-Nodes that are needed to construct a `TreeDelta` are paged in by reading from
-persistent storage.
-
-## FAQ
-
-### Why a sparse merkle tree instead of a patricia merkle tree ?
-
-A patricia merkle tree can not give a proof of non-inclusion, since we do not
-know at what leaf the non-included node is supposed to be at, and therefore
-cannot generate a proof via audit path.
-
-A sparse merkle tree is also easier to implement.
-
-### What are the downsides of sparse merkle trees?
-
-* It's impossible to iterate in actual key order, as all keys are hashed.
-
-### Why use a persistent tree?
-
-The beauty of a persistent tree is that it allows storing multiple root hashes,
-such that a block maps exactly to its corresponding root hash. This allows
-direct proof of inclusion for a key from any point in history. Additionally, since all
-versions of nodes are stored in individual keys, it means that we don't have to
-store "deletion" or "update" flags, or multiple versions of data inside a single
-node. This means that a proof is "direct", such that a client can take a given
-key-value pair, and block root and get back a proof that does not include
-extraneous data.
-
-# History Tree
-
-## Block structure
-
-A block, as stored by our block merkle tree, has the following structure, where
+A `BlockNode`, as stored by our history merkle tree, has the following structure, where
 all numbers are in bits:
 
 ```
@@ -220,11 +229,39 @@ all numbers are in bits:
 ---------------------------
 ```
 
-The purpose of the block structure is to provide a proof of history for a given
+The purpose of the BlockNode is to provide a proof of history for a given
 state, as well as contain enough information to generate `Full Blocks` that are
 used by our current state transfer mechanism.
 
-# State Transfer
+##### Interfaces
+
+<!TODO: Describe how the block nodes are read and written>
+
+### FAQ
+
+#### Why a sparse merkle tree instead of a patricia merkle tree ?
+
+A patricia merkle tree can not give a proof of non-inclusion, since we do not
+know at what leaf the non-included node is supposed to be at, and therefore
+cannot generate a proof via audit path.
+
+A sparse merkle tree is also easier to implement.
+
+#### What are the downsides of sparse merkle trees?
+
+* It's impossible to iterate in actual key order, as all keys are hashed.
+
+#### Why use a persistent tree?
+
+The beauty of a persistent tree is that it allows storing multiple root hashes,
+such that a block maps exactly to its corresponding root hash. This allows
+direct proof of inclusion for a key from any point in history. Additionally, since all
+versions of nodes are stored in individual keys, it means that we don't have to
+store "deletion" or "update" flags, or multiple versions of data inside a single
+node. This means that a proof is "direct", such that a client can take a given
+key-value pair, and block root and get back a proof that does not include
+extraneous data.
+
 
 
 # TODO
