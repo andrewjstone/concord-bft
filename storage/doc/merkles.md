@@ -115,6 +115,8 @@ stale node indexes.
 Nodes that are needed to construct a `TreeDelta` are paged in by reading from
 persistent storage.
 
+<! TODO: Show copy-on-write diagram>
+
 ## History Tree
 
 A `HistoryTree` is an accumulating merkle tree, similar to the [one in
@@ -129,9 +131,9 @@ but specialized to support deletion.
 
 ## Interfaces
 
-### History Merkle API
+### StateTree API
 
-### Block Merkle API
+### HistoryTree API
 
 ### Storage Interfaces
 
@@ -262,16 +264,53 @@ node. This means that a proof is "direct", such that a client can take a given
 key-value pair, and block root and get back a proof that does not include
 extraneous data.
 
+# Monitoring and Debugging
 
+N/A
 
-# TODO
- * `blockchain_db_adapter` should change to use the merkle tree
-   * The whole seek mechanism is inefficient and won't work when keys are not
-     individual
-   * There should be no use of iteration at all since the structure won't
-     support it
+# Testing
 
- * ILocalKeyValueStorageReadOnlyIterator must be removed since the merkle
-   structure will not support it
-   * This is only used in skvbc and we can do things another way there
+We plan to use property based testing using
+[RapidCheck](https://github.com/emil-e/rapidcheck) to generate data that creates
+blocks and keys for merkle trees and operates on those trees. We will then
+verify the trees via merkle proofs. We will also generate a complete block
+history based on these trees, as would be used in state transfer, and compare it
+to the history we expect based on generated blocks and keys.
 
+# Impact Areas
+
+## Breaking API Changes
+
+<!TODO: Talk about any required changes to `DBAdapter` and
+`IlocalKeyValueStorageReadOnlyIterator`>
+
+## Security
+
+The security of the system is provided by the strength of the hash algorithm. We
+plan to use SHA3-256.
+
+## Configuration
+
+N/A
+
+## Upgrade
+
+We will not support direct upgrade from our old KVB implementation to this new
+one, as we are not in production. We expect to be able to upgrade the
+implementation with storage layer efficiency changes by rewriting the data if
+necessary via a tool.
+
+## Performance and Scalability
+
+It's likely that this implementation will increase the number of IOPS as
+reads of a key need to traverse a tree now instead of reading directly via a
+range scan. Write overhead should be about the same, as we are still writing
+multiple keys.
+
+Scalability should be improved since we are no longer duplicating values.
+
+## Risks
+<!TODO>
+
+## Open Issues
+<!TODO>
