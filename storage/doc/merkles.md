@@ -12,6 +12,10 @@ following operations:
  * Proof of block non-membership
  * Full Block re-construction so that we can reuse block based state transfer
 
+# Motivation
+
+<!TODO: Why merkle trees? Execution proofs, trust, efficient cached reads, etc...>
+
 # Design
 
 For fast key operations, and efficient space usage, we propose using a sparse
