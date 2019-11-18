@@ -84,6 +84,8 @@ can do this, because we can calculate the hash values of empty subtrees: An
 empty leaf (level 0), has value z0=Hash(0,0). An empty level one node has
 z1=Hash(z0, z0), etc...
 
+![Sparse Merkle Tree](https://miro.medium.com/max/2802/0*yYTRDrA-6gguheZp.png)
+
 While this allows us to precompute the empty values for all 256 levels, a
 downside of this implementation is that adding a new key always requires
 computing 256 hashes. We can however, optimize this requirement, by forcing the
@@ -93,7 +95,8 @@ of log N, where N is the number of non-empty keys.
 The following diagram shows a 4 level sparse merkle tree where subtrees with a
 single leaf are replaced by that leaf.
 
-<!-TODO: Show Diagram>
+![Optimized Sparse Merkle Tree](https://miro.medium.com/max/2802/0*caNsAAwZ-U_cSvH9.png)
+
 <!-TODO: Describe Proof construction and verification>
 
 ### Important Types
