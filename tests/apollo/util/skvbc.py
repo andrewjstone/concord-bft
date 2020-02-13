@@ -200,7 +200,8 @@ class SimpleKVBCProtocol:
     async def fill_and_wait_for_checkpoint(
             self, initial_nodes,
             checkpoint_num=2,
-            persistency_enabled=True):
+            persistency_enabled=True,
+            start=0):
         """
         A helper function used by tests to fill a window with data and then
         checkpoint it.
@@ -212,7 +213,7 @@ class SimpleKVBCProtocol:
         """
         client = SkvbcClient(self.bft_network.random_client())
         # Write enough data to checkpoint and create a need for state transfer
-        for i in range (1 + checkpoint_num * 150):
+        for i in range (start, 1 + checkpoint_num * 150):
             key = self.random_key()
             val = self.random_value()
             reply = await client.write([], [(key, val)])
@@ -223,8 +224,8 @@ class SimpleKVBCProtocol:
             self, initial_nodes,
             checkpoint_num=2,
             persistency_enabled=True):
-        await self.bft_network.assert_state_transfer_not_started_all_up_nodes(
-            up_replica_ids=initial_nodes)
+#        await self.bft_network.assert_state_transfer_not_started_all_up_nodes(
+#            up_replica_ids=initial_nodes)
 
         # Wait for initial replicas to take checkpoints (exhausting
         # the full window)
