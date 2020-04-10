@@ -1,0 +1,144 @@
+// Concord
+//
+// Copyright (c) 2018 VMware, Inc. All Rights Reserved.
+//
+// This product is licensed to you under the Apache 2.0 license (the "License").
+// You may not use this product except in compliance with the Apache 2.0 License.
+//
+// This product may include a number of subcomponents with separate copyright
+// notices and license terms. Your use of these subcomponents is subject to the
+// terms and conditions of the subcomponent's license, as noted in the
+// LICENSE file.
+
+#include <atomic>
+#include <mutex>
+#include <thread>
+
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+
+#include "CommDefs.hpp"
+#include "Logger.hpp"
+#include "AsyncTlsConnection.h"
+
+#pragma once
+
+namespace bftEngine {
+
+typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket> SSL_SOCKET;
+
+/**
+ * Implementation class. Is reponsible for creating listener on given port,
+ * outgoing connections to the lower Id peers and accepting connections from
+ *  higher ID peers.
+ *
+ *  This is default behavior given the clients will always have higher IDs
+ *  from the replicas. In this way we assure that clients will not connect to
+ *  each other.
+ *
+ *  We will have to revisit this connection strategy once we have dynamic reconfiguration.
+ *
+ */
+class TlsTCPCommunication::TlsTcpImpl {
+  static constexpr size_t LISTEN_BACKLOG = 5;
+
+ public:
+  TlsTcpImpl(const TlsTcpConfig &config)
+      : logger_(concordlogger::Log::getLogger("concord-bft.tls")),
+        config_(config),
+        acceptor_(io_service_),
+        accepting_socket_(io_service_) {}
+
+  //
+  // Methods required by ICommuncication
+  // Called as part of pImpl idiom
+  //
+  void Start();
+  void Stop();
+  bool isRunning() const;
+  ConnectionStatus getCurrentConnectionStatus(const NodeNum node) const;
+  void setReceiver(NodeNum nodeId, IReceiver *receiver);
+  void sendAsyncMessage(const NodeNum destination, const char *const msg, const size_t msg_len);
+  size_t getMaxMessageSize();
+
+ private:
+  // Perform synhronous DNS resolution. This really only works for the listen socket, since after that we want to do a
+  // new lookup on every connect operation in case the underlying IP of the DNS address changes.
+  //
+  // Throws a boost::system::system_error if it fails to resolve
+  boost::asio::ip::tcp::endpoint resolve();
+
+  // Start asynchronously accepting connections.
+  void accept();
+
+  // Start asynchronously connecting to other nodes.
+  void connect();
+
+  boost::asio::ssl::context createServerSSLContext();
+  boost::asio::ssl::context createClientSSLContext(NodeNum destination);
+
+  // Callbacks triggered by asio to verify certificates
+  bool verifyCertificateServer(bool preverified, boost::asio::ssl::verify_context &ctx, size_t accepted_connection_id);
+  bool verifyCertificateClient(bool preverified, boost::asio::ssl::verify_context &ctx);
+
+  // Callback triggered when asio async_hanshake completes.
+  void onServerHandshakeComplete(const boost::system::error_code &ec, size_t accepted_connection_id);
+
+  // If onServerHandshake completed successfully, this function will get called and add the AsyncTlsConnection to
+  // `connections_`.
+  void onConnectionAuthenticated(AsyncTlsConnection &&conn);
+
+  // When a certificate is validated on an accepted connection, this function is called in order to
+  // save the learned NodeNum from the certificate so this replica knows who it is connected to.
+  void setVerifiedPeerId(size_t accepted_connection_id, NodeNum peer_id);
+
+  // Asynchronously shutdown an SSL connection and then close the underlying TCP socket when the shutdown has completed.
+  void closeConnection(AsyncTlsConnection &&conn);
+
+  // Certificate pinning
+  //
+  // Check for a specific certificate and do not rely on the chain authentication.
+  //
+  // Return true along with the actual node id if verification succeeds, (false, 0) if not.
+  std::pair<bool, NodeNum> checkCertificate(X509 *cert,
+                                            std::string connectionType,
+                                            std::string subject,
+                                            std::optional<NodeNum> expected_peer_id);
+
+  concordlogger::Logger logger_;
+  TlsTcpConfig config_;
+
+  // The lifetime of the receiver must be at least as long as the lifetime of this object
+  IReceiver *receiver_;
+
+  // This thread runs the asio io_service. It's the main thread of the TlsTcpImpl.
+  std::unique_ptr<std::thread> io_thread_;
+
+  // io_thread_ lifecycle management
+  mutable std::mutex startStopGuard_;
+
+  // Use io_context when we upgrade boost, as io_service is deprecated
+  // https://stackoverflow.com/questions/59753391/boost-asio-io-service-vs-io-context
+  boost::asio::io_service io_service_;
+  boost::asio::ip::tcp::acceptor acceptor_;
+
+  // Every async_accept call for asio requires us to pass it an existing socket to write into. Later versions do not
+  // require this. This socket will be filled in by an accepted connection. We'll then move it into an
+  // AsyncTlsConnection when the async_accept handler returns.
+  boost::asio::ip::tcp::socket accepting_socket_;
+
+  // For each accepted connection, we bump this value. We use it as a key into a map to find any in
+  // progress connections when cert validation completes
+  size_t total_accepted_connections_ = 0;
+
+  // Connections that have been accepted, but where the handshake has not been completed.
+  // When the handshake completes these will be moved into connections_.
+  std::map<size_t, AsyncTlsConnection> accepted_waiting_for_handshake_;
+
+  // Connections are manipulated from multiple threads. The io_service thread creates them and runs callbacks on them.
+  // Senders find a connection through this map and push data onto the outQueue.
+  std::mutex connectionsGuard_;
+  std::map<NodeNum, AsyncTlsConnection> connections_;
+};
+
+}  // namespace bftEngine
