@@ -323,20 +323,21 @@ void TlsTCPCommunication::TlsTcpImpl::accept() {
     setSocketOptions(accepting_socket_);
     startSSLHandshake(std::move(accepting_socket_));
     accept();
-}  // namespace bftEngine
+  });
+}
 
 boost::asio::ip::tcp::endpoint TlsTCPCommunication::TlsTcpImpl::resolve() {
-    // TODO: When upgrading to boost 1.66 or later, when query is deprecated,
-    // this should be changed to call the resolver.resolve overload that takes a
-    // protocol, host, and service directly, instead of a query object. That
-    // overload is not yet available in boost 1.64, which we're using today.
-    boost::asio::ip::tcp::resolver::query query(
-        boost::asio::ip::tcp::v4(), config_.listenHost, std::to_string(config_.listenPort));
-    boost::asio::ip::tcp::resolver resolver(io_service_);
-    boost::asio::ip::tcp::resolver::iterator results = resolver.resolve(query);
-    boost::asio::ip::tcp::endpoint endpoint = *results;
-    LOG_INFO(logger_, "Resolved " << config_.listenHost << ":" << config_.listenPort << " to " << endpoint);
-    return endpoint;
+  // TODO: When upgrading to boost 1.66 or later, when query is deprecated,
+  // this should be changed to call the resolver.resolve overload that takes a
+  // protocol, host, and service directly, instead of a query object. That
+  // overload is not yet available in boost 1.64, which we're using today.
+  boost::asio::ip::tcp::resolver::query query(
+      boost::asio::ip::tcp::v4(), config_.listenHost, std::to_string(config_.listenPort));
+  boost::asio::ip::tcp::resolver resolver(io_service_);
+  boost::asio::ip::tcp::resolver::iterator results = resolver.resolve(query);
+  boost::asio::ip::tcp::endpoint endpoint = *results;
+  LOG_INFO(logger_, "Resolved " << config_.listenHost << ":" << config_.listenPort << " to " << endpoint);
+  return endpoint;
 }
 
 }  // namespace bftEngine
