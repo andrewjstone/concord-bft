@@ -25,20 +25,8 @@ void TlsTCPCommunication::TlsTcpImpl::Start() {
 
   // Start the io_thread_;
   io_thread_.reset(new std::thread([this]() {
-    // All replicas must listen
-    if (config_.selfId <= (size_t)config_.maxServerId) {
-      try {
-        auto endpoint = resolve();
-        acceptor_.open(endpoint.protocol());
-        acceptor_.set_option(boost::asio::socket_base::reuse_address(true));
-        acceptor_.bind(endpoint);
-        acceptor_.listen(LISTEN_BACKLOG);
-      } catch (const boost::system::system_error& e) {
-        LOG_FATAL(logger_,
-                  "Faield to start TlsTCPImpl acceptor at " << config_.listenHost << ":" << config_.listenPort
-                                                            << " for node " << config_.selfId << ": " << e.what());
-        Assert(false);
-      }
+    if (isReplica()) {
+      listen();
       accept();
     }
     connect();
@@ -47,6 +35,21 @@ void TlsTCPCommunication::TlsTcpImpl::Start() {
     // work to do. This is what prevents the io_service event loop from exiting immediately.
     io_service_.run();
   }));
+}
+
+void TlsTCPCommunication::TlsTcpImpl::listen() {
+  try {
+    auto endpoint = sync_resolve();
+    acceptor_.open(endpoint.protocol());
+    acceptor_.set_option(boost::asio::socket_base::reuse_address(true));
+    acceptor_.bind(endpoint);
+    acceptor_.listen(LISTEN_BACKLOG);
+  } catch (const boost::system::system_error& e) {
+    LOG_FATAL(logger_,
+              "Faield to start TlsTCPImpl acceptor at " << config_.listenHost << ":" << config_.listenPort
+                                                        << " for node " << config_.selfId << ": " << e.what());
+    abort();
+  }
 }
 
 bool TlsTCPCommunication::TlsTcpImpl::isRunning() const {
@@ -229,13 +232,13 @@ void TlsTCPCommunication::TlsTcpImpl::setVerifiedPeerId(size_t accepted_connecti
 bool TlsTCPCommunication::TlsTcpImpl::verifyCertificateServer(bool preverified,
                                                               boost::asio::ssl::verify_context& ctx,
                                                               size_t accepted_connection_id) {
-  char subject[512];
+  std::string subject(512, 0);
   X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
   if (!cert) {
     LOG_ERROR(logger_, "No certificate from client");
     return false;
   } else {
-    X509_NAME_oneline(X509_get_subject_name(cert), subject, 512);
+    X509_NAME_oneline(X509_get_subject_name(cert), subject.data(), 512);
     auto [valid, peer_id] = checkCertificate(cert, "client", std::string(subject), std::nullopt);
     setVerifiedPeerId(accepted_connection_id, peer_id);
     return valid;
@@ -245,23 +248,20 @@ bool TlsTCPCommunication::TlsTcpImpl::verifyCertificateServer(bool preverified,
 bool TlsTCPCommunication::TlsTcpImpl::verifyCertificateClient(bool preverified,
                                                               boost::asio::ssl::verify_context& ctx,
                                                               NodeNum expected_dest_id) {
-  char subject[256];
+  std::string subject(256, 0);
   X509* cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
   if (!cert) {
-    LOG_ERROR(logger_, "no certificate from server");
+    LOG_ERROR(logger_, "No certificate from server at node " << expected_dest_id);
     return false;
-  } else {
-    X509_NAME_oneline(X509_get_subject_name(cert), subject, 256);
-    LOG_DEBUG(_logger, "Verifying server: " << subject << ", " << preverified);
-
-    bool res = checkCertificate(cert, "server", string(subject), expected_dest_id);
-    LOG_DEBUG(_logger, "Manual verifying server: " << subject << ", authenticated: " << res);
-    return res;
   }
+  X509_NAME_oneline(X509_get_subject_name(cert), subject.data(), 256);
+  auto [valid, _] = checkCertificate(cert, "server", subject, expected_dest_id);
+  (void)_;  // unused variable hack
+  return valid;
 }
 
-void TlsTCPCommunication::TlsTCPImpl::closeConnection(AsyncTlsConnection&& conn) {
-  conn.lowest_layer().cancel();
+void TlsTCPCommunication::TlsTcpImpl::closeConnection(AsyncTlsConnection&& conn) {
+  conn.getSocket().lowest_layer().cancel();
   conn.getSocket().async_shutdown([this, sock = std::move(conn.getSocket())](const auto& ec) {
     if (ec) {
       LOG_WARN(logger_, "SSL shutdown failed: " << ec.message());
@@ -270,44 +270,62 @@ void TlsTCPCommunication::TlsTCPImpl::closeConnection(AsyncTlsConnection&& conn)
   });
 }
 
-void TlsTcpCommunication::TlsTcpImpl::onConnectionAuthenticated(AsyncTlsConnection&& conn) {
+void TlsTCPCommunication::TlsTcpImpl::onConnectionAuthenticated(AsyncTlsConnection&& conn) {
   // Move the connection into the accepted connections map If there is an existing connection
   // discard it. In this case it was likely that connecting end of the connection thinks there is
   // something wrong. This is a vector for a denial of service attack on the accepting side. We can
   // track the number of connections from the node and mark it malicious if necessary.
   std::lock_guard<std::mutex> lock(connectionsGuard_);
-  auto it = connections_.find(conn.getPeerId());
+  auto it = connections_.find(conn.getPeerId().value());
   if (it != connections_.end()) {
-    closeConnection(std::move(*it));
+    closeConnection(std::move(it->second));
   }
-  connections_.emplace({conn.getPeerId(), std::move(conn)});
+  connections_.emplace(conn.getPeerId().value(), std::move(conn));
 }
 
 void TlsTCPCommunication::TlsTcpImpl::onServerHandshakeComplete(const boost::system::error_code& ec,
                                                                 size_t accepted_connection_id) {
-  // The handshake either succeeded or failed. The accepted connection is no longer
-  // waiting, so remove it from the waiting map.
-  auto conn = std::move(accepted_waiting_for_handshake_.at(connection_id));
-  accepted_waiting_for_handshake_.erase(connection_id);
+  auto conn = std::move(accepted_waiting_for_handshake_.at(accepted_connection_id));
+  accepted_waiting_for_handshake_.erase(accepted_connection_id);
   if (ec) {
-    LOG_ERROR(logger_,
-              "Server handshake failed for peer " << conn.getPeerId() ? conn.getPeerId()
-                                                                      : "Unknown"
-                                                                            << ": " << ec.message());
+    auto peer_str = conn.getPeerId().has_value() ? std::to_string(conn.getPeerId().value()) : "Unknown";
+    LOG_ERROR(logger_, "Server handshake failed for peer " << peer_str << ": " << ec.message());
     return closeConnection(std::move(conn));
   }
   onConnectionAuthenticated(std::move(conn));
 }
 
-void TlsTCPCommunication::TlsTcpImpl::startSSLHandshake(boost::asio::ip::tcp::socket&& socket) {
+void TlsTCPCommunication::TlsTcpImpl::onClientHandshakeComplete(const boost::system::error_code& ec,
+                                                                NodeNum destination) {
+  auto conn = std::move(connected_waiting_for_handshake_.at(destination));
+  connected_waiting_for_handshake_.erase(destination);
+  if (ec) {
+    LOG_ERROR(logger_, "Client handshake failed for peer " << conn.getPeerId().value() << ": " << ec.message());
+    return closeConnection(std::move(conn));
+  }
+  onConnectionAuthenticated(std::move(conn));
+}
+
+void TlsTCPCommunication::TlsTcpImpl::startServerSSLHandshake(boost::asio::ip::tcp::socket&& socket) {
   auto ssl_context = createServerSSLContext();
   auto connection_id = total_accepted_connections_;
-  boost::asio::ssl::stream<boost::asio::ip::tcp::socket> ssl_socket(std::move(socket), ssl_context);
+  std::unique_ptr<SSL_SOCKET> ssl_socket(new SSL_SOCKET(socket, ssl_context));
   accepted_waiting_for_handshake_.emplace(total_accepted_connections_,
                                           AsyncTlsConnection(std::move(ssl_socket), receiver_));
   ssl_socket->async_handshake(
       boost::asio::ssl::stream_base::server,
       [this, connection_id](const boost::system::error_code& ec) { onServerHandshakeComplete(ec, connection_id); });
+}
+
+void TlsTCPCommunication::TlsTcpImpl::startClientSSLHandshake(boost::asio::ip::tcp::socket&& socket,
+                                                              NodeNum destination) {
+  auto ssl_context = createClientSSLContext(destination);
+  std::unique_ptr<SSL_SOCKET> ssl_socket(new SSL_SOCKET(socket, ssl_context));
+  connected_waiting_for_handshake_.emplace(destination,
+                                           AsyncTlsConnection(std::move(ssl_socket), receiver_, destination));
+  ssl_socket->async_handshake(
+      boost::asio::ssl::stream_base::client,
+      [this, destination](const boost::system::error_code& ec) { onClientHandshakeComplete(ec, destination); });
 }
 
 void TlsTCPCommunication::TlsTcpImpl::accept() {
@@ -321,12 +339,57 @@ void TlsTCPCommunication::TlsTcpImpl::accept() {
     }
     total_accepted_connections_++;
     setSocketOptions(accepting_socket_);
-    startSSLHandshake(std::move(accepting_socket_));
+    startServerSSLHandshake(std::move(accepting_socket_));
     accept();
   });
 }
 
-boost::asio::ip::tcp::endpoint TlsTCPCommunication::TlsTcpImpl::resolve() {
+void TlsTCPCommunication::TlsTcpImpl::resolve(NodeNum i) {
+  resolving_.insert(i);
+  auto node = config_.nodes.at(i);
+  boost::asio::ip::tcp::resolver resolver(io_service_);
+  boost::asio::ip::tcp::resolver::query query(boost::asio::ip::tcp::v4(), node.host, std::to_string(node.port));
+  resolver.async_resolve(query, [this, node, i](const auto& error_code, auto results) {
+    if (error_code) {
+      LOG_WARN(logger_, "Failed to resolve node " << i << ": " << node.host << ":" << node.port);
+      return;
+    }
+    auto endpoint = *results;
+    LOG_INFO(logger_, "Resolved node " << i << ": " << node.host << ":" << node.port << " to " << endpoint);
+    resolving_.erase(i);
+    connect(i, endpoint);
+  });
+}
+
+void TlsTCPCommunication::TlsTcpImpl::connect(NodeNum i, boost::asio::ip::tcp::endpoint endpoint) {
+  auto [it, inserted] = connecting_.emplace(i, boost::asio::ip::tcp::socket(io_service_));
+  Assert(inserted);
+  it->second.async_connect(endpoint, [this, i, endpoint](const auto& error_code) {
+    if (error_code) {
+      LOG_WARN(logger_, "Failed to connect to node " << i << ": " << endpoint);
+      connecting_.at(i).close();
+      connecting_.erase(i);
+      return;
+    }
+    LOG_INFO(logger_, "Connected to node " << i << ": " << endpoint);
+    auto connected_socket = std::move(connecting_.at(i));
+    connecting_.erase(i);
+    startClientSSLHandshake(std::move(connected_socket), i);
+  });
+}
+
+void TlsTCPCommunication::TlsTcpImpl::connect() {
+  std::lock_guard<std::mutex> lock(connectionsGuard_);
+  auto end = config_.selfId == 0 ? 0 : std::min<size_t>(config_.selfId - 1, config_.maxServerId);
+  for (auto i = 0u; i < end; i++) {
+    if (connections_.count(i) == 0 && connecting_.count(i) == 0 && resolving_.count(i) == 0 &&
+        connected_waiting_for_handshake_.count(i) == 0) {
+      resolve(i);
+    }
+  }
+}
+
+boost::asio::ip::tcp::endpoint TlsTCPCommunication::TlsTcpImpl::sync_resolve() {
   // TODO: When upgrading to boost 1.66 or later, when query is deprecated,
   // this should be changed to call the resolver.resolve overload that takes a
   // protocol, host, and service directly, instead of a query object. That

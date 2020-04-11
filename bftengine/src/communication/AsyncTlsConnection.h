@@ -31,26 +31,39 @@ class AsyncTlsConnection {
   // this value will be dropped.
   static constexpr size_t MAX_QUEUE_SIZE_IN_BYTES = 64 * 1024 * 1024;  // 64 MB
 
-  AsyncTlsConnection(SSL_SOCKET&& socket, IReceiver* receiver) : socket_(std::move(socket)), receiver_(receiver) {}
+  AsyncTlsConnection(std::unique_ptr<SSL_SOCKET>&& socket, IReceiver* receiver)
+      : socket_(std::move(socket)), receiver_(receiver) {}
+  AsyncTlsConnection(std::unique_ptr<SSL_SOCKET>&& socket, IReceiver* receiver, NodeNum peer_id)
+      : socket_(std::move(socket)), peer_id_(peer_id), receiver_(receiver) {}
+
+  AsyncTlsConnection(AsyncTlsConnection&& conn) {
+    socket_ = std::move(conn.socket_);
+    peer_id_ = conn.peer_id_;
+    receiver_ = conn.receiver_;
+    in_flight_message_ = std::move(conn.in_flight_message_);
+    queue_size_in_bytes_ = conn.queue_size_in_bytes_;
+    out_queue_ = std::move(conn.out_queue_);
+    write_lock_ = std::move(conn.write_lock_);
+  }
 
   void send(std::vector<char>&& msg);
   void setPeerId(NodeNum peer_id) { peer_id_ = peer_id; }
   std::optional<NodeNum> getPeerId() { return peer_id_; }
-  SSL_SOCKET& getSocket() { return socket_; }
+  SSL_SOCKET& getSocket() { return *socket_.get(); }
 
  private:
+  std::unique_ptr<SSL_SOCKET> socket_;
   std::optional<NodeNum> peer_id_ = std::nullopt;
-  SSL_SOCKET socket_;
 
   // We assume `receiver_` lives at least as long as each connection.
   IReceiver* receiver_ = nullptr;
 
   // We must maintain ownership of the in_flight_message until the asio::buffer wrapping it has actually been sent by
   // the underling io_service. We will know this is the case when the write completion handler gets called.
-  std::optional<std::vector<char>> in_flight_message;
+  std::optional<std::vector<char>> in_flight_message_;
   size_t queue_size_in_bytes_ = 0;
-  std::vector<std::vector<char>> outQueue;
-  std::mutex writeLock_;
+  std::vector<std::vector<char>> out_queue_;
+  std::unique_lock<std::mutex> write_lock_;
 };
 
 }  // namespace bftEngine

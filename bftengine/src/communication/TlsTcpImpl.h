@@ -13,6 +13,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <set>
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -62,27 +63,48 @@ class TlsTCPCommunication::TlsTcpImpl {
   size_t getMaxMessageSize();
 
  private:
-  // Perform synhronous DNS resolution. This really only works for the listen socket, since after that we want to do a
-  // new lookup on every connect operation in case the underlying IP of the DNS address changes.
-  //
-  // Throws a boost::system::system_error if it fails to resolve
-  boost::asio::ip::tcp::endpoint resolve();
+  // Open a socket, configure it, bind it, and start listening on a given host/pot.
+  void listen();
 
   // Start asynchronously accepting connections.
   void accept();
 
-  // Start asynchronously connecting to other nodes.
-  void connect();
+  // Perform synhronous DNS resolution. This really only works for the listen socket, since after that we want to do a
+  // new lookup on every connect operation in case the underlying IP of the DNS address changes.
+  //
+  // Throws a boost::system::system_error if it fails to resolve
+  boost::asio::ip::tcp::endpoint sync_resolve();
 
+  // Starts async dns resolution on a tcp socket.
+  //
+  // Every call to connect will call resolve before asio async_connect call.
+  void resolve(NodeNum destination);
+
+  // Connet to other nodes where there is not a current connection.
+  //
+  // Replicas only connect to replicas with smaller node ids.
+  // This method is called at startup and also on a periodic timer tick.
+  void connect();
+  void connect(NodeNum, boost::asio::ip::tcp::endpoint);
+
+  // In order to create a boost::asio::ssl::stream we need to create an SSL context with the
+  // appropriate verification callbacks used for certificate pinning. Thse functions create the
+  // contexts for both incoming and outgoing connections.
   boost::asio::ssl::context createServerSSLContext();
   boost::asio::ssl::context createClientSSLContext(NodeNum destination);
 
-  // Callbacks triggered by asio to verify certificates
+  // Callbacks triggered by asio to verify certificates. These callbacks are registered in the
+  // create<Server|Client>SSLContext functions.
   bool verifyCertificateServer(bool preverified, boost::asio::ssl::verify_context &ctx, size_t accepted_connection_id);
-  bool verifyCertificateClient(bool preverified, boost::asio::ssl::verify_context &ctx);
+  bool verifyCertificateClient(bool preverified, boost::asio::ssl::verify_context &ctx, NodeNum destination);
 
-  // Callback triggered when asio async_hanshake completes.
+  // Trigger the asio async_hanshake calls.
+  void startServerSSLHandshake(boost::asio::ip::tcp::socket &&);
+  void startClientSSLHandshake(boost::asio::ip::tcp::socket &&socket, NodeNum destination);
+
+  // Callbacks triggered when asio async_hanshake completes for an incoming or outgoing connection.
   void onServerHandshakeComplete(const boost::system::error_code &ec, size_t accepted_connection_id);
+  void onClientHandshakeComplete(const boost::system::error_code &ec, NodeNum destination);
 
   // If onServerHandshake completed successfully, this function will get called and add the AsyncTlsConnection to
   // `connections_`.
@@ -104,6 +126,8 @@ class TlsTCPCommunication::TlsTcpImpl {
                                             std::string connectionType,
                                             std::string subject,
                                             std::optional<NodeNum> expected_peer_id);
+
+  bool isReplica() { return config_.selfId <= static_cast<size_t>(config_.maxServerId); }
 
   concordlogger::Logger logger_;
   TlsTcpConfig config_;
@@ -131,8 +155,20 @@ class TlsTCPCommunication::TlsTcpImpl {
   // progress connections when cert validation completes
   size_t total_accepted_connections_ = 0;
 
+  // This tracks outstanding attempts at DNS resolution for outgoing connections.
+  std::set<NodeNum> resolving_;
+
+  // Sockets that are in progress of connecting.
+  // When these connections complete, an AsyncTlsConnection will be created and moved into
+  // `connected_waiting_for_handshake_`.
+  std::map<NodeNum, boost::asio::ip::tcp::socket> connecting_;
+
+  // Connections that are in progress of waiting for a handshake to complete.
+  // When the handshake completes these will be moved into `connections_`.
+  std::map<NodeNum, AsyncTlsConnection> connected_waiting_for_handshake_;
+
   // Connections that have been accepted, but where the handshake has not been completed.
-  // When the handshake completes these will be moved into connections_.
+  // When the handshake completes these will be moved into `connections_`.
   std::map<size_t, AsyncTlsConnection> accepted_waiting_for_handshake_;
 
   // Connections are manipulated from multiple threads. The io_service thread creates them and runs callbacks on them.
