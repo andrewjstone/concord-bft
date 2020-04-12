@@ -74,7 +74,11 @@ if(${BUILD_COMM_TCP_PLAIN})
     set(corebft_source_files ${corebft_source_files} src/communication/PlainTcpCommunication.cpp)
 endif()
 if(${BUILD_COMM_TCP_TLS})
-    set(corebft_source_files ${corebft_source_files} src/communication/TlsTCPCommunication.cpp)
+    set(corebft_source_files ${corebft_source_files}
+      src/communication/TlsTCPCommunication.cpp
+      src/communication/TlsTcpImpl
+      src/communication/AsyncTlsConnection.cpp
+    )
 endif()
 
 #
