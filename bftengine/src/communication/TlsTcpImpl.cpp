@@ -38,6 +38,37 @@ void TlsTCPCommunication::TlsTcpImpl::Start() {
   }));
 }
 
+void TlsTCPCommunication::TlsTcpImpl::Stop() {
+  std::lock_guard<std::mutex> l(startStopGuard_);
+  if (!io_thread_) return;
+  io_service_.stop();
+  if (io_thread_->joinable()) {
+    io_thread_->join();
+    io_thread_.reset(nullptr);
+  }
+
+  acceptor_.close();
+  accepting_socket_.close();
+  for (auto& [_, sock] : connecting_) {
+    (void)_;  // unused variable hack
+    sock.close();
+  }
+  for (auto& [_, conn] : connected_waiting_for_handshake_) {
+    (void)_;  // unused variable hack
+    syncCloseConnection(conn);
+  }
+
+  for (auto& [_, conn] : connected_waiting_for_handshake_) {
+    (void)_;  // unused variable hack
+    syncCloseConnection(conn);
+  }
+
+  for (auto& [_, conn] : connections_) {
+    (void)_;  // unused variable hack
+    syncCloseConnection(conn);
+  }
+}
+
 void TlsTCPCommunication::TlsTcpImpl::startConnectTimer() {
   connect_timer_.expires_from_now(CONNECT_TICK);
   connect_timer_.async_wait([this](const boost::system::error_code& ec) {
@@ -56,7 +87,7 @@ void TlsTCPCommunication::TlsTcpImpl::startConnectTimer() {
 
 void TlsTCPCommunication::TlsTcpImpl::listen() {
   try {
-    auto endpoint = sync_resolve();
+    auto endpoint = syncResolve();
     acceptor_.open(endpoint.protocol());
     acceptor_.set_option(boost::asio::socket_base::reuse_address(true));
     acceptor_.bind(endpoint);
@@ -85,7 +116,7 @@ void TlsTCPCommunication::TlsTcpImpl::sendAsyncMessage(const NodeNum destination
   auto temp = connections_.find(destination);
   if (temp != connections_.end()) {
     std::vector<char> owned(msg, msg + len);
-    temp->second.send(std::move(owned));
+    temp->second->send(std::move(owned));
   } else {
     LOG_DEBUG(logger_, "Connection NOT found, from: " << config_.selfId << ", to: " << destination);
   }
@@ -108,23 +139,28 @@ boost::asio::ssl::context TlsTCPCommunication::TlsTcpImpl::createServerSSLContex
       },
       ec);
   if (ec) {
-    LOG_ERROR(logger_, "Unable to set server verify callback" << ec.message());
+    LOG_FATAL(logger_, "Unable to set server verify callback" << ec.message());
     abort();
   }
 
   namespace fs = boost::filesystem;
   auto path = fs::path(config_.certificatesRootPath) / fs::path(std::to_string(config_.selfId)) / fs::path("server");
-  context.use_certificate_chain_file((path / fs::path("server.cert")).string());
-  context.use_private_key_file((path / fs::path("pk.pem")).string(), boost::asio::ssl::context::pem);
+  try {
+    context.use_certificate_chain_file((path / fs::path("server.cert")).string());
+    context.use_private_key_file((path / fs::path("pk.pem")).string(), boost::asio::ssl::context::pem);
+  } catch (const boost::system::system_error& e) {
+    LOG_FATAL(logger_, "Failed to load certificate or private key files from path: " << path << " : " << e.what());
+    abort();
+  }
 
   EC_KEY* ecdh = EC_KEY_new_by_curve_name(NID_secp384r1);
   if (!ecdh) {
-    LOG_ERROR(logger_, "Unable to create EC");
+    LOG_FATAL(logger_, "Unable to create EC");
     abort();
   }
 
   if (1 != SSL_CTX_set_tmp_ecdh(context.native_handle(), ecdh)) {
-    LOG_ERROR(logger_, "Unable to set temp EC params");
+    LOG_FATAL(logger_, "Unable to set temp EC params");
     abort();
   }
 
@@ -243,7 +279,7 @@ std::pair<bool, NodeNum> TlsTCPCommunication::TlsTcpImpl::checkCertificate(X509*
 }
 
 void TlsTCPCommunication::TlsTcpImpl::setVerifiedPeerId(size_t accepted_connection_id, NodeNum peer_id) {
-  accepted_waiting_for_handshake_.at(accepted_connection_id).setPeerId(peer_id);
+  accepted_waiting_for_handshake_.at(accepted_connection_id)->setPeerId(peer_id);
 }
 
 bool TlsTCPCommunication::TlsTcpImpl::verifyCertificateServer(bool preverified,
@@ -294,6 +330,12 @@ void TlsTCPCommunication::TlsTcpImpl::closeConnection(std::shared_ptr<AsyncTlsCo
   });
 }
 
+void TlsTCPCommunication::TlsTcpImpl::syncCloseConnection(std::shared_ptr<AsyncTlsConnection>& conn) {
+  boost::system::error_code _;
+  conn->getSocket().shutdown(_);
+  conn->getSocket().lowest_layer().close();
+}
+
 void TlsTCPCommunication::TlsTcpImpl::onConnectionAuthenticated(std::shared_ptr<AsyncTlsConnection> conn) {
   // Move the connection into the accepted connections map If there is an existing connection
   // discard it. In this case it was likely that connecting end of the connection thinks there is
@@ -334,7 +376,8 @@ void TlsTCPCommunication::TlsTcpImpl::onClientHandshakeComplete(const boost::sys
 void TlsTCPCommunication::TlsTcpImpl::startServerSSLHandshake(boost::asio::ip::tcp::socket&& socket) {
   auto ssl_context = createServerSSLContext();
   auto connection_id = total_accepted_connections_;
-  std::unique_ptr<SSL_SOCKET> ssl_socket(new SSL_SOCKET(socket, ssl_context));
+  std::unique_ptr<SSL_SOCKET> ssl_socket(new SSL_SOCKET(io_service_, ssl_context));
+  ssl_socket->lowest_layer() = std::move(socket);
   accepted_waiting_for_handshake_.emplace(
       total_accepted_connections_, std::make_shared<AsyncTlsConnection>(std::move(ssl_socket), receiver_, *this));
   ssl_socket->async_handshake(
@@ -345,7 +388,9 @@ void TlsTCPCommunication::TlsTcpImpl::startServerSSLHandshake(boost::asio::ip::t
 void TlsTCPCommunication::TlsTcpImpl::startClientSSLHandshake(boost::asio::ip::tcp::socket&& socket,
                                                               NodeNum destination) {
   auto ssl_context = createClientSSLContext(destination);
-  std::unique_ptr<SSL_SOCKET> ssl_socket(new SSL_SOCKET(socket, ssl_context));
+  auto moved_tcp_socket = std::move(socket);
+  std::unique_ptr<SSL_SOCKET> ssl_socket(new SSL_SOCKET(io_service_, ssl_context));
+  ssl_socket->lowest_layer() = std::move(socket);
   connected_waiting_for_handshake_.emplace(
       destination, std::make_shared<AsyncTlsConnection>(std::move(ssl_socket), receiver_, *this, destination));
   ssl_socket->async_handshake(
@@ -372,14 +417,15 @@ void TlsTCPCommunication::TlsTcpImpl::accept() {
 void TlsTCPCommunication::TlsTcpImpl::resolve(NodeNum i) {
   resolving_.insert(i);
   auto node = config_.nodes.at(i);
-  boost::asio::ip::tcp::resolver resolver(io_service_);
   boost::asio::ip::tcp::resolver::query query(boost::asio::ip::tcp::v4(), node.host, std::to_string(node.port));
-  resolver.async_resolve(query, [this, node, i](const auto& error_code, auto results) {
+  resolver_.async_resolve(query, [this, node, i, query](const auto& error_code, auto results) {
     if (error_code) {
-      LOG_WARN(logger_, "Failed to resolve node " << i << ": " << node.host << ":" << node.port);
+      LOG_WARN(
+          logger_,
+          "Failed to resolve node " << i << ": " << node.host << ":" << node.port << " : " << error_code.message());
       return;
     }
-    auto endpoint = *results;
+    boost::asio::ip::tcp::endpoint endpoint = *results;
     LOG_INFO(logger_, "Resolved node " << i << ": " << node.host << ":" << node.port << " to " << endpoint);
     resolving_.erase(i);
     connect(i, endpoint);
@@ -414,18 +460,27 @@ void TlsTCPCommunication::TlsTcpImpl::connect() {
   }
 }
 
-boost::asio::ip::tcp::endpoint TlsTCPCommunication::TlsTcpImpl::sync_resolve() {
+boost::asio::ip::tcp::endpoint TlsTCPCommunication::TlsTcpImpl::syncResolve() {
   // TODO: When upgrading to boost 1.66 or later, when query is deprecated,
   // this should be changed to call the resolver.resolve overload that takes a
-  // protocol, host, and service directly, instead of a query object. That
+  // u, host, and service directly, instead of a query object. That
   // overload is not yet available in boost 1.64, which we're using today.
   boost::asio::ip::tcp::resolver::query query(
       boost::asio::ip::tcp::v4(), config_.listenHost, std::to_string(config_.listenPort));
-  boost::asio::ip::tcp::resolver resolver(io_service_);
-  boost::asio::ip::tcp::resolver::iterator results = resolver.resolve(query);
+  boost::asio::ip::tcp::resolver::iterator results = resolver_.resolve(query);
   boost::asio::ip::tcp::endpoint endpoint = *results;
   LOG_INFO(logger_, "Resolved " << config_.listenHost << ":" << config_.listenPort << " to " << endpoint);
   return endpoint;
+}
+
+int TlsTCPCommunication::TlsTcpImpl::getMaxMessageSize() { return config_.bufferLength; }
+
+ConnectionStatus TlsTCPCommunication::TlsTcpImpl::getCurrentConnectionStatus(const NodeNum id) const {
+  std::lock_guard<std::mutex> lock(connectionsGuard_);
+  if (connections_.count(id) == 1) {
+    return ConnectionStatus::Connected;
+  }
+  return ConnectionStatus::Disconnected;
 }
 
 }  // namespace bftEngine

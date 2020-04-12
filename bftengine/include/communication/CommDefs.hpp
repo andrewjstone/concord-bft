@@ -186,7 +186,7 @@ class TlsTCPCommunication : public ICommunication {
  private:
   class TlsTcpImpl;
   friend class AsyncTlsConnection;
-  std::unique_ptr<TlsTcpImpl> ptrImpl_ = nullptr;
+  std::unique_ptr<TlsTcpImpl> ptrImpl_;
 
   explicit TlsTCPCommunication(const TlsTcpConfig &config);
 };

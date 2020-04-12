@@ -17,7 +17,7 @@ namespace bftEngine {
 
 void AsyncTlsConnection::readMsgSizeHeader() {
   auto self = shared_from_this();
-  async_read(socket_, boost::asio::buffer(read_size_buf_), [this, self](const auto& error_code, auto _) {
+  async_read(*socket_, boost::asio::buffer(read_size_buf_), [this, self](const auto& error_code, auto _) {
     if (error_code) {
       if (error_code == boost::asio::error::operation_aborted || disposed_) {
         // The socket has already been cleaned up and any references are invalid. Just return.
@@ -45,7 +45,7 @@ void AsyncTlsConnection::readMsg() {
   read_msg_ = std::vector<char>(msg_size, 0);
   auto self = shared_from_this();
   startReadTimer();
-  async_read(socket_, boost::asio::buffer(read_msg_), [this, self](const auto& error_code, auto _) {
+  async_read(*socket_, boost::asio::buffer(read_msg_), [this, self](const auto& error_code, auto _) {
     if (error_code) {
       if (error_code == boost::asio::error::operation_aborted || disposed_) {
         // The socket has already been cleaned up and any references are invalid. Just return.
@@ -58,9 +58,9 @@ void AsyncTlsConnection::readMsg() {
         return dispose();
       }
       // The Read succeeded.
+      boost::system::error_code _;
       read_timer_.cancel(_);
       receiver_->onNewMessage(peer_id_.value(), read_msg_.data(), read_msg_.size());
-      boost::system::error_code _;
       readMsgSizeHeader();
     }
   });
@@ -102,6 +102,7 @@ uint32_t AsyncTlsConnection::getReadMsgSize() {
 }
 
 void AsyncTlsConnection::dispose() {
+  assert(!disposed_);
   LOG_ERROR(logger_, "Closing connection to node " << peer_id_.value());
   disposed_ = true;
   boost::system::error_code _;
@@ -138,7 +139,7 @@ void AsyncTlsConnection::write() {
   auto self = shared_from_this();
   startWriteTimer();
   boost::asio::async_write(
-      socket_, boost::asio::buffer(out_queue_.front().msg), [this, self](const boost::system::error_code& ec) {
+      *socket_, boost::asio::buffer(out_queue_.front().msg), [this, self](const boost::system::error_code& ec, auto _) {
         if (ec) {
           if (ec == boost::asio::error::operation_aborted || disposed_) {
             // The socket has already been cleaned up and any references are invalid. Just return.

@@ -35,6 +35,7 @@ int TlsTCPCommunication::Stop() {
   if (!ptrImpl_) return 0;
 
   ptrImpl_->Stop();
+  ptrImpl_.reset(nullptr);
   return 0;
 }
 

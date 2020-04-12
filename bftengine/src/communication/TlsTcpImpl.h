@@ -53,6 +53,7 @@ class TlsTCPCommunication::TlsTcpImpl {
       : logger_(concordlogger::Log::getLogger("concord-bft.tls")),
         config_(config),
         acceptor_(io_service_),
+        resolver_(io_service_),
         accepting_socket_(io_service_),
         connect_timer_(io_service_) {}
 
@@ -66,7 +67,7 @@ class TlsTCPCommunication::TlsTcpImpl {
   ConnectionStatus getCurrentConnectionStatus(const NodeNum node) const;
   void setReceiver(NodeNum nodeId, IReceiver *receiver);
   void sendAsyncMessage(const NodeNum destination, const char *const msg, const size_t msg_len);
-  size_t getMaxMessageSize();
+  int getMaxMessageSize();
 
  private:
   // Open a socket, configure it, bind it, and start listening on a given host/pot.
@@ -79,7 +80,7 @@ class TlsTCPCommunication::TlsTcpImpl {
   // new lookup on every connect operation in case the underlying IP of the DNS address changes.
   //
   // Throws a boost::system::system_error if it fails to resolve
-  boost::asio::ip::tcp::endpoint sync_resolve();
+  boost::asio::ip::tcp::endpoint syncResolve();
 
   // Starts async dns resolution on a tcp socket.
   //
@@ -123,6 +124,10 @@ class TlsTCPCommunication::TlsTcpImpl {
   // save the learned NodeNum from the certificate so this replica knows who it is connected to.
   void setVerifiedPeerId(size_t accepted_connection_id, NodeNum peer_id);
 
+  // Synchronously close connections
+  // This is only used during shutdown after the io_service is stopped.
+  void syncCloseConnection(std::shared_ptr<AsyncTlsConnection> &conn);
+
   // Asynchronously shutdown an SSL connection and then close the underlying TCP socket when the shutdown has completed.
   void closeConnection(NodeNum);
   void closeConnection(std::shared_ptr<AsyncTlsConnection> conn);
@@ -156,6 +161,9 @@ class TlsTCPCommunication::TlsTcpImpl {
   boost::asio::io_service io_service_;
   boost::asio::ip::tcp::acceptor acceptor_;
 
+  // We store a single resolver so that it doesn't go out of scope during async_resolve calls.
+  boost::asio::ip::tcp::resolver resolver_;
+
   // Every async_accept call for asio requires us to pass it an existing socket to write into. Later versions do not
   // require this. This socket will be filled in by an accepted connection. We'll then move it into an
   // AsyncTlsConnection when the async_accept handler returns.
@@ -186,7 +194,7 @@ class TlsTCPCommunication::TlsTcpImpl {
 
   // Connections are manipulated from multiple threads. The io_service thread creates them and runs callbacks on them.
   // Senders find a connection through this map and push data onto the outQueue.
-  std::mutex connectionsGuard_;
+  mutable std::mutex connectionsGuard_;
   std::map<NodeNum, std::shared_ptr<AsyncTlsConnection>> connections_;
 };
 
