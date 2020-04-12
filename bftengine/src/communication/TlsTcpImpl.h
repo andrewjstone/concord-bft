@@ -11,12 +11,14 @@
 // LICENSE file.
 
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <thread>
 #include <set>
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include "CommDefs.hpp"
 #include "Logger.hpp"
@@ -42,13 +44,17 @@ typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket> SSL_SOCKET;
  */
 class TlsTCPCommunication::TlsTcpImpl {
   static constexpr size_t LISTEN_BACKLOG = 5;
+  static constexpr std::chrono::seconds CONNECT_TICK = std::chrono::seconds(1);
+
+  friend class AsyncTlsConnection;
 
  public:
   TlsTcpImpl(const TlsTcpConfig &config)
       : logger_(concordlogger::Log::getLogger("concord-bft.tls")),
         config_(config),
         acceptor_(io_service_),
-        accepting_socket_(io_service_) {}
+        accepting_socket_(io_service_),
+        connect_timer_(io_service_) {}
 
   //
   // Methods required by ICommuncication
@@ -87,6 +93,9 @@ class TlsTCPCommunication::TlsTcpImpl {
   void connect();
   void connect(NodeNum, boost::asio::ip::tcp::endpoint);
 
+  // Start a steady_timer in order to trigger needed `connect` operations.
+  void startConnectTimer();
+
   // In order to create a boost::asio::ssl::stream we need to create an SSL context with the
   // appropriate verification callbacks used for certificate pinning. Thse functions create the
   // contexts for both incoming and outgoing connections.
@@ -108,14 +117,15 @@ class TlsTCPCommunication::TlsTcpImpl {
 
   // If onServerHandshake completed successfully, this function will get called and add the AsyncTlsConnection to
   // `connections_`.
-  void onConnectionAuthenticated(AsyncTlsConnection &&conn);
+  void onConnectionAuthenticated(std::shared_ptr<AsyncTlsConnection> conn);
 
   // When a certificate is validated on an accepted connection, this function is called in order to
   // save the learned NodeNum from the certificate so this replica knows who it is connected to.
   void setVerifiedPeerId(size_t accepted_connection_id, NodeNum peer_id);
 
   // Asynchronously shutdown an SSL connection and then close the underlying TCP socket when the shutdown has completed.
-  void closeConnection(AsyncTlsConnection &&conn);
+  void closeConnection(NodeNum);
+  void closeConnection(std::shared_ptr<AsyncTlsConnection> conn);
 
   // Certificate pinning
   //
@@ -155,6 +165,9 @@ class TlsTCPCommunication::TlsTcpImpl {
   // progress connections when cert validation completes
   size_t total_accepted_connections_ = 0;
 
+  // This timer is called periodically to trigger connections as needed.
+  boost::asio::steady_timer connect_timer_;
+
   // This tracks outstanding attempts at DNS resolution for outgoing connections.
   std::set<NodeNum> resolving_;
 
@@ -165,16 +178,16 @@ class TlsTCPCommunication::TlsTcpImpl {
 
   // Connections that are in progress of waiting for a handshake to complete.
   // When the handshake completes these will be moved into `connections_`.
-  std::map<NodeNum, AsyncTlsConnection> connected_waiting_for_handshake_;
+  std::map<NodeNum, std::shared_ptr<AsyncTlsConnection>> connected_waiting_for_handshake_;
 
   // Connections that have been accepted, but where the handshake has not been completed.
   // When the handshake completes these will be moved into `connections_`.
-  std::map<size_t, AsyncTlsConnection> accepted_waiting_for_handshake_;
+  std::map<size_t, std::shared_ptr<AsyncTlsConnection>> accepted_waiting_for_handshake_;
 
   // Connections are manipulated from multiple threads. The io_service thread creates them and runs callbacks on them.
   // Senders find a connection through this map and push data onto the outQueue.
   std::mutex connectionsGuard_;
-  std::map<NodeNum, AsyncTlsConnection> connections_;
+  std::map<NodeNum, std::shared_ptr<AsyncTlsConnection>> connections_;
 };
 
 }  // namespace bftEngine

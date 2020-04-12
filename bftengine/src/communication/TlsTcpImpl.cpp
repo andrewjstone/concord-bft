@@ -30,11 +30,28 @@ void TlsTCPCommunication::TlsTcpImpl::Start() {
       accept();
     }
     connect();
+    startConnectTimer();
 
     // We must start connecting and accepting before we start the io_service, so that it has some
     // work to do. This is what prevents the io_service event loop from exiting immediately.
     io_service_.run();
   }));
+}
+
+void TlsTCPCommunication::TlsTcpImpl::startConnectTimer() {
+  connect_timer_.expires_from_now(CONNECT_TICK);
+  connect_timer_.async_wait([this](const boost::system::error_code& ec) {
+    if (ec) {
+      if (ec == boost::asio::error::operation_aborted) {
+        // We are shutting down the system. Just return.
+        return;
+      }
+      LOG_FATAL(logger_, "Connect timer wait failure: " << ec.message());
+      abort();
+    }
+    connect();
+    startConnectTimer();
+  });
 }
 
 void TlsTCPCommunication::TlsTcpImpl::listen() {
@@ -260,27 +277,35 @@ bool TlsTCPCommunication::TlsTcpImpl::verifyCertificateClient(bool preverified,
   return valid;
 }
 
-void TlsTCPCommunication::TlsTcpImpl::closeConnection(AsyncTlsConnection&& conn) {
-  conn.getSocket().lowest_layer().cancel();
-  conn.getSocket().async_shutdown([this, sock = std::move(conn.getSocket())](const auto& ec) {
+void TlsTCPCommunication::TlsTcpImpl::closeConnection(NodeNum id) {
+  std::lock_guard<std::mutex> lock(connectionsGuard_);
+  auto conn = std::move(connections_.at(id));
+  connections_.erase(id);
+  closeConnection(std::move(conn));
+}
+
+void TlsTCPCommunication::TlsTcpImpl::closeConnection(std::shared_ptr<AsyncTlsConnection> conn) {
+  conn->getSocket().lowest_layer().cancel();
+  conn->getSocket().async_shutdown([this, conn](const auto& ec) {
     if (ec) {
       LOG_WARN(logger_, "SSL shutdown failed: " << ec.message());
     }
-    sock.lowest_layer().close();
+    conn->getSocket().lowest_layer().close();
   });
 }
 
-void TlsTCPCommunication::TlsTcpImpl::onConnectionAuthenticated(AsyncTlsConnection&& conn) {
+void TlsTCPCommunication::TlsTcpImpl::onConnectionAuthenticated(std::shared_ptr<AsyncTlsConnection> conn) {
   // Move the connection into the accepted connections map If there is an existing connection
   // discard it. In this case it was likely that connecting end of the connection thinks there is
   // something wrong. This is a vector for a denial of service attack on the accepting side. We can
   // track the number of connections from the node and mark it malicious if necessary.
   std::lock_guard<std::mutex> lock(connectionsGuard_);
-  auto it = connections_.find(conn.getPeerId().value());
+  auto it = connections_.find(conn->getPeerId().value());
   if (it != connections_.end()) {
     closeConnection(std::move(it->second));
   }
-  connections_.emplace(conn.getPeerId().value(), std::move(conn));
+  connections_.insert({conn->getPeerId().value(), conn});
+  conn->readMsgSizeHeader();
 }
 
 void TlsTCPCommunication::TlsTcpImpl::onServerHandshakeComplete(const boost::system::error_code& ec,
@@ -288,7 +313,7 @@ void TlsTCPCommunication::TlsTcpImpl::onServerHandshakeComplete(const boost::sys
   auto conn = std::move(accepted_waiting_for_handshake_.at(accepted_connection_id));
   accepted_waiting_for_handshake_.erase(accepted_connection_id);
   if (ec) {
-    auto peer_str = conn.getPeerId().has_value() ? std::to_string(conn.getPeerId().value()) : "Unknown";
+    auto peer_str = conn->getPeerId().has_value() ? std::to_string(conn->getPeerId().value()) : "Unknown";
     LOG_ERROR(logger_, "Server handshake failed for peer " << peer_str << ": " << ec.message());
     return closeConnection(std::move(conn));
   }
@@ -300,7 +325,7 @@ void TlsTCPCommunication::TlsTcpImpl::onClientHandshakeComplete(const boost::sys
   auto conn = std::move(connected_waiting_for_handshake_.at(destination));
   connected_waiting_for_handshake_.erase(destination);
   if (ec) {
-    LOG_ERROR(logger_, "Client handshake failed for peer " << conn.getPeerId().value() << ": " << ec.message());
+    LOG_ERROR(logger_, "Client handshake failed for peer " << conn->getPeerId().value() << ": " << ec.message());
     return closeConnection(std::move(conn));
   }
   onConnectionAuthenticated(std::move(conn));
@@ -310,8 +335,8 @@ void TlsTCPCommunication::TlsTcpImpl::startServerSSLHandshake(boost::asio::ip::t
   auto ssl_context = createServerSSLContext();
   auto connection_id = total_accepted_connections_;
   std::unique_ptr<SSL_SOCKET> ssl_socket(new SSL_SOCKET(socket, ssl_context));
-  accepted_waiting_for_handshake_.emplace(total_accepted_connections_,
-                                          AsyncTlsConnection(std::move(ssl_socket), receiver_));
+  accepted_waiting_for_handshake_.emplace(
+      total_accepted_connections_, std::make_shared<AsyncTlsConnection>(std::move(ssl_socket), receiver_, *this));
   ssl_socket->async_handshake(
       boost::asio::ssl::stream_base::server,
       [this, connection_id](const boost::system::error_code& ec) { onServerHandshakeComplete(ec, connection_id); });
@@ -321,8 +346,8 @@ void TlsTCPCommunication::TlsTcpImpl::startClientSSLHandshake(boost::asio::ip::t
                                                               NodeNum destination) {
   auto ssl_context = createClientSSLContext(destination);
   std::unique_ptr<SSL_SOCKET> ssl_socket(new SSL_SOCKET(socket, ssl_context));
-  connected_waiting_for_handshake_.emplace(destination,
-                                           AsyncTlsConnection(std::move(ssl_socket), receiver_, destination));
+  connected_waiting_for_handshake_.emplace(
+      destination, std::make_shared<AsyncTlsConnection>(std::move(ssl_socket), receiver_, *this, destination));
   ssl_socket->async_handshake(
       boost::asio::ssl::stream_base::client,
       [this, destination](const boost::system::error_code& ec) { onClientHandshakeComplete(ec, destination); });
