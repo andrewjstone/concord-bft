@@ -156,11 +156,7 @@ void AsyncTlsConnection::write() {
         }
         // The write succeeded.
         write_timer_.cancel();
-        std::lock_guard<std::mutex> guard(write_lock_);
-        out_queue_.pop_front();
-        if (!out_queue_.empty()) {
-          write();
-        }
+        write();
       });
 }
 
@@ -170,9 +166,8 @@ void AsyncTlsConnection::createSSLSocket(boost::asio::ip::tcp::socket&& socket) 
 }
 
 void AsyncTlsConnection::initClientSSLContext(NodeNum destination) {
-  auto self = shared_from_this();
-  boost::asio::ssl::context context(boost::asio::ssl::context::tlsv12_client);
-  context.set_verify_mode(boost::asio::ssl::verify_peer);
+  auto self = std::weak_ptr(shared_from_this());
+  ssl_context_.set_verify_mode(boost::asio::ssl::verify_peer);
 
   namespace fs = boost::filesystem;
   auto path = fs::path(tlsTcpImpl_.config_.certificatesRootPath) /
@@ -181,8 +176,9 @@ void AsyncTlsConnection::initClientSSLContext(NodeNum destination) {
       fs::path(tlsTcpImpl_.config_.certificatesRootPath) / fs::path(std::to_string(destination)) / "server";
 
   boost::system::error_code ec;
-  context.set_verify_callback(
+  ssl_context_.set_verify_callback(
       [this, self, destination](auto preverified, auto& ctx) -> bool {
+        if (self.expired()) return false;
         return verifyCertificateClient(preverified, ctx, destination);
       },
       ec);
@@ -191,15 +187,15 @@ void AsyncTlsConnection::initClientSSLContext(NodeNum destination) {
     abort();
   }
 
-  context.use_certificate_chain_file((path / "client.cert").string());
-  context.use_private_key_file((path / "pk.pem").string(), boost::asio::ssl::context::pem);
+  ssl_context_.use_certificate_chain_file((path / "client.cert").string());
+  ssl_context_.use_private_key_file((path / "pk.pem").string(), boost::asio::ssl::context::pem);
 
   // Only allow using the strongest cipher suites.
-  SSL_CTX_set_cipher_list(context.native_handle(), tlsTcpImpl_.config_.cipherSuite.c_str());
+  SSL_CTX_set_cipher_list(ssl_context_.native_handle(), tlsTcpImpl_.config_.cipherSuite.c_str());
 }
 
 void AsyncTlsConnection::initServerSSLContext() {
-  auto self = shared_from_this();
+  auto self = std::weak_ptr(shared_from_this());
   ssl_context_.set_verify_mode(boost::asio::ssl::verify_peer | boost::asio::ssl::verify_fail_if_no_peer_cert);
   ssl_context_.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::no_sslv2 |
                            boost::asio::ssl::context::no_sslv3 | boost::asio::ssl::context::no_tlsv1 |
@@ -207,7 +203,11 @@ void AsyncTlsConnection::initServerSSLContext() {
 
   boost::system::error_code ec;
   ssl_context_.set_verify_callback(
-      [this, self](auto preverified, auto& ctx) -> bool { return verifyCertificateServer(preverified, ctx); }, ec);
+      [this, self](auto preverified, auto& ctx) -> bool {
+        if (self.expired()) return false;
+        return verifyCertificateServer(preverified, ctx);
+      },
+      ec);
   if (ec) {
     LOG_FATAL(logger_, "Unable to set server verify callback" << ec.message());
     abort();
@@ -256,7 +256,6 @@ bool AsyncTlsConnection::verifyCertificateClient(bool preverified,
   X509_NAME_oneline(X509_get_subject_name(cert), subject.data(), 256);
   auto [valid, _] = checkCertificate(cert, "server", subject, expected_dest_id);
   (void)_;  // unused variable hack
-  LOG_INFO(logger_, "VERIFIED CLIENT: " << valid);
   return valid;
 }
 
@@ -270,7 +269,6 @@ bool AsyncTlsConnection::verifyCertificateServer(bool preverified, boost::asio::
   X509_NAME_oneline(X509_get_subject_name(cert), subject.data(), 512);
   auto [valid, peer_id] = checkCertificate(cert, "client", std::string(subject), std::nullopt);
   peer_id_ = peer_id;
-  LOG_INFO(logger_, "VERIFIED SERVER: " << valid);
   return valid;
 }
 
