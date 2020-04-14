@@ -43,31 +43,60 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
   // to send the message, the connection or receiver is overloaded, and so we want to drop the message to shed load.
   static constexpr std::chrono::seconds STALE_MESSAGE_TIMEOUT = std::chrono::seconds(5);
 
-  AsyncTlsConnection(std::unique_ptr<SSL_SOCKET>&& socket, IReceiver* receiver, TlsTCPCommunication::TlsTcpImpl& impl)
+  // We require a factory function because we can't call shared_from_this() in the constructor.
+  //
+  // In order to call shared_from_this(), there must already be a shared pointer wrapping `this`.
+  // In this case, shared_from_this() is required for registering verification callbacks in the SSL context
+  // initialization functions.
+  static std::shared_ptr<AsyncTlsConnection> create(boost::asio::io_service& io_service,
+                                                    boost::asio::ip::tcp::socket&& socket,
+                                                    IReceiver* receiver,
+                                                    TlsTCPCommunication::TlsTcpImpl& impl) {
+    auto conn = std::make_shared<AsyncTlsConnection>(io_service, receiver, impl);
+    conn->initServerSSLContext();
+    conn->createSSLSocket(std::move(socket));
+    return conn;
+  }
+
+  static std::shared_ptr<AsyncTlsConnection> create(boost::asio::io_service& io_service,
+                                                    boost::asio::ip::tcp::socket&& socket,
+                                                    IReceiver* receiver,
+                                                    TlsTCPCommunication::TlsTcpImpl& impl,
+                                                    NodeNum destination) {
+    auto conn = std::make_shared<AsyncTlsConnection>(io_service, receiver, impl, destination);
+    conn->initClientSSLContext(destination);
+    conn->createSSLSocket(std::move(socket));
+    return conn;
+  }
+
+  // Constructor for an accepting (server) connection.
+  AsyncTlsConnection(boost::asio::io_service& io_service, IReceiver* receiver, TlsTCPCommunication::TlsTcpImpl& impl)
       : logger_(concordlogger::Log::getLogger("concord-bft.tls.conn")),
-        socket_(std::move(socket)),
+        io_service_(io_service),
+        ssl_context_(boost::asio::ssl::context::tlsv12_server),
         receiver_(receiver),
         tlsTcpImpl_(impl),
-        read_timer_(socket_->get_io_service()),
-        write_timer_(socket_->get_io_service()) {}
+        read_timer_(io_service_),
+        write_timer_(io_service_) {}
 
-  AsyncTlsConnection(std::unique_ptr<SSL_SOCKET>&& socket,
+  // Constructor for a connecting (client) connection.
+  AsyncTlsConnection(boost::asio::io_service& io_service,
                      IReceiver* receiver,
                      TlsTCPCommunication::TlsTcpImpl& impl,
                      NodeNum peer_id)
       : logger_(concordlogger::Log::getLogger("concord-bft.tls.conn")),
-        socket_(std::move(socket)),
+        io_service_(io_service),
+        ssl_context_(boost::asio::ssl::context::tlsv12_client),
         peer_id_(peer_id),
         receiver_(receiver),
         tlsTcpImpl_(impl),
-        read_timer_(socket_->get_io_service()),
-        write_timer_(socket->get_io_service()) {}
+        read_timer_(io_service_),
+        write_timer_(io_service_) {}
 
   void send(std::vector<char>&& msg);
   void setPeerId(NodeNum peer_id) { peer_id_ = peer_id; }
   std::optional<NodeNum> getPeerId() { return peer_id_; }
   SSL_SOCKET& getSocket() { return *socket_.get(); }
-  std::array<char, MSG_HEADER_SIZE>& getReadSizeBuf() { return read_size_buf_; }
 
   // Every messsage is preceded by a 4 byte message header that we must read.
   void readMsgSizeHeader();
@@ -90,7 +119,28 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
 
   void write();
 
+  void createSSLSocket(boost::asio::ip::tcp::socket&&);
+  void initClientSSLContext(NodeNum destination);
+  void initServerSSLContext();
+
+  // Callbacks triggered from asio for certificate validation
+  // On the server side we don't know the identity of the accepted connection until we verify the certificate and read
+  // the node id.
+  bool verifyCertificateClient(bool preverified, boost::asio::ssl::verify_context& ctx, NodeNum expected_dest_id);
+  bool verifyCertificateServer(bool preverified, boost::asio::ssl::verify_context& ctx);
+
+  // Certificate pinning
+  //
+  // Check for a specific certificate and do not rely on the chain authentication.
+  //
+  // Return true along with the actual node id if verification succeeds, (false, 0) if not.
+  std::pair<bool, NodeNum> checkCertificate(X509* cert,
+                                            std::string connectionType,
+                                            std::string subject,
+                                            std::optional<NodeNum> expected_peer_id);
+
   concordlogger::Logger logger_;
+  boost::asio::io_service& io_service_;
 
   // We can't rely on timer callbacks to actually be cancelled properly and return
   // `boost::asio::error::operation_aborted`. There is a race condition where a callback may already
@@ -98,6 +148,8 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
   // then the callback fires, we may have already closed the socket, and we don't want to do that
   // twice.
   bool disposed_ = false;
+
+  boost::asio::ssl::context ssl_context_;
 
   std::unique_ptr<SSL_SOCKET> socket_;
   std::optional<NodeNum> peer_id_ = std::nullopt;

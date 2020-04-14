@@ -97,17 +97,6 @@ class TlsTCPCommunication::TlsTcpImpl {
   // Start a steady_timer in order to trigger needed `connect` operations.
   void startConnectTimer();
 
-  // In order to create a boost::asio::ssl::stream we need to create an SSL context with the
-  // appropriate verification callbacks used for certificate pinning. Thse functions create the
-  // contexts for both incoming and outgoing connections.
-  boost::asio::ssl::context createServerSSLContext();
-  boost::asio::ssl::context createClientSSLContext(NodeNum destination);
-
-  // Callbacks triggered by asio to verify certificates. These callbacks are registered in the
-  // create<Server|Client>SSLContext functions.
-  bool verifyCertificateServer(bool preverified, boost::asio::ssl::verify_context &ctx, size_t accepted_connection_id);
-  bool verifyCertificateClient(bool preverified, boost::asio::ssl::verify_context &ctx, NodeNum destination);
-
   // Trigger the asio async_hanshake calls.
   void startServerSSLHandshake(boost::asio::ip::tcp::socket &&);
   void startClientSSLHandshake(boost::asio::ip::tcp::socket &&socket, NodeNum destination);
@@ -120,10 +109,6 @@ class TlsTCPCommunication::TlsTcpImpl {
   // `connections_`.
   void onConnectionAuthenticated(std::shared_ptr<AsyncTlsConnection> conn);
 
-  // When a certificate is validated on an accepted connection, this function is called in order to
-  // save the learned NodeNum from the certificate so this replica knows who it is connected to.
-  void setVerifiedPeerId(size_t accepted_connection_id, NodeNum peer_id);
-
   // Synchronously close connections
   // This is only used during shutdown after the io_service is stopped.
   void syncCloseConnection(std::shared_ptr<AsyncTlsConnection> &conn);
@@ -131,16 +116,6 @@ class TlsTCPCommunication::TlsTcpImpl {
   // Asynchronously shutdown an SSL connection and then close the underlying TCP socket when the shutdown has completed.
   void closeConnection(NodeNum);
   void closeConnection(std::shared_ptr<AsyncTlsConnection> conn);
-
-  // Certificate pinning
-  //
-  // Check for a specific certificate and do not rely on the chain authentication.
-  //
-  // Return true along with the actual node id if verification succeeds, (false, 0) if not.
-  std::pair<bool, NodeNum> checkCertificate(X509 *cert,
-                                            std::string connectionType,
-                                            std::string subject,
-                                            std::optional<NodeNum> expected_peer_id);
 
   bool isReplica() { return config_.selfId <= static_cast<size_t>(config_.maxServerId); }
 
