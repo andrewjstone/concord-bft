@@ -61,6 +61,7 @@ void AsyncTlsConnection::readMsg() {
                                                << error_code.message());
         return dispose();
       }
+
       // The Read succeeded.
       boost::system::error_code _;
       read_timer_.cancel(_);
@@ -130,10 +131,17 @@ void AsyncTlsConnection::send(std::vector<char>&& raw_msg) {
   }
 }
 
+// Invariant:  `write_lock_` is held when this function is called
 void AsyncTlsConnection::write() {
-  std::lock_guard<std::mutex> guard(write_lock_);
   while (!out_queue_.empty() &&
-         out_queue_.front().send_time + STALE_MESSAGE_TIMEOUT > std::chrono::steady_clock::now()) {
+         out_queue_.front().send_time + STALE_MESSAGE_TIMEOUT < std::chrono::steady_clock::now()) {
+    auto diff = std::chrono::steady_clock::now() - out_queue_.front().send_time;
+    LOG_WARN(logger_,
+             "Message queued for peer " << peer_id_.value() << " for "
+                                        << std::chrono::duration_cast<std::chrono::seconds>(diff).count()
+                                        << " seconds, with size: " << out_queue_.front().msg.size()
+                                        << " dropped. Message is stale: Exceeded threshold of "
+                                        << STALE_MESSAGE_TIMEOUT.count() << " seconds.");
     out_queue_.pop_front();
   }
   if (out_queue_.empty()) {
@@ -156,7 +164,11 @@ void AsyncTlsConnection::write() {
         }
         // The write succeeded.
         write_timer_.cancel();
-        write();
+        std::lock_guard<std::mutex> guard(write_lock_);
+        out_queue_.pop_front();
+        if (!out_queue_.empty()) {
+          write();
+        }
       });
 }
 
@@ -341,9 +353,8 @@ std::pair<bool, NodeNum> AsyncTlsConnection::checkCertificate(X509* receivedCert
   X509_free(localCert);
   fclose(fp);
   if (res == 0) {
-    LOG_INFO(logger_,
-             "Connection authenticated at node: " << tlsTcpImpl_.config_.selfId << ", type: " << connectionType
-                                                  << ", peer: " << remotePeerId);
+    // We don't put a log message here, because it will be called for each cert in the chain, resulting in duplicates.
+    // Instead we log in onXXXHandshakeComplete callbacks it TlsTcpImpl.
     return std::make_pair(true, remotePeerId);
   }
   LOG_ERROR(logger_,

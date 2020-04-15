@@ -115,7 +115,9 @@ void TlsTCPCommunication::TlsTcpImpl::sendAsyncMessage(const NodeNum destination
   std::lock_guard<std::mutex> lock(connectionsGuard_);
   auto temp = connections_.find(destination);
   if (temp != connections_.end()) {
-    std::vector<char> owned(msg, msg + len);
+    std::vector<char> owned(len + AsyncTlsConnection::MSG_HEADER_SIZE);
+    std::memcpy(owned.data(), &len, AsyncTlsConnection::MSG_HEADER_SIZE);
+    std::memcpy(owned.data() + AsyncTlsConnection::MSG_HEADER_SIZE, msg, len);
     temp->second->send(std::move(owned));
   } else {
     LOG_DEBUG(logger_, "Connection NOT found, from: " << config_.selfId << ", to: " << destination);
@@ -170,6 +172,7 @@ void TlsTCPCommunication::TlsTcpImpl::onServerHandshakeComplete(const boost::sys
     LOG_ERROR(logger_, "Server handshake failed for peer " << peer_str << ": " << ec.message());
     return closeConnection(std::move(conn));
   }
+  LOG_INFO(logger_, "Server handshake succeeded for peer " << conn->getPeerId().value());
   onConnectionAuthenticated(std::move(conn));
 }
 
@@ -181,6 +184,7 @@ void TlsTCPCommunication::TlsTcpImpl::onClientHandshakeComplete(const boost::sys
     LOG_ERROR(logger_, "Client handshake failed for peer " << conn->getPeerId().value() << ": " << ec.message());
     return closeConnection(std::move(conn));
   }
+  LOG_INFO(logger_, "Client handshake succeeded for peer " << conn->getPeerId().value());
   onConnectionAuthenticated(std::move(conn));
 }
 
