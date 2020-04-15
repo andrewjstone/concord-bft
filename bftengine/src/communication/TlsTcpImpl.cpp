@@ -150,7 +150,7 @@ void TlsTCPCommunication::TlsTcpImpl::syncCloseConnection(std::shared_ptr<AsyncT
 }
 
 void TlsTCPCommunication::TlsTcpImpl::onConnectionAuthenticated(std::shared_ptr<AsyncTlsConnection> conn) {
-  // Move the connection into the accepted connections map If there is an existing connection
+  // Move the connection into the accepted connections map If. there is an existing connection
   // discard it. In this case it was likely that connecting end of the connection thinks there is
   // something wrong. This is a vector for a denial of service attack on the accepting side. We can
   // track the number of connections from the node and mark it malicious if necessary.

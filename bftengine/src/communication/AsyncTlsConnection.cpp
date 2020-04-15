@@ -61,15 +61,15 @@ void AsyncTlsConnection::readMsg() {
                                                << error_code.message());
         return dispose();
       }
-
-      // The Read succeeded.
-      boost::system::error_code _;
-      read_timer_.cancel(_);
-      receiver_->onNewMessage(peer_id_.value(), read_msg_.data(), read_msg_.size());
-      readMsgSizeHeader();
     }
+
+    // The Read succeeded.
+    boost::system::error_code _ec;
+    read_timer_.cancel(_ec);
+    receiver_->onNewMessage(peer_id_.value(), read_msg_.data(), read_msg_.size());
+    readMsgSizeHeader();
   });
-}
+}  // namespace bftEngine
 
 void AsyncTlsConnection::startReadTimer() {
   auto self = shared_from_this();
