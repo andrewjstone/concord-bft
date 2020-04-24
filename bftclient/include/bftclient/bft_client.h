@@ -16,11 +16,11 @@
 #include <variant>
 #include <vector>
 
-#include "ICommunication.hpp"
+#include "communication/ICommunication.hpp"
 
 using namespace std::chrono_literals;
 
-namespace bftclient {
+namespace bft::client {
 
 // A typesafe replica id.
 struct ReplicaId {
@@ -92,7 +92,8 @@ struct Reply {
 
 class Client {
  public:
-  Client(std::unique_ptr<ICommunication> comm, Config config) : communication_(std::move(comm)), config_(config) {}
+  Client(std::unique_ptr<bft::communication::ICommunication> comm, ClientConfig config)
+      : communication_(std::move(comm)), config_(config) {}
 
   // Send a message where the reply gets allocated by the callee and returned in a vector.
   // The message to be sent is moved into the caller to prevent unnecessary copies.
@@ -101,8 +102,8 @@ class Client {
   Reply send(const RequestConfig& config, Request&& request);
 
  private:
-  std::unique_ptr<ICommunication> communication_;
-  Config config_;
+  std::unique_ptr<bft::communication::ICommunication> communication_;
+  ClientConfig config_;
 };
 
-}  // namespace bftclient
+}  // namespace bft::client
