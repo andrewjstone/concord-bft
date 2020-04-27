@@ -126,6 +126,8 @@ add_subdirectory(kvbc)
 add_subdirectory(storage)
 add_subdirectory(scripts)
 add_subdirectory(diagnostics)
+add_subdirectory(bftclient)
+
 #
 # Setup testing
 #

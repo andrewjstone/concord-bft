@@ -9,4 +9,7 @@
 // terms. Your use of these subcomponents is subject to the terms and conditions of the
 // subcomponent's license, as noted in the LICENSE file.
 
+#include "bftclient/bft_client.h"
+#include "bftengine/ClientMsgs.hpp"
+
 namespace bft::client {}
