@@ -12,12 +12,14 @@
 #pragma once
 
 #include <memory>
-#include <variant>
+#include <optional>
+
+#include "communication/ICommunication.hpp"
+#include "Logger.hpp"
 
 #include "bftclient/config.h"
-#include "communication/ICommunication.hpp"
-#include "request.h"
-#include "Logger.hpp"
+#include "matcher.h"
+#include "msg_receiver.h"
 
 using namespace std::chrono_literals;
 
@@ -32,7 +34,8 @@ class Client {
   // The message to be sent is moved into the caller to prevent unnecessary copies.
   //
   // Throws a BftClientException on error.
-  Reply send(const RequestConfig& config, Msg&& request);
+  Reply send(const WriteConfig& config, Msg&& request);
+  Reply send(const ReadConfig& config, Msg&& request);
 
  private:
   std::unique_ptr<bft::communication::ICommunication> communication_;
@@ -40,7 +43,7 @@ class Client {
   concordlogger::Logger logger_ = concordlogger::Log::getLogger("concord.bft.client");
 
   std::optional<uint16_t> primary_;
-  std::optional<Request> outstanding_request_;
+  std::optional<Matcher> outstanding_request_;
 };
 
 }  // namespace bft::client

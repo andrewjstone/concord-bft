@@ -12,4 +12,10 @@
 #include "bftclient/bft_client.h"
 #include "bftengine/ClientMsgs.hpp"
 
-namespace bft::client {}
+namespace bft::client {
+
+Reply send(const WriteConfig& config, Msg&& request) { return Reply{}; }
+
+Reply send(const ReadConfig& config, Msg&& request) { return Reply{}; }
+
+}  // namespace bft::client

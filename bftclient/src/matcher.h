@@ -16,19 +16,10 @@
 #include "bftclient/config.h"
 
 namespace bft::client {
-class Request {
-  Request(const ClientConfig& client_config, const RequestConfig& config, std::optional<uint16_t> primary)
-      : client_config_(client_config), config_(config), primary_(primary), start_(std::chrono::steady_clock::now()) {}
 
-  // A blocking send call.
-  //
-  // Send a message and return a reply for the client caller along with the known primary.
-  //
-  // Throw a BftClientException on error.
-  std::pair<Reply, std::optional<uint16_t>> send(Msg&& msg);
-
+// Match replies for a given quorum.
+class Matcher {
  private:
-  ClientConfig client_config_;
   RequestConfig config_;
 
   std::optional<uint16_t> primary_;

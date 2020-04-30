@@ -1,6 +1,6 @@
 // Concord
 //
-// Copyright (c) 2018-2019 VMware, Inc. All Rights Reserved.
+// Copyright (c) 2020 VMware, Inc. All Rights Reserved.
 //
 // This product is licensed to you under the Apache 2.0 license (the "License"). You may not use this product except in
 // compliance with the Apache 2.0 License.
@@ -61,17 +61,29 @@ struct MofN {
   std::vector<ReplicaId> destination;
 };
 
-typedef std::variant<LinearizableQuorum, ByzantineSafeQuorum, All, MofN> Destination;
+// Reads and writes support different types of quorums.
+typedef std::variant<LinearizableQuorum, ByzantineSafeQuorum, All, MofN> ReadQuorum;
+typedef std::variant<LinearizableQuorum, ByzantineSafeQuorum> WriteQuorum;
 
 enum Flags : uint8_t { EMPTY_FLAGS_REQ = 0x0, READ_ONLY_REQ = 0x1, PRE_PROCESS_REQ = 0x2 };
 
-// The configuration for a single request.
+// Generic per-request configuration shared by reads and writes.
 struct RequestConfig {
-  Flags flags;
+  bool pre_execute;
   uint64_t sequence_number;
   std::chrono::milliseconds timeout = 5s;
   std::string correlation_id = "";
-  Destination destination;
+};
+// The configuration for a single write request.
+struct WriteConfig {
+  RequestConfig request;
+  WriteQuorum quorum;
+};
+
+// The configuration for a single read request.
+struct ReadConfig {
+  RequestConfig request;
+  ReadQuorum quorum;
 };
 
 struct ReplicaSpecificInfo {
