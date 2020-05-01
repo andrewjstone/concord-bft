@@ -52,7 +52,7 @@ void MsgReceiver::onNewMessage(const bft::communication::NodeNum source,
   metadata.primary = ReplicaId{header->currentPrimaryId};
   metadata.seq_num = header->reqSeqNum;
 
-  auto start_of_body = header + sizeof(bftEngine::ClientReplyMsgHeader);
+  auto start_of_body = message + sizeof(bftEngine::ClientReplyMsgHeader);
   auto start_of_rsi = start_of_body + (header->replyLength - header->replicaSpecificInfoLength);
   auto end_of_rsi = start_of_rsi + header->replicaSpecificInfoLength;
 
@@ -67,5 +67,7 @@ void MsgReceiver::onNewMessage(const bft::communication::NodeNum source,
 
   queue_.push(std::move(reply));
 }
+
+std::vector<UnmatchedReply> MsgReceiver::wait(std::chrono::milliseconds timeout) { return queue_.wait(timeout); }
 
 }  // namespace bft::client
