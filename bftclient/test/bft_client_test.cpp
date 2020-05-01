@@ -48,6 +48,64 @@ TEST(msg_receiver_tests, unmatched_replies_returned_no_rsi) {
   ASSERT_EQ(0, replies[0].rsi.data.size());
 }
 
+TEST(msg_receiver_tests, unmatched_replies_with_rsi) {
+  MsgReceiver receiver;
+  std::vector<char> reply(sizeof(bftEngine::ClientReplyMsgHeader) + 20);
+
+  // Fill in the header part of the reply
+  auto* header = reinterpret_cast<bftEngine::ClientReplyMsgHeader*>(reply.data());
+  header->msgType = REPLY_MSG_TYPE;
+  header->currentPrimaryId = 1;
+  header->reqSeqNum = 100;
+  header->replyLength = 20;
+  header->replicaSpecificInfoLength = 5;
+
+  // Handle the message
+  auto source = 1;
+  receiver.onNewMessage(source, reply.data(), reply.size());
+
+  // Wait to see that the message gets properly unpacked and delivered.
+  auto replies = receiver.wait(1ms);
+
+  ASSERT_EQ(1, replies.size());
+  ASSERT_EQ(header->currentPrimaryId, replies[0].metadata.primary.val);
+  ASSERT_EQ(header->reqSeqNum, replies[0].metadata.seq_num);
+  ASSERT_EQ(Msg(header->replyLength - header->replicaSpecificInfoLength), replies[0].data);
+  ASSERT_EQ(1, replies[0].rsi.from.val);
+  ASSERT_EQ(Msg(header->replicaSpecificInfoLength), replies[0].rsi.data);
+}
+
+TEST(msg_receiver_tests, no_replies_small_msg) {
+  MsgReceiver receiver;
+  std::vector<char> reply(sizeof(bftEngine::ClientReplyMsgHeader) - 1);
+
+  // Handle the message
+  auto source = 1;
+  receiver.onNewMessage(source, reply.data(), reply.size());
+
+  // Wait to see that the message gets properly unpacked and delivered.
+  auto replies = receiver.wait(1ms);
+
+  ASSERT_EQ(0, replies.size());
+}
+
+TEST(msg_receiver_tests, no_replies_bad_msg_type) {
+  MsgReceiver receiver;
+  std::vector<char> reply(sizeof(bftEngine::ClientReplyMsgHeader) + 20);
+
+  // Fill in the header part of the reply
+  auto* header = reinterpret_cast<bftEngine::ClientReplyMsgHeader*>(reply.data());
+  header->msgType = REQUEST_MSG_TYPE;
+
+  // Handle the message
+  auto source = 1;
+  receiver.onNewMessage(source, reply.data(), reply.size());
+
+  // Wait to see that the message gets properly unpacked and delivered.
+  auto replies = receiver.wait(1ms);
+  ASSERT_EQ(0, replies.size());
+}
+
 int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
