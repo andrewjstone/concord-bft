@@ -12,6 +12,7 @@
 #pragma once
 
 #include <chrono>
+#include <set>
 #include <string>
 #include <variant>
 #include <vector>
@@ -71,9 +72,11 @@ enum Flags : uint8_t { EMPTY_FLAGS_REQ = 0x0, READ_ONLY_REQ = 0x1, PRE_PROCESS_R
 struct RequestConfig {
   bool pre_execute;
   uint64_t sequence_number;
+  uint32_t max_reply_size;
   std::chrono::milliseconds timeout = 5s;
   std::string correlation_id = "";
 };
+
 // The configuration for a single write request.
 struct WriteConfig {
   RequestConfig request;
@@ -97,7 +100,7 @@ typedef std::vector<char> Msg;
 // `rsi` contains replica specific information that was received for each replying replica.
 struct Reply {
   Msg matched_data;
-  std::vector<ReplicaSpecificInfo> rsi;
+  std::set<ReplicaSpecificInfo> rsi;
 };
 
 }  // namespace bft::client
