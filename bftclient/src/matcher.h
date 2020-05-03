@@ -30,6 +30,18 @@ struct MatchConfig {
 struct MatchKey {
   ReplyMetadata metadata;
   Msg data;
+
+  bool operator==(const MatchKey& other) const { return metadata == other.metadata && data == other.data; }
+  bool operator!=(const MatchKey& other) const { return !(*this == other); }
+  bool operator<(const MatchKey& other) const {
+    if (metadata < other.metadata) {
+      return true;
+    }
+    if (metadata == other.metadata && data < other.data) {
+      return true;
+    }
+    return false;
+  }
 };
 
 // A successful match
@@ -58,7 +70,15 @@ class Matcher {
   MatchConfig config_;
   std::optional<uint16_t> primary_;
 
-  std::map<MatchKey, std::set<ReplicaSpecificInfo>> matches_;
+  // A map from a MatchKey to ReplicaSpecificInfo
+  //
+  // We store it as a nested map so that in case a replica returns different ReplicaSpecificInfo.data, we don't count it
+  // as 2 replies.
+  //
+  // In case this occurs, the replica is buggy or malicious, and we should log it and reject any replies from that
+  // replica. In the future we can keep track of this across future requests, but for now, we just log it and worry
+  // about it for the current match.
+  std::map<MatchKey, std::map<ReplicaId, Msg>> matches_;
 };
 
-};  // namespace bft::client
+}  // namespace bft::client

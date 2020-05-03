@@ -23,6 +23,18 @@ namespace bft::client {
 struct ReplyMetadata {
   ReplicaId primary;
   uint64_t seq_num;
+
+  bool operator==(const ReplyMetadata& other) const { return primary == other.primary && seq_num == other.seq_num; }
+  bool operator!=(const ReplyMetadata& other) const { return !(*this == other); }
+  bool operator<(const ReplyMetadata& other) const {
+    if (primary < other.primary) {
+      return true;
+    }
+    if (primary == other.primary && seq_num < other.seq_num) {
+      return true;
+    }
+    return false;
+  }
 };
 
 // A Reply that has been received, but not yet matched.

@@ -21,14 +21,21 @@ std::optional<Match> Matcher::onReply(UnmatchedReply&& reply) {
   if (!valid(reply)) return std::nullopt;
 
   auto key = MatchKey{std::move(reply.metadata), std::move(reply.data)};
-  matches_[key].insert(std::move(reply.rsi));
+  const auto [it, success] = matches_[key].insert({reply.rsi.from, std::move(reply.rsi.data)});
+  if (!success) {
+    LOG_ERROR(logger,
+              "Received two different pieces of replica specific information from: "
+                  << reply.rsi.from.val << ". Replica may be malicious: discarding both replies.");
+    matches_[key].erase(it);
+  }
 
   return match();
 }
 
 std::optional<Match> Matcher::match() {
-  auto result = std::find_if(
-      matches_.begin(), matches_.end(), [this](const auto& match) { match.second.size() == config_.quorum.wait_for; });
+  auto result = std::find_if(matches_.begin(), matches_.end(), [this](const auto& match) {
+    return match.second.size() == config_.quorum.wait_for;
+  });
   if (result == matches_.end()) return std::nullopt;
   return Match{Reply{std::move(result->first.data), std::move(result->second)}, result->first.metadata.primary.val};
 }

@@ -12,7 +12,7 @@
 #pragma once
 
 #include <chrono>
-#include <set>
+#include <map>
 #include <string>
 #include <variant>
 #include <vector>
@@ -24,6 +24,10 @@ namespace bft::client {
 // A typesafe replica id.
 struct ReplicaId {
   uint16_t val;
+
+  bool operator==(const ReplicaId& other) const { return val == other.val; }
+  bool operator!=(const ReplicaId& other) const { return val != other.val; }
+  bool operator<(const ReplicaId& other) const { return val < other.val; }
 };
 
 // The configuration for a single instance of a client.
@@ -100,7 +104,7 @@ typedef std::vector<char> Msg;
 // `rsi` contains replica specific information that was received for each replying replica.
 struct Reply {
   Msg matched_data;
-  std::set<ReplicaSpecificInfo> rsi;
+  std::map<ReplicaId, Msg> rsi;
 };
 
 }  // namespace bft::client
