@@ -47,7 +47,7 @@ struct MatchKey {
 // A successful match
 struct Match {
   Reply reply;
-  std::optional<uint16_t> primary;
+  std::optional<ReplicaId> primary;
 };
 
 // Match replies for a given quorum.

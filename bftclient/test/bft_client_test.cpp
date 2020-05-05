@@ -106,17 +106,126 @@ TEST(msg_receiver_tests, no_replies_bad_msg_type) {
   ASSERT_EQ(0, replies.size());
 }
 
+std::vector<ReplicaId> destinations(uint16_t n) {
+  std::vector<ReplicaId> replicas;
+  for (uint16_t i = 0; i < n; i++) {
+    replicas.push_back(ReplicaId{i});
+  }
+  return replicas;
+}
+
+std::vector<ReplicaSpecificInfo> create_rsi(uint16_t n) {
+  std::vector<ReplicaSpecificInfo> rsi;
+  for (uint16_t i = 0; i < n; i++) {
+    rsi.push_back(ReplicaSpecificInfo{ReplicaId{i}, {(char)i}});
+  }
+  return rsi;
+}
+
+std::vector<UnmatchedReply> unmatched_replies(uint16_t n,
+                                              ReplyMetadata metadata,
+                                              const Msg& msg,
+                                              const std::vector<ReplicaSpecificInfo>& rsi) {
+  assert(n <= rsi.size());
+  std::vector<UnmatchedReply> replies;
+  for (uint16_t i = 0; i < n; i++) {
+    replies.emplace_back(UnmatchedReply{metadata, msg, rsi[i]});
+  }
+  return replies;
+}
+
 TEST(matcher_tests, wait_for_1_out_of_1) {
   ReplicaId source{1};
   uint64_t seq_num = 5;
   MatchConfig config{MofN{1, {source}}, seq_num};
   Matcher matcher(config);
 
+  std::vector<char> msg = {'h', 'e', 'l', 'l', 'o'};
+  auto rsi = ReplicaSpecificInfo{source, {'r', 's', 'i'}};
+
   ReplicaId primary{1};
-  UnmatchedReply reply{
-      ReplyMetadata{primary, seq_num}, {'h', 'e', 'l', 'l', 'o'}, ReplicaSpecificInfo{source, {'r', 's', 'i'}}};
+  UnmatchedReply reply{ReplyMetadata{primary, seq_num}, msg, rsi};
   auto match = matcher.onReply(std::move(reply));
   ASSERT_TRUE(match.has_value());
+  ASSERT_EQ(match.value().reply.matched_data, msg);
+  ASSERT_EQ(match.value().reply.rsi[source], rsi.data);
+  ASSERT_EQ(match.value().primary.value(), primary);
+}
+
+TEST(matcher_tests, wait_for_3_out_of_4) {
+  uint64_t seq_num = 5;
+  auto sources = destinations(4);
+  MatchConfig config{MofN{3, sources}, seq_num};
+  Matcher matcher(config);
+  ReplicaId primary{1};
+  std::vector<char> msg = {'h', 'e', 'l', 'l', 'o'};
+  auto unmatched = unmatched_replies(4, ReplyMetadata{primary, seq_num}, msg, create_rsi(4));
+
+  // The first two replies don't have quorum. So we get back a nullopt;
+  ASSERT_EQ(std::nullopt, matcher.onReply(std::move(unmatched[0])));
+  ASSERT_EQ(std::nullopt, matcher.onReply(std::move(unmatched[1])));
+
+  // The third matching reply should trigger success
+  auto match = matcher.onReply(std::move(unmatched[2]));
+  ASSERT_TRUE(match.has_value());
+  ASSERT_EQ(match.value().reply.matched_data, msg);
+  ASSERT_EQ(match.value().primary.value(), primary);
+  ASSERT_EQ(3, match.value().reply.rsi.size());
+  for (auto i = 0u; i < match.value().reply.rsi.size(); i++) {
+    const auto& rsi_data = match.value().reply.rsi[ReplicaId{(uint16_t)i}];
+    std::vector<char> expected{(char)i};
+    ASSERT_EQ(expected, rsi_data);
+  }
+}
+
+TEST(matcher_tests, wait_for_3_out_of_4_with_mismatches_and_dupes) {
+  uint64_t seq_num = 5;
+  auto sources = destinations(4);
+  MatchConfig config{MofN{3, sources}, seq_num};
+  Matcher matcher(config);
+  ReplicaId primary{1};
+  std::vector<char> msg = {'h', 'e', 'l', 'l', 'o'};
+  auto unmatched = unmatched_replies(4, ReplyMetadata{primary, seq_num}, msg, create_rsi(4));
+
+  auto dup = unmatched[1];
+
+  auto diff_rsi = dup;
+  diff_rsi.rsi.data = {'x'};
+
+  auto bad_seq_num = dup;
+  bad_seq_num.metadata.seq_num = 4;
+
+  auto non_matching_data = unmatched[3];
+  non_matching_data.data.push_back('x');
+
+  // The first two replies don't have quorum. So we get back a nullopt;
+  ASSERT_EQ(std::nullopt, matcher.onReply(std::move(unmatched[0])));
+  ASSERT_EQ(std::nullopt, matcher.onReply(std::move(unmatched[1])));
+
+  // Inserting a duplicate of the last message doesn't trigger quorum.
+  ASSERT_EQ(std::nullopt, matcher.onReply(std::move(dup)));
+
+  // Inserting the same message but with different rsi doesn't trigger quorum (it gets discarded).
+  ASSERT_EQ(std::nullopt, matcher.onReply(std::move(diff_rsi)));
+
+  // Inserting the same message but with diff sequence number doesn't trigger quorum
+  ASSERT_EQ(std::nullopt, matcher.onReply(std::move(bad_seq_num)));
+
+  // Inserting a message from a new replica, but where the data doesn't match doesn't trigger quorum
+  ASSERT_EQ(std::nullopt, matcher.onReply(std::move(non_matching_data)));
+
+  // Finally, inserting a 3rd match triggers success
+  auto match = matcher.onReply(std::move(unmatched[2]));
+  ASSERT_TRUE(match.has_value());
+  ASSERT_EQ(match.value().reply.matched_data, msg);
+  ASSERT_EQ(match.value().primary.value(), primary);
+  ASSERT_EQ(3, match.value().reply.rsi.size());
+  for (auto i = 0u; i < match.value().reply.rsi.size(); i++) {
+    const auto& rsi_data = match.value().reply.rsi[ReplicaId{(uint16_t)i}];
+    std::vector<char> expected{(char)i};
+    // Note that the original rsi exists, and not the `diff_rsi` for the 2nd insert.
+    ASSERT_EQ(expected, rsi_data);
+  }
 }
 
 int main(int argc, char* argv[]) {

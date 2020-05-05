@@ -24,9 +24,9 @@ std::optional<Match> Matcher::onReply(UnmatchedReply&& reply) {
   const auto [it, success] = matches_[key].insert({reply.rsi.from, std::move(reply.rsi.data)});
   if (!success) {
     LOG_ERROR(logger,
-              "Received two different pieces of replica specific information from: "
-                  << reply.rsi.from.val << ". Replica may be malicious: discarding both replies.");
-    matches_[key].erase(it);
+              "Received two different pieces of replica specific information from: " << reply.rsi.from.val
+                                                                                     << ". Keeping the first one.");
+    return std::nullopt;
   }
 
   return match();
@@ -37,7 +37,7 @@ std::optional<Match> Matcher::match() {
     return match.second.size() == config_.quorum.wait_for;
   });
   if (result == matches_.end()) return std::nullopt;
-  return Match{Reply{std::move(result->first.data), std::move(result->second)}, result->first.metadata.primary.val};
+  return Match{Reply{std::move(result->first.data), std::move(result->second)}, result->first.metadata.primary};
 }
 
 bool Matcher::valid(const UnmatchedReply& reply) {
