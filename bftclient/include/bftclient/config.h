@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <map>
+#include <set>
 #include <string>
 #include <variant>
 #include <vector>
@@ -33,6 +34,7 @@ struct ReplicaId {
 // The configuration for a single instance of a client.
 struct ClientConfig {
   ReplicaId id;
+  std::set<ReplicaId> all_replicas;
   uint16_t f_val;
   uint16_t c_val;
   std::chrono::milliseconds initial_retry_timeout = 150ms;
@@ -46,24 +48,24 @@ struct ClientConfig {
 // A quorum of 2F + C + 1 matching replies from `destination` must be received for the `send` call
 // to complete.
 struct LinearizableQuorum {
-  std::vector<ReplicaId> destination;
+  std::set<ReplicaId> destinations;
 };
 
 // A quorum of F + 1 matching replies from `destination` must be received for the `send` call to complete.
 struct ByzantineSafeQuorum {
-  std::vector<ReplicaId> destination;
+  std::set<ReplicaId> destinations;
 };
 
 // A matching reply from every replica in `destination` must be received for the `send` call to complete.
 struct All {
-  std::vector<ReplicaId> destination;
+  std::set<ReplicaId> destinations;
 };
 
 // A matching reply from `wait_for` number of replicas from `destination` must be received for the
 // `send` call to complete.
 struct MofN {
   size_t wait_for;
-  std::vector<ReplicaId> destination;
+  std::set<ReplicaId> destinations;
 };
 
 // Reads and writes support different types of quorums.

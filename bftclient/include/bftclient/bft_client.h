@@ -20,6 +20,7 @@
 #include "bftclient/config.h"
 #include "matcher.h"
 #include "msg_receiver.h"
+#include "exception.h"
 
 using namespace std::chrono_literals;
 
@@ -38,6 +39,25 @@ class Client {
   Reply send(const ReadConfig& config, Msg&& request);
 
  private:
+  // Extract matcher configurations from operational configurations
+  //
+  // Throws BftClientException on error.
+  MatchConfig WriteConfigToMatchConfig(const WriteConfig&);
+  MatchConfig ReadConfigToMatchConfig(const ReadConfig&);
+
+  // Ensure that each replica in `destination` is part of `all_replicas`
+  //
+  // Throws an InvalidDestinationException if validation vails
+  void ValidateDestinations(const std::set<ReplicaId>& destinations);
+
+  // Convert Quorums to a compatible MofN quorum for use by the matcher.
+  // This conversion handles quorum validation.
+  //
+  // Throws BftClientException on error.
+  MofN QuorumToMofN(const LinearizableQuorum& quorum);
+  MofN QuorumToMofN(const ByzantineSafeQuorum& quorum);
+  MofN QuorumToMofN(const All& quorum);
+
   std::unique_ptr<bft::communication::ICommunication> communication_;
   ClientConfig config_;
   concordlogger::Logger logger_ = concordlogger::Log::getLogger("concord.bft.client");
