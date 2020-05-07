@@ -28,8 +28,10 @@ namespace bft::client {
 
 class Client {
  public:
-  Client(std::unique_ptr<bft::communication::ICommunication> comm, ClientConfig config)
-      : communication_(std::move(comm)), config_(config) {}
+  Client(std::unique_ptr<bft::communication::ICommunication> comm, const ClientConfig& config)
+      : communication_(std::move(comm)),
+        config_(config),
+        quorum_converter_(config_.all_replicas, config_.f_val, config_.c_val) {}
 
   // Send a message where the reply gets allocated by the callee and returned in a vector.
   // The message to be sent is moved into the caller to prevent unnecessary copies.
@@ -39,24 +41,11 @@ class Client {
   Reply send(const ReadConfig& config, Msg&& request);
 
  private:
-  // Extract matcher configurations from operational configurations
+  // Extract a matcher configurations from operational configurations
   //
   // Throws BftClientException on error.
   MatchConfig WriteConfigToMatchConfig(const WriteConfig&);
   MatchConfig ReadConfigToMatchConfig(const ReadConfig&);
-
-  // Ensure that each replica in `destination` is part of `all_replicas`
-  //
-  // Throws an InvalidDestinationException if validation vails
-  void ValidateDestinations(const std::set<ReplicaId>& destinations);
-
-  // Convert Quorums to a compatible MofN quorum for use by the matcher.
-  // This conversion handles quorum validation.
-  //
-  // Throws BftClientException on error.
-  MofN QuorumToMofN(const LinearizableQuorum& quorum);
-  MofN QuorumToMofN(const ByzantineSafeQuorum& quorum);
-  MofN QuorumToMofN(const All& quorum);
 
   std::unique_ptr<bft::communication::ICommunication> communication_;
   ClientConfig config_;
@@ -64,6 +53,8 @@ class Client {
 
   std::optional<uint16_t> primary_;
   std::optional<Matcher> outstanding_request_;
+
+  QuorumConverter quorum_converter_;
 };
 
 }  // namespace bft::client

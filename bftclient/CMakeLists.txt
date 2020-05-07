@@ -4,6 +4,7 @@ add_library(bftclient2 STATIC
   src/bft_client.cpp
   src/msg_receiver.cpp
   src/matcher.cpp
+  src/quorums.cpp
 )
 
 target_include_directories(bftclient2 PUBLIC include)

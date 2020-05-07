@@ -18,18 +18,12 @@
 #include <variant>
 #include <vector>
 
+#include "bftclient/base_types.h"
+#include "bftclient/quorums.h"
+
 using namespace std::chrono_literals;
 
 namespace bft::client {
-
-// A typesafe replica id.
-struct ReplicaId {
-  uint16_t val;
-
-  bool operator==(const ReplicaId& other) const { return val == other.val; }
-  bool operator!=(const ReplicaId& other) const { return val != other.val; }
-  bool operator<(const ReplicaId& other) const { return val < other.val; }
-};
 
 // The configuration for a single instance of a client.
 struct ClientConfig {
@@ -44,35 +38,6 @@ struct ClientConfig {
   size_t sent_to_all_replicas_period_threshold = 2;
   size_t periodic_reset_threshold = 30;
 };
-
-// A quorum of 2F + C + 1 matching replies from `destination` must be received for the `send` call
-// to complete.
-struct LinearizableQuorum {
-  std::set<ReplicaId> destinations;
-};
-
-// A quorum of F + 1 matching replies from `destination` must be received for the `send` call to complete.
-struct ByzantineSafeQuorum {
-  std::set<ReplicaId> destinations;
-};
-
-// A matching reply from every replica in `destination` must be received for the `send` call to complete.
-struct All {
-  std::set<ReplicaId> destinations;
-};
-
-// A matching reply from `wait_for` number of replicas from `destination` must be received for the
-// `send` call to complete.
-struct MofN {
-  size_t wait_for;
-  std::set<ReplicaId> destinations;
-};
-
-// Reads and writes support different types of quorums.
-typedef std::variant<LinearizableQuorum, ByzantineSafeQuorum, All, MofN> ReadQuorum;
-typedef std::variant<LinearizableQuorum, ByzantineSafeQuorum> WriteQuorum;
-
-enum Flags : uint8_t { EMPTY_FLAGS_REQ = 0x0, READ_ONLY_REQ = 0x1, PRE_PROCESS_REQ = 0x2 };
 
 // Generic per-request configuration shared by reads and writes.
 struct RequestConfig {
@@ -93,20 +58,6 @@ struct WriteConfig {
 struct ReadConfig {
   RequestConfig request;
   ReadQuorum quorum;
-};
-
-struct ReplicaSpecificInfo {
-  ReplicaId from;
-  std::vector<char> data;
-};
-
-typedef std::vector<char> Msg;
-
-// `matched_data` contains any data that must be identical for a quorum of replicas
-// `rsi` contains replica specific information that was received for each replying replica.
-struct Reply {
-  Msg matched_data;
-  std::map<ReplicaId, Msg> rsi;
 };
 
 }  // namespace bft::client

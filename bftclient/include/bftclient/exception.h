@@ -39,6 +39,8 @@ class InvalidDestinationException : public BftClientException {
  public:
   InvalidDestinationException(ReplicaId replica_id)
       : BftClientException("Replica: " + std::to_string(replica_id.val) + " is not part of the cluster.") {}
+
+  InvalidDestinationException() : BftClientException("MofN quorums must have destinations") {}
 };
 
 }  // namespace bft::client

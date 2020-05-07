@@ -57,7 +57,7 @@ bool Matcher::valid(const UnmatchedReply& reply) {
 }
 
 bool Matcher::valid_source(const ReplicaId source) {
-  const auto& valid_sources = config_.quorum.destination;
+  const auto& valid_sources = config_.quorum.destinations;
   return std::find(valid_sources.begin(), valid_sources.end(), source) != valid_sources.end();
 }
 

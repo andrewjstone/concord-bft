@@ -106,10 +106,10 @@ TEST(msg_receiver_tests, no_replies_bad_msg_type) {
   ASSERT_EQ(0, replies.size());
 }
 
-std::vector<ReplicaId> destinations(uint16_t n) {
-  std::vector<ReplicaId> replicas;
+std::set<ReplicaId> destinations(uint16_t n) {
+  std::set<ReplicaId> replicas;
   for (uint16_t i = 0; i < n; i++) {
-    replicas.push_back(ReplicaId{i});
+    replicas.insert(ReplicaId{i});
   }
   return replicas;
 }
@@ -225,6 +225,40 @@ TEST(matcher_tests, wait_for_3_out_of_4_with_mismatches_and_dupes) {
     std::vector<char> expected{(char)i};
     // Note that the original rsi exists, and not the `diff_rsi` for the 2nd insert.
     ASSERT_EQ(expected, rsi_data);
+  }
+}
+
+TEST(quorum_tests, valid_quorums_without_destinations) {
+  auto all_replicas = destinations(4);
+  uint16_t f_val = 1;
+  uint16_t c_val = 0;
+
+  QuorumConverter qc(all_replicas, f_val, c_val);
+
+  // Quorums without destinations should always work, unless they are MofN.
+  {
+    auto quorum = LinearizableQuorum{};
+    auto output = qc.ToMofN(quorum);
+    ASSERT_EQ(3, output.wait_for);
+    ASSERT_EQ(all_replicas, output.destinations);
+  }
+  {
+    auto quorum = ByzantineSafeQuorum{};
+    auto output = qc.ToMofN(quorum);
+    ASSERT_EQ(2, output.wait_for);
+    ASSERT_EQ(all_replicas, output.destinations);
+  }
+  {
+    auto quorum = All{};
+    auto output = qc.ToMofN(quorum);
+    ASSERT_EQ(4, output.wait_for);
+    ASSERT_EQ(all_replicas, output.destinations);
+  }
+
+  // MofN Quorums must have destinations
+  {
+    auto quorum = MofN{};
+    ASSERT_THROW(qc.ToMofN(quorum), InvalidDestinationException);
   }
 }
 
