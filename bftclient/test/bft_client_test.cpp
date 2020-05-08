@@ -262,6 +262,92 @@ TEST(quorum_tests, valid_quorums_without_destinations) {
   }
 }
 
+TEST(quorum_tests, valid_quorums_with_destinations) {
+  auto all_replicas = destinations(4);
+  uint16_t f_val = 1;
+  uint16_t c_val = 0;
+
+  QuorumConverter qc(all_replicas, f_val, c_val);
+
+  {
+    auto quorum = LinearizableQuorum{destinations(3)};
+    auto output = qc.ToMofN(quorum);
+    ASSERT_EQ(3, output.wait_for);
+    ASSERT_EQ(destinations(3), output.destinations);
+  }
+  {
+    auto quorum = ByzantineSafeQuorum{destinations(2)};
+    auto output = qc.ToMofN(quorum);
+    ASSERT_EQ(2, output.wait_for);
+    ASSERT_EQ(destinations(2), output.destinations);
+  }
+  {
+    auto quorum = All{destinations(1)};
+    auto output = qc.ToMofN(quorum);
+    ASSERT_EQ(1, output.wait_for);
+    ASSERT_EQ(destinations(1), output.destinations);
+  }
+
+  {
+    auto quorum = MofN{2, destinations(3)};
+    auto output = qc.ToMofN(quorum);
+    ASSERT_EQ(2, output.wait_for);
+    ASSERT_EQ(destinations(3), output.destinations);
+  }
+}
+
+TEST(quorum_tests, invalid_destinations) {
+  auto all_replicas = destinations(4);
+  uint16_t f_val = 1;
+  uint16_t c_val = 0;
+
+  QuorumConverter qc(all_replicas, f_val, c_val);
+
+  auto invalid_replicas = destinations(2);
+  invalid_replicas.insert(ReplicaId{7});
+  {
+    auto quorum = LinearizableQuorum{invalid_replicas};
+    ASSERT_THROW(qc.ToMofN(quorum), InvalidDestinationException);
+  }
+  {
+    auto quorum = ByzantineSafeQuorum{invalid_replicas};
+    ASSERT_THROW(qc.ToMofN(quorum), InvalidDestinationException);
+  }
+  {
+    auto quorum = All{invalid_replicas};
+    ASSERT_THROW(qc.ToMofN(quorum), InvalidDestinationException);
+  }
+  {
+    auto quorum = MofN{1, invalid_replicas};
+    ASSERT_THROW(qc.ToMofN(quorum), InvalidDestinationException);
+  }
+}
+
+TEST(quorum_tests, bad_quorum_configs) {
+  auto all_replicas = destinations(4);
+  uint16_t f_val = 1;
+  uint16_t c_val = 0;
+
+  QuorumConverter qc(all_replicas, f_val, c_val);
+
+  {
+    // Destinations is less than 2F + C + 1
+    auto quorum = LinearizableQuorum{destinations(2)};
+    ASSERT_THROW(qc.ToMofN(quorum), BadQuorumConfigException);
+  }
+  {
+    // Destinations is less than F + 1
+    auto quorum = ByzantineSafeQuorum{destinations(1)};
+    ASSERT_THROW(qc.ToMofN(quorum), BadQuorumConfigException);
+  }
+  {
+    // wait_for > destinations.size()
+    auto wait_for = 3u;
+    auto quorum = MofN{wait_for, destinations(1)};
+    ASSERT_THROW(qc.ToMofN(quorum), BadQuorumConfigException);
+  }
+}
+
 int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

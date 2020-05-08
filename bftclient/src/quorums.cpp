@@ -67,6 +67,10 @@ MofN QuorumConverter::ToMofN(const All& quorum) const {
 }
 
 MofN QuorumConverter::ToMofN(const MofN& quorum) const {
+  if (quorum.wait_for > quorum.destinations.size()) {
+    throw BadQuorumConfigException("Invalid MofN config: wait_for: " + std::to_string(quorum.wait_for) +
+                                   " > destinations.size(): " + std::to_string(quorum.destinations.size()));
+  }
   ValidateDestinations(quorum.destinations);
   return quorum;
 }
