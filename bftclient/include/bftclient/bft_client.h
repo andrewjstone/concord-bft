@@ -16,6 +16,7 @@
 
 #include "communication/ICommunication.hpp"
 #include "Logger.hpp"
+#include "DynamicUpperLimitWithSimpleFilter.hpp"
 
 #include "bftclient/config.h"
 #include "matcher.h"
@@ -37,8 +38,8 @@ class Client {
   // The message to be sent is moved into the caller to prevent unnecessary copies.
   //
   // Throws a BftClientException on error.
-  Reply send(const WriteConfig& config, Msg&& request);
-  Reply send(const ReadConfig& config, Msg&& request);
+  Reply Send(const WriteConfig& config, Msg&& request);
+  Reply Send(const ReadConfig& config, Msg&& request);
 
  private:
   // Extract a matcher configurations from operational configurations
@@ -49,12 +50,20 @@ class Client {
 
   std::unique_ptr<bft::communication::ICommunication> communication_;
   ClientConfig config_;
-  concordlogger::Logger logger_ = concordlogger::Log::getLogger("concord.bft.client");
+  concordlogger::Logger logger_ = concordlogger::Log::getLogger("bftclient");
 
+  // The client doesn't always know the current primary.
   std::optional<uint16_t> primary_;
+
+  // Each outstanding request matches replies using a new matcher.
+  // If there are no outstanding requests, then this is a nullopt;
   std::optional<Matcher> outstanding_request_;
 
+  // A class that takes all Quorum types and converts them to an MofN quorum, with validation.
   QuorumConverter quorum_converter_;
+
+  // A utility for calculating dynamic timeouts for replies
+  DynamicUpperLimitWithSimpleFilter<uint64_t> limitOfExpectedOperationTime_;
 };
 
 }  // namespace bft::client

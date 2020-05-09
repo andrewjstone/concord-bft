@@ -25,18 +25,43 @@ using namespace std::chrono_literals;
 
 namespace bft::client {
 
+// This config is based on the parameters to the DynamicUpperLimitWithSimpleFilter.
+// The defaults are set to the original defaults in original SimpleClientImp.
+struct RetryTimeoutConfig {
+  // The starting retry timeout before we have any calculations.
+  std::chrono::milliseconds initial_retry_timeout = 150ms;
+
+  // The minimum that the timeout can be set to dynamically..
+  std::chrono::milliseconds min_retry_timeout = 50ms;
+
+  // The maximum that the timeout can be set to dynamically.
+  std::chrono::milliseconds max_retry_timeout = 1s;
+
+  // The number of standard deviations within the average that we expect reply times to fall into.
+  uint16_t number_of_standard_deviations_to_tolerate = 2;
+
+  // The number of replies we sample before we attempt to recalculate the rolling average and variance.
+  uint16_t samples_per_evaluation = 32;
+
+  // The scaling factor at which the timeout can be increased. A factor of 2 means that the upper
+  // limit can be doubled on each evaluation period.
+  double max_increasing_factor = 2;
+
+  // The scaling factor at which the timeout can be decreased. A factor of 2 means that the upper
+  // limit can be halved on each evaluation period.
+  double max_decreasing_factor = 2;
+};
+
 // The configuration for a single instance of a client.
 struct ClientConfig {
   ReplicaId id;
   std::set<ReplicaId> all_replicas;
   uint16_t f_val;
   uint16_t c_val;
-  std::chrono::milliseconds initial_retry_timeout = 150ms;
-  std::chrono::milliseconds min_retry_timeout = 50ms;
-  std::chrono::milliseconds max_retry_timeout = 1s;
   size_t send_to_all_replicas_first_threshold = 4;
   size_t sent_to_all_replicas_period_threshold = 2;
   size_t periodic_reset_threshold = 30;
+  RetryTimeoutConfig retry_timeout_config;
 };
 
 // Generic per-request configuration shared by reads and writes.
