@@ -21,11 +21,11 @@ std::optional<Match> Matcher::onReply(UnmatchedReply&& reply) {
   if (!valid(reply)) return std::nullopt;
 
   auto key = MatchKey{std::move(reply.metadata), std::move(reply.data)};
-  const auto [it, success] = matches_[key].insert({reply.rsi.from, std::move(reply.rsi.data)});
+  const auto [it, success] = matches_[key].insert_or_assign(reply.rsi.from, std::move(reply.rsi.data));
   if (!success) {
     LOG_ERROR(logger,
               "Received two different pieces of replica specific information from: " << reply.rsi.from.val
-                                                                                     << ". Keeping the first one.");
+                                                                                     << ". Keeping the new one.");
     return std::nullopt;
   }
 
@@ -48,7 +48,7 @@ bool Matcher::valid(const UnmatchedReply& reply) {
     return false;
   }
 
-  if (!valid_source(reply.rsi.from)) {
+  if (!validSource(reply.rsi.from)) {
     LOG_WARN(logger, "Received reply from invalid source: " << reply.rsi.from.val);
     return false;
   }
@@ -56,7 +56,7 @@ bool Matcher::valid(const UnmatchedReply& reply) {
   return true;
 }
 
-bool Matcher::valid_source(const ReplicaId source) {
+bool Matcher::validSource(const ReplicaId source) {
   const auto& valid_sources = config_.quorum.destinations;
   return std::find(valid_sources.begin(), valid_sources.end(), source) != valid_sources.end();
 }

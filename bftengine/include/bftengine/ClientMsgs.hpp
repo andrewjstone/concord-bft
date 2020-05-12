@@ -15,6 +15,7 @@
 
 #define REQUEST_MSG_TYPE (700)
 #define REPLY_MSG_TYPE (800)
+#define PRE_PROCESS_REQUEST_MSG_TYPE (500)
 
 namespace bftEngine {
 

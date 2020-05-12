@@ -43,6 +43,10 @@ struct RetryTimeoutConfig {
   // The number of replies we sample before we attempt to recalculate the rolling average and variance.
   uint16_t samples_per_evaluation = 32;
 
+  // The number of samples before we reset the rolling average and variance to its empty state
+  // A negative number will turn off resets.
+  int16_t samples_until_reset = 1000;
+
   // The scaling factor at which the timeout can be increased. A factor of 2 means that the upper
   // limit can be doubled on each evaluation period.
   double max_increasing_factor = 2;
@@ -58,9 +62,6 @@ struct ClientConfig {
   std::set<ReplicaId> all_replicas;
   uint16_t f_val;
   uint16_t c_val;
-  size_t send_to_all_replicas_first_threshold = 4;
-  size_t sent_to_all_replicas_period_threshold = 2;
-  size_t periodic_reset_threshold = 30;
   RetryTimeoutConfig retry_timeout_config;
 };
 
@@ -68,7 +69,7 @@ struct ClientConfig {
 struct RequestConfig {
   bool pre_execute;
   uint64_t sequence_number;
-  uint32_t max_reply_size;
+  uint32_t max_reply_size = 64 * 1024;
   std::chrono::milliseconds timeout = 5s;
   std::string correlation_id = "";
 };

@@ -57,12 +57,19 @@ class Matcher {
 
   std::optional<Match> onReply(UnmatchedReply&& reply);
 
+  // Return the number of replies from replicas that don't match, excluding RSI. When this number
+  // exceeds a threshold, we may want to clear all replies to free memory, if a request is expected to
+  // go on for a long time.
+  size_t numDifferentReplies() const { return matches_.size(); }
+
+  void clearReplies() { matches_.clear(); }
+
  private:
   // Check the validity of a reply
   bool valid(const UnmatchedReply& reply);
 
   // Is the reply from a source listed in the quorum's destination?
-  bool valid_source(const ReplicaId source);
+  bool validSource(const ReplicaId source);
 
   // Check for a quorum based on config_ and matches_
   std::optional<Match> match();

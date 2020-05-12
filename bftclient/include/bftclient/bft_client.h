@@ -32,7 +32,18 @@ class Client {
   Client(std::unique_ptr<bft::communication::ICommunication> comm, const ClientConfig& config)
       : communication_(std::move(comm)),
         config_(config),
-        quorum_converter_(config_.all_replicas, config_.f_val, config_.c_val) {}
+        quorum_converter_(config_.all_replicas, config_.f_val, config_.c_val),
+        expected_commit_time_ms_(config_.retry_timeout_config.initial_retry_timeout.count(),
+                                 config_.retry_timeout_config.number_of_standard_deviations_to_tolerate,
+                                 config_.retry_timeout_config.max_retry_timeout.count(),
+                                 config_.retry_timeout_config.min_retry_timeout.count(),
+                                 config_.retry_timeout_config.samples_per_evaluation,
+                                 config_.retry_timeout_config.samples_until_reset,
+                                 config_.retry_timeout_config.max_increasing_factor,
+                                 config_.retry_timeout_config.max_decreasing_factor) {
+    communication_->setReceiver(config_.id.val, &receiver_);
+    communication_->Start();
+  }
 
   // Send a message where the reply gets allocated by the callee and returned in a vector.
   // The message to be sent is moved into the caller to prevent unnecessary copies.
@@ -42,18 +53,34 @@ class Client {
   Reply Send(const ReadConfig& config, Msg&& request);
 
  private:
+  // Generic function for sending a read or write message.
+  Reply Send(const MatchConfig& match_config, const RequestConfig& request_config, Msg&& request, bool read_only);
+
+  // Wait for messages until we get a quorum or a retry timeout.
+  //
+  // Return a Reply on quorum, or std::nullopt on timeout.
+  std::optional<Reply> Wait();
+
+  // Send a replica to all destinations in the configured quorum.
+  void SendToGroup(const MatchConfig& config, const Msg& msg);
+
+  // A timeout has occurred. Perform any necessary cleanup.
+  Reply Timeout(const RequestConfig& config);
+
   // Extract a matcher configurations from operational configurations
   //
   // Throws BftClientException on error.
   MatchConfig WriteConfigToMatchConfig(const WriteConfig&);
   MatchConfig ReadConfigToMatchConfig(const ReadConfig&);
 
+  MsgReceiver receiver_;
+
   std::unique_ptr<bft::communication::ICommunication> communication_;
   ClientConfig config_;
   concordlogger::Logger logger_ = concordlogger::Log::getLogger("bftclient");
 
   // The client doesn't always know the current primary.
-  std::optional<uint16_t> primary_;
+  std::optional<ReplicaId> primary_;
 
   // Each outstanding request matches replies using a new matcher.
   // If there are no outstanding requests, then this is a nullopt;
@@ -62,8 +89,8 @@ class Client {
   // A class that takes all Quorum types and converts them to an MofN quorum, with validation.
   QuorumConverter quorum_converter_;
 
-  // A utility for calculating dynamic timeouts for replies
-  DynamicUpperLimitWithSimpleFilter<uint64_t> limitOfExpectedOperationTime_;
+  // A utility for calculating dynamic timeouts for replies.
+  bftEngine::impl::DynamicUpperLimitWithSimpleFilter<uint64_t> expected_commit_time_ms_;
 };
 
 }  // namespace bft::client

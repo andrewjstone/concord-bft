@@ -205,7 +205,7 @@ TEST(matcher_tests, wait_for_3_out_of_4_with_mismatches_and_dupes) {
   // Inserting a duplicate of the last message doesn't trigger quorum.
   ASSERT_EQ(std::nullopt, matcher.onReply(std::move(dup)));
 
-  // Inserting the same message but with different rsi doesn't trigger quorum (it gets discarded).
+  // Inserting the same message but with different rsi doesn't trigger quorum (it overwrites).
   ASSERT_EQ(std::nullopt, matcher.onReply(std::move(diff_rsi)));
 
   // Inserting the same message but with diff sequence number doesn't trigger quorum
@@ -223,8 +223,11 @@ TEST(matcher_tests, wait_for_3_out_of_4_with_mismatches_and_dupes) {
   for (auto i = 0u; i < match.value().reply.rsi.size(); i++) {
     const auto& rsi_data = match.value().reply.rsi[ReplicaId{(uint16_t)i}];
     std::vector<char> expected{(char)i};
-    // Note that the original rsi exists, and not the `diff_rsi` for the 2nd insert.
-    ASSERT_EQ(expected, rsi_data);
+    if (i == 1) {
+      ASSERT_EQ(std::vector<char>{'x'}, rsi_data);
+    } else {
+      ASSERT_EQ(expected, rsi_data);
+    }
   }
 }
 
