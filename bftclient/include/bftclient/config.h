@@ -26,7 +26,7 @@ using namespace std::chrono_literals;
 namespace bft::client {
 
 // This config is based on the parameters to the DynamicUpperLimitWithSimpleFilter.
-// The defaults are set to the original defaults in original SimpleClientImp.
+// The defaults are set to the original defaults in SimpleClientImp.
 struct RetryTimeoutConfig {
   // The starting retry timeout before we have any calculations.
   std::chrono::milliseconds initial_retry_timeout = 150ms;
