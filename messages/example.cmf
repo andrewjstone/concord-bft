@@ -11,8 +11,51 @@ Msg Transaction 2 {
 
 Msg Envelope 3 {
     uint32 version
-    oneof {
+    oneof x {
         Transaction
         NewViewElement
-    } msg
+    }
 }
+
+######
+# Uncomment each message to induce various parse errors
+######
+
+# Duplicate name
+#Msg Envelope 1000 {
+#    string hello
+#}
+
+# Duplicate ID
+#Msg Hello 3 {
+#    string hello
+#}
+
+# ID too large
+#Msg Envelope 9999999999 {
+#    uint32 version
+#    oneof {
+#        Transaction
+#        NewViewElement
+#    } msg
+#}
+
+# Bad message id
+#Msg Hello blah {
+#}
+
+# Missing field name
+#Msg Hello 3 {
+#    string
+#}
+
+# Invalid field type
+#Msg Hello 100 {
+#    blah string
+#}
+
+# Duplicate field names
+#Msg Hello 100 {
+#    string val
+#    uint16 val
+#}
