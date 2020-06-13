@@ -1,16 +1,16 @@
 @@grammar::CMF
 
-start = {msg}+ $ ;
+start = {msg:msg}+ $ ;
 
-msg = 'Msg' name number '{' {field}+ '}' ;
+msg = 'Msg' name:name id:number '{' fields:{field}+ '}' ;
 
-field = (compound | primitive) name ;
-compound = kvpair | list | map | oneof | optional ;
-kvpair = 'kvpair' primitive (primitive | compound) ;
-list = 'list' (primitive | compound) ;
-map = 'map' primitive (primitive | compound) ;
-oneof = 'oneof' '{' {name}+ '}' ;
-optional = 'optional' (primitive | compound) ;
+field = type:(compound | primitive) name:name ;
+compound = kvpair:kvpair | list:list | map:map | oneof:oneof | optional:optional ;
+kvpair = 'kvpair' key:primitive value:(primitive | compound) ;
+list = 'list' type:(primitive | compound) ;
+map = 'map' key:primitive value:(primitive | compound) ;
+oneof = 'oneof' '{' names:{name}+ '}' ;
+optional = 'optional' type:(primitive | compound) ;
 
 primitive
   =

@@ -22,7 +22,8 @@ Compound data types may include primitive types and other compound types. We ens
  * kvpair - Keys must be primitive types. Values can be any type
  * list - A homogeneous list of any type
  * map - A lexicographically sorted list of key-value pairs
- * oneof - A sum type (tagged union) containing exactly one of the given messages. oneof types cannot contain primitives or compount types, they can only refer to messages. This is useful for deserializing a set of related messages into a given wrapper type. oneofs cannot be recursive either, as the parsing must be capable of terminating.
+ * oneof - A sum type (tagged union) containing exactly one of the given messages. oneof types cannot contain primitives or compount types, they can only refer to messages. This is useful for deserializing a set of related messages into a given wrapper type. A oneof maps to a `std::variant` in c++.
+ * optional - An optional value of any type. An optional maps to a `std::optional` in C++.
 
 # Comments
 
@@ -71,6 +72,7 @@ allowed. For nesting, use an existing message name as the type or multiple compo
 * `sint32 <name>`
 * `sint64 <name>`
 * `string <name>`
+* `bytes <name>`
 
 ### Compound Types
 
