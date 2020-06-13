@@ -24,7 +24,9 @@ Compound data types may include primitive types and other compound types. We ens
  * map - A lexicographically sorted list of key-value pairs
  * oneof - A sum type (tagged union) containing exactly one of the given messages. oneof types cannot contain primitives or compount types, they can only refer to messages. This is useful for deserializing a set of related messages into a given wrapper type. oneofs cannot be recursive either, as the parsing must be capable of terminating.
 
+# Comments
 
+Comments must be on their own line and start with the `#` character. Leading whitespace is allowed.
 
  # Serialized Representations
 
