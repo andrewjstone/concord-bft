@@ -1,0 +1,32 @@
+@@grammar::CMF
+
+start = {msg}+ $ ;
+
+msg = 'Msg' name number '{' {field}+ '}' ;
+
+field = (compound | primitive) name ;
+compound = kvpair | list | map | oneof | optional ;
+kvpair = 'kvpair' primitive (primitive | compound) ;
+list = 'list' (primitive | compound) ;
+map = 'map' primitive (primitive | compound) ;
+oneof = 'oneof' '{' {name}+ '}' ;
+optional = 'optional' (primitive | compound) ;
+
+primitive
+  =
+  | 'bool'
+  | 'uint8'
+  | 'uint16'
+  | 'uint32'
+  | 'uint64'
+  | 'sint8'
+  | 'sint16'
+  | 'sint32'
+  | 'sint64'
+  | 'string'
+  | 'bytes'
+  ;
+
+name = /[a-zA-Z_][a-zA-Z0-9_]*/ ;
+number = /\d+/ ;
+

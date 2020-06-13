@@ -47,6 +47,7 @@ Comments must be on their own line and start with the `#` character. Leading whi
 * `list` - uint32 length of list followed by N homogeneous primitive or compound elements
 * `map` - serialized as a list of lexicographically sorted key-value pairs
 * `oneof` - uint32 message id of the contained message followed by the message
+* `optional` - bool followed by the value
 
 # Schema Format
 
@@ -100,6 +101,10 @@ map string map string uint64 employee_salaries_by_company
 
 A oneof can only contain message names.
 
+* `optional <type> name`
+
+An optional may contain a value of a given type or not.
+
 ## Example
 
 ```
@@ -127,7 +132,7 @@ Msg ConsensusMsg 4 {
     oneof {
         NewView
         PrePrepare
-    }
+    } msg_type
 }
 
 ```
