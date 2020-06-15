@@ -59,3 +59,11 @@ Msg Envelope 3 {
 #    string val
 #    uint16 val
 #}
+
+#Msg BadOneof 999 {
+#    uint32 version
+#    oneof x {
+#        NonExistantType
+#        NewViewElement
+#    }
+#}
