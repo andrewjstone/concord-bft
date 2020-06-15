@@ -11,10 +11,10 @@ Msg Transaction 2 {
 
 Msg Envelope 3 {
     uint32 version
-    oneof x {
+    oneof {
         Transaction
         NewViewElement
-    }
+    } x
 }
 
 ######
@@ -32,7 +32,7 @@ Msg Envelope 3 {
 #}
 
 # ID too large
-#Msg Envelope 9999999999 {
+#Msg XXX 9999999999 {
 #    uint32 version
 #    oneof {
 #        Transaction
@@ -62,8 +62,8 @@ Msg Envelope 3 {
 
 #Msg BadOneof 999 {
 #    uint32 version
-#    oneof x {
+#    oneof {
 #        NonExistantType
 #        NewViewElement
-#    }
+#    } x
 #}
