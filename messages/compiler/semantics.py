@@ -34,23 +34,20 @@ class CmfSemantics(object):
         self.symbol_table.msg_ids[id] = ast.parseinfo.line + 1
         return id
 
+    def msgname_ref(self, ast):
+        if ast.name not in self.symbol_table.msg_names.keys():
+            raise CmfParseError(
+                ast.parseinfo, "Messages must be defined before they are referenced: {}".format(ast.name))
+        return ast.name
+
     def msgname(self, ast):
-        """ Check that each message name is unique """
+        """ Check that message names are unique """
         if ast.name in self.symbol_table.msg_names:
             raise CmfParseError(ast.parseinfo, 'Message: "{}" already defined on line {}'.format(
                 ast.name, self.symbol_table.msg_names[ast.name]))
         # parseinfo.line is zero-based
         self.symbol_table.msg_names[ast.name] = ast.parseinfo.line + 1
         return ast.name
-
-    def oneof(self, ast):
-        """ Messages must already be defined before being used in a oneof """
-        diff = set(ast.msg_names).difference(
-            set(self.symbol_table.msg_names.keys()))
-        if len(diff) != 0:
-            raise CmfParseError(
-                ast.parseinfo, "Messages in oneof must be defined before they are referenced: {}".format(diff))
-        return ast
 
     def msg(self, ast):
         """ Check that each field in a message has a unique name """

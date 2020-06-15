@@ -21,6 +21,12 @@ Msg NewStuff 4 {
     map string list kvpair string string crazy_map
 }
 
+Msg WithMsgRefs 5 {
+    NewStuff new_stuff
+    list Transaction tx_list
+    map string Envelope map_of_envelope
+}
+
 
 ######
 # Uncomment each message to induce various parse errors
@@ -59,7 +65,7 @@ Msg NewStuff 4 {
 #    blah string
 #}
 
- #Duplicate field names
+# Duplicate field names
 #Msg Hello 100 {
 #    string val
 #    uint16 val

@@ -40,4 +40,12 @@ struct NewStuff {
   std::map<std::string, std::vector<std::pair<std::string, std::string>>> crazy_map; 
 };
 
+struct WithMsgRefs {
+  static constexpr uint32_t id = 5; 
+
+  NewStuff new_stuff; 
+  std::vector<Transaction> tx_list; 
+  std::map<std::string, Envelope> map_of_envelope; 
+};
+
 } // namespace concord::messages
