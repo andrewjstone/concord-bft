@@ -5,7 +5,7 @@ Msg NewViewElement 1 {
 
 Msg Transaction 2 {
     string name
-    list kvpair string bytes actions
+    list kvpair string string actions
     optional bytes auth_key
 }
 
@@ -16,6 +16,11 @@ Msg Envelope 3 {
         NewViewElement
     } x
 }
+
+Msg NewStuff 4 {
+    map string list kvpair string string crazy_map
+}
+
 
 ######
 # Uncomment each message to induce various parse errors
@@ -54,7 +59,7 @@ Msg Envelope 3 {
 #    blah string
 #}
 
-# Duplicate field names
+ #Duplicate field names
 #Msg Hello 100 {
 #    string val
 #    uint16 val

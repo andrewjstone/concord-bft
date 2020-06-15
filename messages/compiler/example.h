@@ -10,6 +10,7 @@
 # include <variant>
 # include <vector>
 
+namespace concord::messages {
 
 struct NewViewElement {
   static constexpr uint32_t id = 1; 
@@ -22,7 +23,7 @@ struct Transaction {
   static constexpr uint32_t id = 2; 
 
   std::string name; 
-  std::vector<std::pair<std::string, std::vector<uint8_t>>> actions; 
+  std::vector<std::pair<std::string, std::string>> actions; 
   std::optional<std::vector<uint8_t>> auth_key; 
 };
 
@@ -32,3 +33,11 @@ struct Envelope {
   uint32_t version; 
   std::variant<Transaction, NewViewElement> x; 
 };
+
+struct NewStuff {
+  static constexpr uint32_t id = 4; 
+
+  std::map<std::string, std::vector<std::pair<std::string, std::string>>> crazy_map; 
+};
+
+} // namespace concord::messages
