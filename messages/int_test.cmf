@@ -1,0 +1,6 @@
+Msg TestIntegral 1 {
+    uint16 f1
+    bool f2
+    uint32 f3
+    int64 f4
+}

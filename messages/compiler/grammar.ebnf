@@ -30,10 +30,10 @@ integer
   | 'uint16'
   | 'uint32'
   | 'uint64'
-  | 'sint8'
-  | 'sint16'
-  | 'sint32'
-  | 'sint64'
+  | 'int8'
+  | 'int16'
+  | 'int32'
+  | 'int64'
   ;
 
 bool = 'bool';
