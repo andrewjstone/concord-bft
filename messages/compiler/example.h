@@ -25,13 +25,21 @@ struct TestIntegral {
   int64_t f4; 
 };
 
-std::vector<uint8_t> serialize(const TestIntegral& t) {
+std::vector<uint8_t> Serialize(const TestIntegral& t) {
   std::vector<uint8_t> output;
   cmf::Serialize(output, t.f1);
   cmf::Serialize(output, t.f2);
   cmf::Serialize(output, t.f3);
   cmf::Serialize(output, t.f4);
   return output;
+}
+
+void Deserialize(const std::vector<uint8_t>& input, TestIntegral& t) {
+  auto it = input.begin();
+  cmf::Deserialize(it, t.f1);
+  cmf::Deserialize(it, t.f2);
+  cmf::Deserialize(it, t.f3);
+  cmf::Deserialize(it, t.f4);
 }
 
 } // namespace concord::messages

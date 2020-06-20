@@ -21,7 +21,7 @@ namespace cmf {
 
 // All integers are encoded in little endian
 template <typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-static void Serialize(std::vector<uint8_t>& output, const T& t) {
+void Serialize(std::vector<uint8_t>& output, const T& t) {
   if constexpr (std::is_same_v<T, const bool&>) {
     output.push_back(t ? 1 : 0);
   } else {
@@ -32,7 +32,7 @@ static void Serialize(std::vector<uint8_t>& output, const T& t) {
 }
 
 template <typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-static void Deserialize(std::vector<uint8_t>::const_iterator start, T& t) {
+void Deserialize(std::vector<uint8_t>::const_iterator& start, T& t) {
   if constexpr (std::is_same_v<T, const bool&>) {
     (*start == 0) ? t = true : t = false;
   } else {

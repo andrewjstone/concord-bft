@@ -48,11 +48,25 @@ def serializestr(msg):
     """
 
     s = '''
-std::vector<uint8_t> serialize(const {}& t) {{
+std::vector<uint8_t> Serialize(const {}& t) {{
   std::vector<uint8_t> output;\n'''.format(msg.name)
     for field in msg.fields:
         s += '  cmf::Serialize(output, t.{});\n'.format(field.name)
     s += '  return output;\n}'
+    return s
+
+
+def deserializestr(msg):
+    """
+    Take a msg AST node and create a string containing a C++ deserialization function for the given msg
+    """
+
+    s = '''
+void Deserialize(const std::vector<uint8_t>& input, {}& t) {{
+  auto it = input.begin();\n'''.format(msg.name)
+    for field in msg.fields:
+        s += '  cmf::Deserialize(it, t.{});\n'.format(field.name)
+    s += '}'
     return s
 
 
@@ -92,4 +106,5 @@ def translate(ast, namespace=None):
     for msg in ast.msgs:
         s += structstr(msg) + '\n'
         s += serializestr(msg) + '\n'
+        s += deserializestr(msg) + '\n'
     return s + file_trailer(namespace)
