@@ -1,6 +1,16 @@
-Msg TestIntegral 1 {
+Msg Test 1 {
     uint16 f1
     bool f2
     uint32 f3
     int64 f4
+    list list int32 f5
+    string f6
+}
+
+Msg TestOneof 2 {
+    int32 someint
+    oneof {
+        Test
+    } blah
+    Test a
 }

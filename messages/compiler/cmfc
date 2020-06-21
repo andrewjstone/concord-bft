@@ -48,7 +48,7 @@ if __name__ == "__main__":
                 cmf = f2.read()
             ast, symbol_table = parse(grammar, cmf)
             # Uncomment to show the generated AST for debugging purposes
-            pprint(ast)
+            # pprint(ast)
             code = translate(ast, args.language, args.namespace)
             with open(args.output, 'w') as f3:
                 f3.write(code)
