@@ -21,7 +21,7 @@ def parse(grammar, cmf):
 def translate(ast, language, namespace):
     if language == 'cpp':
         print("Generating C++ source code")
-        import cpp_gen
+        from cpp import cpp_gen
         return cpp_gen.translate(ast, namespace)
 
 
