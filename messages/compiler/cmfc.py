@@ -13,44 +13,47 @@ def parse(grammar, cmf):
     """
     parser = tatsu.compile(grammar)
     symbol_table = SymbolTable()
-    ast = parser.parse(cmf, semantics=CmfSemantics(
-        symbol_table), parseinfo=True)
+    ast = parser.parse(cmf, semantics=CmfSemantics(symbol_table), parseinfo=True)
     return ast, symbol_table
 
 
 def translate(ast, language, namespace):
-    if language == 'cpp':
+    if language == "cpp":
         print("Generating C++ source code")
-        from cpp import cpp_gen
-        return cpp_gen.translate(ast, namespace)
+        from cpp import cppgen
+
+        return cppgen.translate(ast, namespace)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Compile a concord message format file")
-    parser.add_argument('--input',
-                        help='The concord message format (CMF) input filename', required=True)
-    parser.add_argument('--output',
-                        help='The output filename', required=True)
-    parser.add_argument('--language',
-                        help='The output language', choices=['cpp'], required=True)
-    parser.add_argument('--namespace',
-                        help='Add a namespace if required by the given language')
+        description="Compile a concord message format file"
+    )
+    parser.add_argument(
+        "--input", help="The concord message format (CMF) input filename", required=True
+    )
+    parser.add_argument("--output", help="The output filename", required=True)
+    parser.add_argument(
+        "--language", help="The output language", choices=["cpp"], required=True
+    )
+    parser.add_argument(
+        "--namespace", help="Add a namespace if required by the given language"
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     try:
-        with open('./grammar.ebnf') as f:
+        with open("./grammar.ebnf") as f:
             grammar = f.read()
             with open(args.input) as f2:
                 cmf = f2.read()
             ast, symbol_table = parse(grammar, cmf)
             # Uncomment to show the generated AST for debugging purposes
-            # pprint(ast)
-            code = translate(ast, args.language, args.namespace)
-            with open(args.output, 'w') as f3:
+            pprint(ast)
+            code, _ = translate(ast, args.language, args.namespace)
+            with open(args.output, "w") as f3:
                 f3.write(code)
     except Exception as ex:
         print(ex)

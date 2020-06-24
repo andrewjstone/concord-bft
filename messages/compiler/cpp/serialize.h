@@ -80,6 +80,33 @@ void Deserialize(std::vector<uint8_t>::const_iterator& start, std::string& s) {
 }
 
 /******************************************************************************
+ Forward declarations needed by recursive types
+ ******************************************************************************/
+// Lists
+template <typename T>
+void Serialize(std::vector<uint8_t>& output, const std::vector<T>& v);
+template <typename T>
+void Deserialize(std::vector<uint8_t>::const_iterator& start, std::vector<T>& v);
+
+// KVPairs
+template <typename K, typename V>
+void Serialize(std::vector<uint8_t>& output, const std::pair<K, V>& kvpair);
+template <typename K, typename V>
+void Deserialize(std::vector<uint8_t>::const_iterator& start, std::pair<K, V>& kvpair);
+
+// Maps
+template <typename K, typename V>
+void Serialize(std::vector<uint8_t>& output, const std::map<K, V>& m);
+template <typename K, typename V>
+void Deserialize(std::vector<uint8_t>::const_iterator& start, std::map<K, V>& m);
+
+// Optionals
+template <typename T>
+void Serialize(std::vector<uint8_t>& output, const std::optional<T>& t);
+template <typename T>
+void Deserialize(std::vector<uint8_t>::const_iterator& start, std::optional<T>& t);
+
+/******************************************************************************
  * Lists are modeled as std::vectors
  *
  * Lists are preceded by a uint32_t length
