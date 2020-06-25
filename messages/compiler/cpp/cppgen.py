@@ -67,6 +67,22 @@ struct {} {{
     return struct
 
 
+def equalopstr(msg):
+    """ Take a msg AST and create an `operator==` functon for the generated struct """
+    s = """
+bool operator==(const {}& l, const {}& r) {{
+  return """.format(
+        msg.name, msg.name
+    )
+    s += (
+        " && ".join(
+            ["l.{} == r.{}".format(field.name, field.name) for field in msg.fields]
+        )
+        + ";\n}"
+    )
+    return s
+
+
 def serializeVariantStr(oneof_type):
     """
     Take a type dict containing a oneof and create a string containing C++ serialization code for its corresponding variant.
@@ -217,6 +233,7 @@ def translate(ast, namespace=None):
     for msg in ast.msgs:
         msgmap[msg.name] = msg
         s += structstr(msg) + "\n"
+        s += equalopstr(msg) + "\n"
         s += serializestr(msg, msgmap) + "\n"
         s += deserializestr(msg, msgmap) + "\n"
     return s + file_trailer(namespace), msgmap
