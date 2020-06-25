@@ -41,7 +41,7 @@ class InstanceGen:
             if type == "bool":
                 return random.choice(["true", "false"])
             # The type must be the name of a message
-            return self.structInstanceGen(self.msgmap[type])
+            return self.inlineStructInstanceStr(self.msgmap[type])
         elif self.size == 0:
             return "{}"
 
@@ -57,27 +57,37 @@ class InstanceGen:
                 + "}"
             )
         elif "map" in type:
+            # Maps require an initializer list of kv pairs, which themselves are represented as initializer lists. That's the reason for the double bracket.
             return (
-                "{"
+                "{{"
                 + self.instancestr(type.map.key)
                 + ", "
                 + self.instancestr(type.map.value)
-                + "}"
+                + "}}"
             )
         elif "optional" in type:
             return "{" + self.instancestr(type.optional.type) + "}"
         elif "oneof" in type:
-            return self.structInstanceGen(
+            return self.inlineStructInstanceStr(
                 self.msgmap[random.choice(type.oneof.msg_names)]
             )
         raise CmfParseError(type.parseinfo, "Invalid field type")
 
-    def structInstanceGen(self, msg):
+    def inlineStructInstanceStr(self, msg):
         """
         Take an AST for a message and serialize an instance of the struct.
 
-        `size` is a parameter that triggers the growth of lists and maps to determine how many values they have.
-        Tests will generate N instances, each with a different size.
+        This is for use during initialization inside other types.
+        """
+        s = "{} {{".format(msg.name)
+        for field in msg.fields:
+            s += self.instancestr(field.type) + ","
+        s += "}"
+        return s
+
+    def structInstanceVariableStr(self, msg):
+        """
+        Take an AST for a message and serialize an instance of the struct with a named variable.
         """
         s = "{} __{}__{}{{".format(msg.name, msg.name, self.size)
         for field in msg.fields:
@@ -116,7 +126,7 @@ def generate_code_and_tests(ast):
         # We generate `max_size` msg instances for tests
         gens = [InstanceGen(i, msgmap) for i in range(0, max_size)]
         for g in gens:
-            test_code += g.structInstanceGen(msg) + "\n\n"
+            test_code += g.structInstanceVariableStr(msg) + "\n\n"
     return code, test_code + file_trailer(namespace)
 
     # def test_serialization():
