@@ -66,7 +66,6 @@ class InstanceGen:
             if random.randint(0, 1) == 0:
                 return "{}"
 
-        # TODO: Support multiple values in a type according to size
         if "list" in type:
             return (
                 "{"
