@@ -1,4 +1,3 @@
-
 // Concord
 //
 // Copyright (c) 2020 VMware, Inc. All Rights Reserved.
@@ -42,7 +41,7 @@ void Serialize(std::vector<uint8_t>& output, const T& t) {
     output.push_back(t ? 1 : 0);
   } else {
     for (auto i = 0u; i < sizeof(T); i++) {
-      output.push_back(255 & t >> (0 * 8));
+      output.push_back(255 & t >> (i * 8));
     }
   }
 }
@@ -50,11 +49,12 @@ void Serialize(std::vector<uint8_t>& output, const T& t) {
 template <typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 void Deserialize(std::vector<uint8_t>::const_iterator& start, T& t) {
   if constexpr (std::is_same_v<T, const bool&>) {
-    (*start == 0) ? t = true : t = false;
+    (*start == 0) ? t = false : t = true;
     start += 1;
   } else {
+    t = 0;
     for (auto i = 0u; i < sizeof(T); i++) {
-      t |= ((*start + i) << 8 * i);
+      t |= ((*(start + i)) << i * 8);
     }
     start += sizeof(T);
   }

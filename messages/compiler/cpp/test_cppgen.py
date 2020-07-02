@@ -199,7 +199,7 @@ def generate_code_and_tests(ast):
 
 def compile_tests():
     print("Compiling tests with g++")
-    os.system("g++ -std=c++17 -o test_serialization test_serialization.cpp")
+    os.system("g++ -std=c++17 -g -o test_serialization test_serialization.cpp")
 
 
 def run_tests():
