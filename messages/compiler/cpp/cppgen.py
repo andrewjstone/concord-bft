@@ -103,9 +103,9 @@ def deserializeVariantStr(oneof_type, msgmap):
     Take a type dict containing a oneof and create a string containing C++ serialization code for its corresponding variant.
     """
     s = """
-void Deserialize(std::vector<uint8_t>::const_iterator& start, {}& val) {{
+void Deserialize(uint8_t*& start, const uint8_t* end, {}& val) {{
   uint32_t id;
-  cmf::Deserialize(start, id);
+  cmf::Deserialize(start, end, id);
 """.format(
         typestr(oneof_type)
     )
@@ -114,7 +114,7 @@ void Deserialize(std::vector<uint8_t>::const_iterator& start, {}& val) {{
         s += """
   if (id == {}) {{
     {} value;
-    Deserialize(start, value);
+    Deserialize(start, end, value);
     val = value;
     return;
   }}
@@ -180,7 +180,7 @@ def deserializestr(msg, msgmap):
     """
     s = deserializeOneofsStr(msg, msgmap)
     s += """
-void Deserialize(std::vector<uint8_t>::const_iterator& input, {}& t) {{
+void Deserialize(uint8_t*& input, const uint8_t* end, {}& t) {{
 """.format(
         msg.name
     )
@@ -188,9 +188,9 @@ void Deserialize(std::vector<uint8_t>::const_iterator& input, {}& t) {{
         # Messages and oneofs are generated in the user namespace, so we don't use the `cmf`
         # namespace for them
         if "oneof" in field.type or str(field.type) in msgmap:
-            s += "  Deserialize(input, t.{});\n".format(field.name)
+            s += "  Deserialize(input, end, t.{});\n".format(field.name)
         else:
-            s += "  cmf::Deserialize(input, t.{});\n".format(field.name)
+            s += "  cmf::Deserialize(input, end, t.{});\n".format(field.name)
     s += "}"
     return s
 

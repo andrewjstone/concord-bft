@@ -22,12 +22,19 @@
 #include <variant>
 #include <vector>
 
+#include <iostream>
+using namespace std;
+
 namespace cmf {
 
 class DeserializeError : public std::runtime_error {
  public:
   DeserializeError(const std::string& error) : std::runtime_error(("DeserializeError: " + error).c_str()) {}
-  const char* what() const noexcept override { return std::runtime_error::what(); }
+};
+
+class NoDataLeftError : public DeserializeError {
+ public:
+  NoDataLeftError() : DeserializeError("Data left in buffer is less than what is needed for deserialization") {}
 };
 
 /******************************************************************************
@@ -37,7 +44,7 @@ class DeserializeError : public std::runtime_error {
  ******************************************************************************/
 template <typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
 void Serialize(std::vector<uint8_t>& output, const T& t) {
-  if constexpr (std::is_same_v<T, const bool&>) {
+  if constexpr (std::is_same_v<T, bool>) {
     output.push_back(t ? 1 : 0);
   } else {
     for (auto i = 0u; i < sizeof(T); i++) {
@@ -47,14 +54,20 @@ void Serialize(std::vector<uint8_t>& output, const T& t) {
 }
 
 template <typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, T& t) {
-  if constexpr (std::is_same_v<T, const bool&>) {
+void Deserialize(uint8_t*& start, const uint8_t* end, T& t) {
+  if constexpr (std::is_same_v<T, bool>) {
+    if (start + 1 > end) {
+      throw NoDataLeftError();
+    }
     (*start == 0) ? t = false : t = true;
     start += 1;
   } else {
+    if (start + sizeof(T) > end) {
+      throw NoDataLeftError();
+    }
     t = 0;
     for (auto i = 0u; i < sizeof(T); i++) {
-      t |= ((*(start + i)) << i * 8);
+      t |= ((*(start + i)) << (i * 8));
     }
     start += sizeof(T);
   }
@@ -72,9 +85,12 @@ void Serialize(std::vector<uint8_t>& output, const std::string& s) {
   std::copy(s.begin(), s.end(), std::back_inserter(output));
 }
 
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::string& s) {
+void Deserialize(uint8_t*& start, const uint8_t* end, std::string& s) {
   uint32_t length;
-  Deserialize(start, length);
+  Deserialize(start, end, length);
+  if (start + length > end) {
+    throw NoDataLeftError();
+  }
   std::copy_n(start, length, std::back_inserter(s));
   start += length;
 }
@@ -86,25 +102,25 @@ void Deserialize(std::vector<uint8_t>::const_iterator& start, std::string& s) {
 template <typename T>
 void Serialize(std::vector<uint8_t>& output, const std::vector<T>& v);
 template <typename T>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::vector<T>& v);
+void Deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v);
 
 // KVPairs
 template <typename K, typename V>
 void Serialize(std::vector<uint8_t>& output, const std::pair<K, V>& kvpair);
 template <typename K, typename V>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::pair<K, V>& kvpair);
+void Deserialize(uint8_t*& start, const uint8_t* end, std::pair<K, V>& kvpair);
 
 // Maps
 template <typename K, typename V>
 void Serialize(std::vector<uint8_t>& output, const std::map<K, V>& m);
 template <typename K, typename V>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::map<K, V>& m);
+void Deserialize(uint8_t*& start, const uint8_t* end, std::map<K, V>& m);
 
 // Optionals
 template <typename T>
 void Serialize(std::vector<uint8_t>& output, const std::optional<T>& t);
 template <typename T>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::optional<T>& t);
+void Deserialize(uint8_t*& start, const uint8_t* end, std::optional<T>& t);
 
 /******************************************************************************
  * Lists are modeled as std::vectors
@@ -122,13 +138,22 @@ void Serialize(std::vector<uint8_t>& output, const std::vector<T>& v) {
 }
 
 template <typename T>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::vector<T>& v) {
+void Deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v) {
   uint32_t length;
-  Deserialize(start, length);
-  for (auto i = 0u; i < length; i++) {
-    T t;
-    Deserialize(start, t);
-    v.push_back(t);
+  Deserialize(start, end, length);
+  if constexpr (std::is_integral_v<T> && sizeof(T) == 1) {
+    // Optimized for bytes
+    if (start + length > end) {
+      throw DeserializeError("Data left in buffer is less than what is needed for deserialization");
+    }
+    std::copy_n(start, length, std::back_inserter(v));
+    start += length;
+  } else {
+    for (auto i = 0u; i < length; i++) {
+      T t;
+      Deserialize(start, end, t);
+      v.push_back(t);
+    }
   }
 }
 
@@ -142,9 +167,9 @@ void Serialize(std::vector<uint8_t>& output, const std::pair<K, V>& kvpair) {
 }
 
 template <typename K, typename V>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::pair<K, V>& kvpair) {
-  Deserialize(start, kvpair.first);
-  Deserialize(start, kvpair.second);
+void Deserialize(uint8_t*& start, const uint8_t* end, std::pair<K, V>& kvpair) {
+  Deserialize(start, end, kvpair.first);
+  Deserialize(start, end, kvpair.second);
 }
 
 /******************************************************************************
@@ -163,12 +188,12 @@ void Serialize(std::vector<uint8_t>& output, const std::map<K, V>& m) {
 }
 
 template <typename K, typename V>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::map<K, V>& m) {
+void Deserialize(uint8_t*& start, const uint8_t* end, std::map<K, V>& m) {
   uint32_t size;
-  Deserialize(start, size);
+  Deserialize(start, end, size);
   for (auto i = 0u; i < size; i++) {
     std::pair<K, V> kvpair;
-    Deserialize(start, kvpair);
+    Deserialize(start, end, kvpair);
     m.insert(kvpair);
   }
 }
@@ -187,12 +212,12 @@ void Serialize(std::vector<uint8_t>& output, const std::optional<T>& t) {
 }
 
 template <typename T>
-void Deserialize(std::vector<uint8_t>::const_iterator& start, std::optional<T>& t) {
+void Deserialize(uint8_t*& start, const uint8_t* end, std::optional<T>& t) {
   bool has_value;
-  Deserialize(start, has_value);
+  Deserialize(start, end, has_value);
   if (has_value) {
     T value;
-    Deserialize(start, value);
+    Deserialize(start, end, value);
     t = value;
   } else {
     t = std::nullopt;
