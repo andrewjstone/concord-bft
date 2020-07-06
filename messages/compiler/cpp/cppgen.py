@@ -192,6 +192,15 @@ void Deserialize(uint8_t*& input, const uint8_t* end, {}& t) {{
         else:
             s += "  cmf::Deserialize(input, end, t.{});\n".format(field.name)
     s += "}"
+
+    # Add a high level entrypoint for the given message.
+    s += """
+
+void Deserialize(const std::vector<uint8_t>& input, {}& t) {{
+    auto* begin = const_cast<uint8_t*>(input.data());
+    Deserialize(begin, begin + input.size(), t);
+}}""".format(msg.name)
+
     return s
 
 

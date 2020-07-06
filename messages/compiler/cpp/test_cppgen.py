@@ -141,8 +141,7 @@ def testSerializationStr(msg_name):
     std::vector<uint8_t> output;
     Serialize(output, {});
     {} {}_computed;
-    auto* begin = output.data();
-    Deserialize(begin, begin + output.size(), {}_computed);
+    Deserialize(output, {}_computed);
     assert({} == {}_computed);
   }}
 """.format(
