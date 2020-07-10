@@ -86,7 +86,7 @@ void deserialize(uint8_t*& start, const uint8_t* end, {variant}& val) {{
 """
     s += """
   throw cmf::DeserializeError(std::string("Invalid Message id in variant: ") + std::to_string(id));
-}}
+}
 """
     return s
 
