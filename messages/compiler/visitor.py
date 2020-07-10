@@ -10,20 +10,35 @@
 # terms and conditions of the subcomponent's license, as noted in the LICENSE
 # file.
 
-from abc import ABCMeta
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
+
 
 class Visitor(metaclass=ABCMeta):
     """
     All code generators must implement this class for a given language.
 
-    The AST is walked, and at each node a specific callback is fired. These callbacks are used to by the visitor to generate relevant code for the given messages. In order to allow complete flexibility, the code is not meant to be returned for each callback, but instead accumulated and returned as a single string when AST walking is complete. Exceptions should be raised during visitation if an error occurs.
+    The AST is walked, and at each node a specific callback is fired. These callbacks are used to
+    by the visitor to generate relevant code for the given messages. In order to allow complete
+    flexibility, the code is not meant to be returned for each callback, but instead accumulated
+    and returned as a single string when AST walking is complete. Exceptions should be raised
+    during visitation if an error occurs.
 
-    Every primitive type has a single callback with a name identical to its type name. For example, type 'bool' has a callback named 'bool'.
+    Every primitive type has a single callback with a name identical to its type name. For
+    example, type 'bool' has a callback named 'bool'.
 
-    Some compound types have two callbacks: one to start the composition, and one to end it. The name of these callbacks is the name of the type with the suffixes '_start' and '_end'. For example, type 'list' has callbacks named 'list_start` and 'list_end'. As compound types can be nested, it is possible for two `list_start` callbacks to fire in a row, and so on.
+    Some compound types have two callbacks: one to start the composition, and one to end it. The
+    name of these callbacks is the name of the type with the suffixes '_start' and '_end'. For
+    example, type 'list' has callbacks named 'list_start` and 'list_end'. As compound types can
+    be nested, it is possible for two `list_start` callbacks to fire in a row, and so on.
 
-    Top level types, 'Msg' and 'Field', cannot be nested, although they also register two callbacks, since they must be "opened" and "closed".
+    Additionally, kvpairs and maps have callbacks indicating when the keys are done being
+    generated. This is to allow adding separating syntax, such as commas, and prevents the
+    Visitor from having to keep track of when a given type is in the middle of processing and in
+    effect makes it "stateless" for compound types. These types' callbacks are suffixed with
+    `key_end`, like `kvpair_key_end`.
+
+    Top level types, 'Msg' and 'Field', cannot be nested, although they also register two
+    callbacks, since they must be "opened" and "closed".
 
     See 'grammar.ebnf' for details about all types.
     """
@@ -50,18 +65,19 @@ class Visitor(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def field_start(self, name):
+    def field_start(self, name, type):
         """
         A new field has been added to the current message.
         Fields are not nestable.
 
         Args:
             name (str): The name of the field
+            type (str): The high level (outermost) type of the field
         """
         pass
 
     @abstractmethod
-    def field_stop(self):
+    def field_end(self):
         """ The field has been fully defined. """
 
     #
@@ -133,6 +149,10 @@ class Visitor(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def kvpair_key_end(self):
+        pass
+
+    @abstractmethod
     def kvpair_end(self):
         pass
 
@@ -149,6 +169,10 @@ class Visitor(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def map_key_end(self):
+        pass
+
+    @abstractmethod
     def map_end(self):
         pass
 
@@ -161,10 +185,10 @@ class Visitor(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def oneof(self, msgnames):
+    def oneof(self, msgs):
         """
-        A new oneof containing 'msgnames' has been defined.
+        A new oneof containing 'msgs' has been defined.
 
         Args:
-           msgnames (list(str)): The names of the messages in the oneof
+           msgs (dict(str, int)): A dict mapping the names of messages to their ids.
         """

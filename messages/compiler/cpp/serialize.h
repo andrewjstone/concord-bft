@@ -43,7 +43,7 @@ class NoDataLeftError : public DeserializeError {
  * All integers are encoded in little endian
  ******************************************************************************/
 template <typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-void Serialize(std::vector<uint8_t>& output, const T& t) {
+void serialize(std::vector<uint8_t>& output, const T& t) {
   if constexpr (std::is_same_v<T, bool>) {
     output.push_back(t ? 1 : 0);
   } else {
@@ -54,7 +54,7 @@ void Serialize(std::vector<uint8_t>& output, const T& t) {
 }
 
 template <typename T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
-void Deserialize(uint8_t*& start, const uint8_t* end, T& t) {
+void deserialize(uint8_t*& start, const uint8_t* end, T& t) {
   if constexpr (std::is_same_v<T, bool>) {
     if (start + 1 > end) {
       throw NoDataLeftError();
@@ -78,16 +78,16 @@ void Deserialize(uint8_t*& start, const uint8_t* end, T& t) {
  *
  * Strings are preceded by a uint32_t length
  ******************************************************************************/
-void Serialize(std::vector<uint8_t>& output, const std::string& s) {
+void serialize(std::vector<uint8_t>& output, const std::string& s) {
   assert(s.size() <= 0xFFFFFFFF);
   uint32_t length = s.size() & 0xFFFFFFFF;
-  Serialize(output, length);
+  serialize(output, length);
   std::copy(s.begin(), s.end(), std::back_inserter(output));
 }
 
-void Deserialize(uint8_t*& start, const uint8_t* end, std::string& s) {
+void deserialize(uint8_t*& start, const uint8_t* end, std::string& s) {
   uint32_t length;
-  Deserialize(start, end, length);
+  deserialize(start, end, length);
   if (start + length > end) {
     throw NoDataLeftError();
   }
@@ -100,27 +100,27 @@ void Deserialize(uint8_t*& start, const uint8_t* end, std::string& s) {
  ******************************************************************************/
 // Lists
 template <typename T>
-void Serialize(std::vector<uint8_t>& output, const std::vector<T>& v);
+void serialize(std::vector<uint8_t>& output, const std::vector<T>& v);
 template <typename T>
-void Deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v);
+void deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v);
 
 // KVPairs
 template <typename K, typename V>
-void Serialize(std::vector<uint8_t>& output, const std::pair<K, V>& kvpair);
+void serialize(std::vector<uint8_t>& output, const std::pair<K, V>& kvpair);
 template <typename K, typename V>
-void Deserialize(uint8_t*& start, const uint8_t* end, std::pair<K, V>& kvpair);
+void deserialize(uint8_t*& start, const uint8_t* end, std::pair<K, V>& kvpair);
 
 // Maps
 template <typename K, typename V>
-void Serialize(std::vector<uint8_t>& output, const std::map<K, V>& m);
+void serialize(std::vector<uint8_t>& output, const std::map<K, V>& m);
 template <typename K, typename V>
-void Deserialize(uint8_t*& start, const uint8_t* end, std::map<K, V>& m);
+void deserialize(uint8_t*& start, const uint8_t* end, std::map<K, V>& m);
 
 // Optionals
 template <typename T>
-void Serialize(std::vector<uint8_t>& output, const std::optional<T>& t);
+void serialize(std::vector<uint8_t>& output, const std::optional<T>& t);
 template <typename T>
-void Deserialize(uint8_t*& start, const uint8_t* end, std::optional<T>& t);
+void deserialize(uint8_t*& start, const uint8_t* end, std::optional<T>& t);
 
 /******************************************************************************
  * Lists are modeled as std::vectors
@@ -128,19 +128,19 @@ void Deserialize(uint8_t*& start, const uint8_t* end, std::optional<T>& t);
  * Lists are preceded by a uint32_t length
  ******************************************************************************/
 template <typename T>
-void Serialize(std::vector<uint8_t>& output, const std::vector<T>& v) {
+void serialize(std::vector<uint8_t>& output, const std::vector<T>& v) {
   assert(v.size() <= 0xFFFFFFFF);
   uint32_t length = v.size() & 0xFFFFFFFF;
-  Serialize(output, length);
+  serialize(output, length);
   for (auto& it : v) {
-    Serialize(output, it);
+    serialize(output, it);
   }
 }
 
 template <typename T>
-void Deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v) {
+void deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v) {
   uint32_t length;
-  Deserialize(start, end, length);
+  deserialize(start, end, length);
   if constexpr (std::is_integral_v<T> && sizeof(T) == 1) {
     // Optimized for bytes
     if (start + length > end) {
@@ -151,7 +151,7 @@ void Deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v) {
   } else {
     for (auto i = 0u; i < length; i++) {
       T t;
-      Deserialize(start, end, t);
+      deserialize(start, end, t);
       v.push_back(t);
     }
   }
@@ -161,15 +161,15 @@ void Deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v) {
  * KVPairs are modeled as std::pairs.
  ******************************************************************************/
 template <typename K, typename V>
-void Serialize(std::vector<uint8_t>& output, const std::pair<K, V>& kvpair) {
-  Serialize(output, kvpair.first);
-  Serialize(output, kvpair.second);
+void serialize(std::vector<uint8_t>& output, const std::pair<K, V>& kvpair) {
+  serialize(output, kvpair.first);
+  serialize(output, kvpair.second);
 }
 
 template <typename K, typename V>
-void Deserialize(uint8_t*& start, const uint8_t* end, std::pair<K, V>& kvpair) {
-  Deserialize(start, end, kvpair.first);
-  Deserialize(start, end, kvpair.second);
+void deserialize(uint8_t*& start, const uint8_t* end, std::pair<K, V>& kvpair) {
+  deserialize(start, end, kvpair.first);
+  deserialize(start, end, kvpair.second);
 }
 
 /******************************************************************************
@@ -178,22 +178,22 @@ void Deserialize(uint8_t*& start, const uint8_t* end, std::pair<K, V>& kvpair) {
  * Maps are preceded by a uint32_t size
  ******************************************************************************/
 template <typename K, typename V>
-void Serialize(std::vector<uint8_t>& output, const std::map<K, V>& m) {
+void serialize(std::vector<uint8_t>& output, const std::map<K, V>& m) {
   assert(m.size() <= 0xFFFFFFFF);
   uint32_t size = m.size() & 0xFFFFFFFF;
-  Serialize(output, size);
+  serialize(output, size);
   for (auto& it : m) {
-    Serialize(output, it);
+    serialize(output, it);
   }
 }
 
 template <typename K, typename V>
-void Deserialize(uint8_t*& start, const uint8_t* end, std::map<K, V>& m) {
+void deserialize(uint8_t*& start, const uint8_t* end, std::map<K, V>& m) {
   uint32_t size;
-  Deserialize(start, end, size);
+  deserialize(start, end, size);
   for (auto i = 0u; i < size; i++) {
     std::pair<K, V> kvpair;
-    Deserialize(start, end, kvpair);
+    deserialize(start, end, kvpair);
     m.insert(kvpair);
   }
 }
@@ -204,20 +204,20 @@ void Deserialize(uint8_t*& start, const uint8_t* end, std::map<K, V>& m) {
  * Optionals are preceded by a bool indicating whether a value is present or not.
  ******************************************************************************/
 template <typename T>
-void Serialize(std::vector<uint8_t>& output, const std::optional<T>& t) {
-  Serialize(output, t.has_value());
+void serialize(std::vector<uint8_t>& output, const std::optional<T>& t) {
+  serialize(output, t.has_value());
   if (t.has_value()) {
-    Serialize(output, t.value());
+    serialize(output, t.value());
   }
 }
 
 template <typename T>
-void Deserialize(uint8_t*& start, const uint8_t* end, std::optional<T>& t) {
+void deserialize(uint8_t*& start, const uint8_t* end, std::optional<T>& t) {
   bool has_value;
-  Deserialize(start, end, has_value);
+  deserialize(start, end, has_value);
   if (has_value) {
     T value;
-    Deserialize(start, end, value);
+    deserialize(start, end, value);
     t = value;
   } else {
     t = std::nullopt;
