@@ -133,7 +133,9 @@ class Visitor(metaclass=ABCMeta):
         """
         A message name used to refer to a previously defined message.
 
-        Message name references are used only in fields and oneofs in the grammar. However, this callback only fires when used directly in a field. It is not necessary in oneofs, as the names can be passed directly to the 'oneof'callback.
+        Message name references are used only in fields and oneofs in the grammar. However, this
+        callback only fires when used directly in a field. It is not necessary in oneofs, as the
+        names can be passed directly to the 'oneof'callback.
 
         Args:
             name (str): The name of the message
