@@ -23,7 +23,7 @@ None of the others really met our goals:
  * Schema based definition with code generation for each implementation
 
 # Grammar and Implementation
-There is a [formal grammar](compiler/grammer.ebnf) in
+There is a [formal grammar](compiler/grammar.ebnf) in
 [ebnf](https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form). The grammar is used by a
 parser generator in python called [tatsu](https://tatsu.readthedocs.io/en/stable/), that
 generates an [Abstract Syntax Tree (AST)](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of
@@ -159,6 +159,7 @@ A oneof can only contain message names.
 An optional may contain a value of a given type or not.
 
 ## Example
+See [example.cmf](example.cmf)
 
 ```
 Msg NewViewElement 1 {
