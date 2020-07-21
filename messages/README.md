@@ -1,4 +1,19 @@
-Concord is a message driven system. We want a standard messaging format usable from multiple languages that also provides a canonical serialization form. The format must be simple, so that it can be reimplemented in multiple languages in a matter of hours or days, not weeks or months. The way to do this is to make the format as limited as possible. It is not nearly as expressible or full featured as other formats, and it isn't intended to be. It's the bare minimum and is only expected to be used to implement messages, not arbitrary data structures.
+Concord is a message driven system. We want a standard messaging format usable
+from multiple languages that also provides a canonical serialization form. The
+format must be simple, so that it can be reimplemented in multiple languages in
+a matter of hours or days, not weeks or months. The way to do this is to make
+the format as limited as possible. It is not nearly as expressible or full
+featured as other formats, and it isn't intended to be. It's the bare minimum
+and is only expected to be used to implement messages, not arbitrary data
+structures.
+
+# Why another message format?
+
+None of the others really met our goals:
+ * Protobuf doesn't have a canonical serialization format
+ * Msgpack, etc... isn't schema driven
+ * Other systems have weak cross language support and some are very complex to implement
+ * None of the systems with code generation create idiomatic types that are ergonomic to use in the given language.
 
 # Goals
  * Easy to understand binary format
@@ -7,15 +22,51 @@ Concord is a message driven system. We want a standard messaging format usable f
  * Ability to implement zero-copy serialization/deserialization if desired. This is implementation dependent.
  * Schema based definition with code generation for each implementation
 
-# Primitive Data Types
+# Grammar and Implementation
+There is a [formal grammar](compiler/grammer.ebnf) in
+[ebnf](https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form). The grammar is used by a
+parser generator in python called [tatsu](https://tatsu.readthedocs.io/en/stable/), that
+generates an [Abstract Syntax Tree (AST)](https://en.wikipedia.org/wiki/Abstract_syntax_tree) of
+the parsed messages according to the grammar. The parser generator finds syntax errors, and some
+basic typechecking is done via a [semantics plugin](compiler/semantics.py).
+
+Code generation is performed by walking the AST and generating strings containining the messages as types in the language being generated, as well as serialization and deserialization code for each message. In order to decouple the implementation of the AST from the code generation, where generation for each language may be written by different developers, a [Visitor](compiler/visitor.py) pattern is used. Each code generator implements the visitor for a given language that allow it to take callbacks about specific types and generate the corresponding code. Currently there is only a single [code generator for C++](compiler/cpp/cppgen.py), although python is coming soon.
+
+The great thing about generating code via a visitor, is that [tests can be generated as well](test_cppgen.py)!
+
+# Usage
+
+Messages are defined in concord message format (.cmf) files. For C++ a single `.cmf` file will generate a standalone `.h` file. The only dependency is a C++17 standard library.
+
+Generate C++ code:
+
+```bash
+./cmfc.py --input ../example.cmf --output example.h --language cpp --namespace concord::messages
+```
+
+Test C++ code generation. The following:
+ 1. Generates serialization code for [example.cmf](example.cmf)
+ 2. Generates instances of the structs from the generated example.h using uniform initialization
+ 3. Generates tests functions that round trip serialize and deserialize the instances
+ 4. Compiles the test code using g++
+ 5. Runs the tests
+
+```bash
+cd compiler/cpp
+./test_cppgen.py
+```
+
+
+# Data Types
+## Primitive Data Types
 
 * bool
-* Unsigned Integers -  uint8, uint16, uint32, uint64
-* Signed Integers - sint8, sint16, sint32, sint64
-* string - UTF-8 encoded
+* unsigned integers -  uint8, uint16, uint32, uint64
+* signed Integers - int8, int16, int32, int64
+* string - UTF-8 encoded strings
 * bytes -  an arbitrary byte buffer
 
-# Compound Data Types
+## Compound Data Types
 
 Compound data types may include primitive types and other compound types. We ensure canonical serialization by ordering
 
@@ -25,7 +76,7 @@ Compound data types may include primitive types and other compound types. We ens
  * oneof - A sum type (tagged union) containing exactly one of the given messages. oneof types cannot contain primitives or compount types, they can only refer to messages. This is useful for deserializing a set of related messages into a given wrapper type. A oneof maps to a `std::variant` in c++.
  * optional - An optional value of any type. An optional maps to a `std::optional` in C++.
 
-# Comments
+## Comments
 
 Comments must be on their own line and start with the `#` character. Leading whitespace is allowed.
 
@@ -52,11 +103,11 @@ Comments must be on their own line and start with the `#` character. Leading whi
 
 # Schema Format
 
-All messages start with the token `Msg`, followed by a space and the message name, followed by a
-space the message id, followed by a space and opening brace, `{`. Each field is specified with
-the type name, followed by a space, followed by the field name. After all field definitions, a
-closing brace, `}` is added. All types must be *flat*. No nested messsage definitions are
-allowed. For nesting, use an existing message name as the type or multiple compound types.
+All messages start with the token `Msg`, followed the message name, the message id, and opening
+brace, `{`. Each field is specified with the type name, followed by the field name. After all
+field definitions, a closing brace, `}` is added. All types must be *flat*. No nested messsage
+definitions are allowed. For nesting, use an existing message name as the type or multiple
+compound types.
 
 ## Field type formats
 
@@ -138,5 +189,3 @@ Msg ConsensusMsg 4 {
 }
 
 ```
-
-

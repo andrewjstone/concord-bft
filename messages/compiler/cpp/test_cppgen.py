@@ -15,6 +15,8 @@ from walker import Walker
 
 MAX_SIZE = 5
 
+OUTPUT_DIR = 'TEST_OUTPUT'
+
 
 def randint():
     return str(random.randint(0, 100))
@@ -249,7 +251,9 @@ def generate_code_and_tests(ast):
 
 def compile_tests():
     print("Compiling tests with g++")
-    os.system("g++ -std=c++17 -g -o test_serialization test_serialization.cpp")
+    os.system(
+        f"g++ -std=c++17 -g -o {OUTPUT_DIR}/test_serialization {OUTPUT_DIR}/test_serialization.cpp"
+    )
 
 
 def run_tests():
@@ -276,10 +280,11 @@ def test_serialization():
         ast, _ = cmfc.parse(grammar, cmf)
         # Uncomment to show the generated AST for debugging purposes
         # pprint(ast)
+        assert os.system(f'mkdir -p {OUTPUT_DIR}') == 0
         code, tests = generate_code_and_tests(ast)
-        with open("example.h", "w") as f3:
+        with open(f"{OUTPUT_DIR}/example.h", "w") as f3:
             f3.write(code)
-        with open("test_serialization.cpp", "w") as f4:
+        with open(f"{OUTPUT_DIR}/test_serialization.cpp", "w") as f4:
             f4.write(tests)
     compile_tests()
     run_tests()
