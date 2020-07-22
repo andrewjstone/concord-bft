@@ -258,7 +258,7 @@ def compile_tests():
 
 def run_tests():
     print("Running tests")
-    if os.system("./test_serialization") == 0:
+    if os.system(f"./{OUTPUT_DIR}/test_serialization") == 0:
         print("Tests passed.")
     else:
         print("Tests failed.")

@@ -142,6 +142,9 @@ class CppVisitor(Visitor):
         # The `deserialize` member functions for all oneofs in the current message
         self.oneof_deserialize = ""
 
+    def _reset(self):
+        __init__(self)
+
     def msg_start(self, name, id):
         self.msg_name = name
         self.struct = struct_start(name, id)
@@ -165,7 +168,7 @@ class CppVisitor(Visitor):
         # output and oneofs_seen accumulate across messages
         output = self.output
         oneofs = self.oneofs_seen
-        self.__init__()
+        self._reset()
         self.output = output
         self.oneofs_seen = oneofs
 

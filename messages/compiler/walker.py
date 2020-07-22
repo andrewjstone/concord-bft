@@ -30,6 +30,7 @@ def field_type(type):
     for compound in ["list", "kvpair", "map", "optional", "oneof"]:
         if compound in type:
             return compound
+    raise CmfParseError(type.parseinfo, f"Invalid field type: {type}")
 
 
 class Walker:

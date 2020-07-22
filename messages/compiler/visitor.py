@@ -79,6 +79,7 @@ class Visitor(metaclass=ABCMeta):
     @abstractmethod
     def field_end(self):
         """ The field has been fully defined. """
+        pass
 
     #
     # PRIMITIVE TYPES
@@ -194,3 +195,4 @@ class Visitor(metaclass=ABCMeta):
         Args:
            msgs (dict(str, int)): A dict mapping the names of messages to their ids.
         """
+        pass
