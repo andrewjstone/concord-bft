@@ -143,7 +143,7 @@ class CppVisitor(Visitor):
         self.oneof_deserialize = ""
 
     def _reset(self):
-        __init__(self)
+        self.__init__()
 
     def msg_start(self, name, id):
         self.msg_name = name
