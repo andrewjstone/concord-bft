@@ -42,13 +42,13 @@ def deserialize_start():
 
 def serialize_field(field_name, serializers):
     return f'''\
-        serializer.serialize_field(self.{field_name}, {serializers})
+        serializer.serialize(self.{field_name}, {serializers})
 '''
 
 
 def deserialize_field(field_name, serializers):
     return f'''\
-        self.{field_name} = CMFDeserializer.deserialize_field({serializers})
+        self.{field_name} = CMFDeserializer.deserialize({serializers})
 '''
 
 
@@ -67,11 +67,10 @@ class PyVisitor(Visitor):
         # Messages are represented as Classes in python
         self.msg_class = ''
 
-        # A list of string names of serialize functions for the current field. It's a list because types can be nested.
+        # A list of string names of serialization functions for the current field. It's a list
+        # because types can be nested. The same function name is used for serialization and
+        # deserialization via getattr.
         self.serializers = []
-
-        # A list of string names of deserialize functions for the current field. It's a list because types can be nested.
-        self.deserializers = []
 
         # The 'serialize' method for the current message
         self.serialize = ''
@@ -88,7 +87,6 @@ class PyVisitor(Visitor):
     def _reset_field(self):
         self.field_name = ''
         self.serializers = []
-        self.deserializers = []
 
     def msg_start(self, name, id):
         self.msg_name = name
@@ -109,60 +107,47 @@ class PyVisitor(Visitor):
     def field_end(self):
         self.serialize += serialize_field(self.field_name, self.serializers)
         self.deserialize += deserialize_field(self.field_name,
-                                              self.deserializers)
+                                              self.serializers)
         self._reset_field()
 
     def bool(self):
         self.serializers.append('bool')
-        self.deserializers.append('bool')
 
     def uint8(self):
         self.serializers.append('uint8')
-        self.deserializers.append('uint8')
 
     def uint16(self):
         self.serializers.append('uint16')
-        self.deserializers.append('uint16')
 
     def uint32(self):
         self.serializers.append('uint32')
-        self.deserializers.append('uint32')
 
     def uint64(self):
         self.serializers.append('uint64')
-        self.deserializers.append('uint64')
 
     def int8(self):
         self.serializers.append('int8')
-        self.deserializers.append('int8')
 
     def int16(self):
         self.serializers.append('int16')
-        self.deserializers.append('int16')
 
     def int32(self):
         self.serializers.append('int32')
-        self.deserializers.append('int32')
 
     def int64(self):
         self.serializers.append('int64')
-        self.deserializers.append('int64')
 
     def string(self):
         self.serializers.append('string')
-        self.deserializers.append('string')
 
     def bytes(self):
         self.serializers.append('bytes')
-        self.deserializers.append('bytes')
 
     def msgname_ref(self, name):
-        self.serializers.append(f'msg({name})')
-        self.deserializers.append(f'msg({name})')
+        self.serializers.append('msg')
 
     def kvpair_start(self):
         self.serializers.append('kvpair')
-        self.deserializers.append('kvpair')
 
     def kvpair_key_end(self):
         pass
@@ -172,14 +157,12 @@ class PyVisitor(Visitor):
 
     def list_start(self):
         self.serializers.append('list')
-        self.deserializers.append('list')
 
     def list_end(self):
         pass
 
     def map_start(self):
         self.serializers.append('map')
-        self.deserializers.append('map')
 
     def map_key_end(self):
         pass
@@ -189,11 +172,9 @@ class PyVisitor(Visitor):
 
     def optional_start(self):
         self.serializers.append('optional')
-        self.deserializers.append('optional')
 
     def optional_end(self):
         pass
 
     def oneof(self, msgs):
-        self.serializers.append(f'oneof({msgs})')
-        self.deserializers.append(f'oneof({msgs})')
+        self.serializers.append(('oneof', msgs))
