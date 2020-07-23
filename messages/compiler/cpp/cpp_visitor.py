@@ -143,7 +143,12 @@ class CppVisitor(Visitor):
         self.oneof_deserialize = ""
 
     def _reset(self):
+        # output and oneofs_seen accumulate across messages
+        output = self.output
+        oneofs = self.oneofs_seen
         self.__init__()
+        self.output = output
+        self.oneofs_seen = oneofs
 
     def msg_start(self, name, id):
         self.msg_name = name
@@ -165,12 +170,7 @@ class CppVisitor(Visitor):
                 self.deserialize,
             ] if s != ''
         ])
-        # output and oneofs_seen accumulate across messages
-        output = self.output
-        oneofs = self.oneofs_seen
         self._reset()
-        self.output = output
-        self.oneofs_seen = oneofs
 
     def field_start(self, name, type):
         self.struct += "  "  # Indent fields

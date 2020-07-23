@@ -24,8 +24,11 @@ def translate(ast, language, namespace):
     if language == "cpp":
         print("Generating C++ source code")
         from cpp import cppgen
-
         return cppgen.translate(ast, namespace)
+    if language == "python":
+        print("Generating Python source code")
+        from python import pygen
+        return pygen.translate(ast, namespace)
 
 
 def parse_args():
@@ -37,7 +40,7 @@ def parse_args():
     parser.add_argument("--output", help="The output filename", required=True)
     parser.add_argument("--language",
                         help="The output language",
-                        choices=["cpp"],
+                        choices=["cpp", "python"],
                         required=True)
     parser.add_argument(
         "--namespace",
