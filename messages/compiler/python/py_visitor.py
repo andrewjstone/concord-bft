@@ -35,7 +35,7 @@ def deserialize_start():
     return f'''
     @classmethod
     def deserialize(cls, buf):
-        \'\'\' Take a bytebuf of a serialized CMF message, deserialize it, and return a new instance of this class. \'\'\'
+        \'\'\' Take bytes of a serialized CMF message, deserialize it, and return a new instance of this class. \'\'\'
         deserializer = CMFDeserializer(buf)
 '''
 
@@ -48,7 +48,7 @@ def serialize_field(field_name, serializers):
 
 def deserialize_field(field_name, serializers):
     return f'''\
-        self.{field_name} = CMFDeserializer.deserialize({serializers})
+        self.{field_name} = deserializer.deserialize({serializers})
 '''
 
 

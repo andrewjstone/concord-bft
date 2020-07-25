@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -44,6 +45,18 @@ class NoDataLeftError : public DeserializeError {
  public:
   NoDataLeftError() : DeserializeError("Data left in buffer is less than what is needed for deserialization") {}
 };
+
+class BadDataError : public DeserializeError {
+ public:
+  BadDataError(const std::string& expected, const std::string& got) : DeserializeError(str(expected, got)) {}
+
+ private:
+  static std::string str(const std::string& expected, const std::string& actual) {
+    ostringstream oss;
+    oss << "Expected " << expected << ", got" << actual;
+    return oss.str();
+  }
+}
 
 /******************************************************************************
  * Integers
@@ -67,7 +80,13 @@ void deserialize(uint8_t*& start, const uint8_t* end, T& t) {
     if (start + 1 > end) {
       throw NoDataLeftError();
     }
-    (*start == 0) ? t = false : t = true;
+    if (*start == 0) {
+      t = false;
+    } else if (*start == 1) {
+      t = true;
+    } else {
+      throw BadDataError("0 or 1", std::to_string(*start));
+    }
     start += 1;
   } else {
     if (start + sizeof(T) > end) {
@@ -152,7 +171,7 @@ void deserialize(uint8_t*& start, const uint8_t* end, std::vector<T>& v) {
   if constexpr (std::is_integral_v<T> && sizeof(T) == 1) {
     // Optimized for bytes
     if (start + length > end) {
-      throw DeserializeError("Data left in buffer is less than what is needed for deserialization");
+      throw NoDataLeftError()
     }
     std::copy_n(start, length, std::back_inserter(v));
     start += length;
