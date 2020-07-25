@@ -73,7 +73,10 @@ class CMFSerializer():
         elif type(s) is tuple and len(s) == 2 and s[0] == 'oneof' and type(
                 s[1]) is dict:
             self.oneof(val, s[1])
-        elif is_primitive(s) or s == 'msg':
+        elif type(s) is tuple and len(s) == 2 and s[0] == 'msg' and type(
+                s[1]) is str:
+            self.msg(val, s[1])
+        elif is_primitive(s):
             getattr(self, s)(val)
         else:
             raise CmfSerializeError(f'Invalid serializer: {s}, val = {val}')
@@ -133,7 +136,10 @@ class CMFSerializer():
         self.uint32(len(val))
         self.buf.extend(val)
 
-    def msg(self, msg, serializers):
+    def msg(self, msg, msg_name):
+        if msg.__class__.__name__ != name:
+            raise CmfSerializeError(
+                f'Expected {msg_name}, got {msg.__class__.__name__}')
         self.buf.extend(msg.serialize())
 
     def kvpair(self, pair, serializers):
@@ -162,6 +168,9 @@ class CMFSerializer():
         if val.__class__.__name__ in msgs.keys():
             self.uint32(val.id)
             self.buf.extend(val.serialize())
+        else:
+            raise CmfSerializeError(
+                f'Invalid msg in oneof: {val.__class__.__name__}')
 
 
 class CMFDeserializer():
@@ -179,6 +188,9 @@ class CMFDeserializer():
         elif type(s) is tuple and len(s) == 2 and s[0] == 'oneof' and type(
                 s[1]) is dict:
             return self.oneof(s[1])
+        elif type(s) is tuple and len(s) == 2 and s[0] == 'msg' and type(
+                s[1]) is str:
+            self.msg(s[1])
         elif is_primitive(s) or s == 'msg':
             return getattr(self, s)()
         else:
@@ -201,64 +213,118 @@ class CMFDeserializer():
             raise NoDataLeftError()
         val = struct.unpack_from('B', self.buf, self.pos)
         self.pos += 1
-        return val
+        return val[0]
 
     def uint16(self):
         if self.pos + 2 > len(self.buf):
             raise NoDataLeftError()
         val = struct.unpack_from('<H', self.buf, self.pos)
         self.pos += 2
-        return val
+        return val[0]
 
     def uint32(self):
         if self.pos + 4 > len(self.buf):
             raise NoDataLeftError()
         val = struct.unpack_from('<I', self.buf, self.pos)
         self.pos += 4
-        return val
+        return val[0]
 
     def uint64(self):
         if self.pos + 8 > len(self.buf):
             raise NoDataLeftError()
         val = struct.unpack_from('<Q', self.buf, self.pos)
         self.pos += 8
-        return val
+        return val[0]
 
     def int8(self):
         if self.pos + 1 > len(self.buf):
             raise NoDataLeftError()
         val = struct.unpack_from('b', self.buf, self.pos)
         self.pos += 1
-        return val
+        return val[0]
 
     def int16(self):
         if self.pos + 2 > len(self.buf):
             raise NoDataLeftError()
         val = struct.unpack_from('<h', self.buf, self.pos)
         self.pos += 2
-        return val
+        return val[0]
 
     def int32(self):
         if self.pos + 4 > len(self.buf):
             raise NoDataLeftError()
         val = struct.unpack_from('<i', self.buf, self.pos)
         self.pos += 4
-        return val
+        return val[0]
 
     def int64(self):
         if self.pos + 8 > len(self.buf):
             raise NoDataLeftError()
         val = struct.unpack_from('<q', self.buf, self.pos)
         self.pos += 8
-        return val
+        return val[0]
 
     def string(self):
         if self.pos + 4 > len(self.buf):
             raise NoDataLeftError()
         size = self.uint32()
-        self.pos += 4
         if self.pos + size > len(self.buf):
             raise NoDataLeftError()
         val = str(self.buf[self.pos:self.pos + size], 'utf-8')
         self.pos += size
         return val
+
+    def bytes(self):
+        if self.pos + 4 > len(self.buf):
+            raise NoDataLeftError()
+        size = self.uint32()
+        if self.pos + size > len(self.buf):
+            raise NoDataLeftError()
+        val = self.buf[self.pos:self.pos + size]
+        self.pos += size
+        return val
+
+    def msg(self, msg_name):
+        cls = globals()[msg_name]
+        val, bytes_read = cls.deserialize(self.buf[self.pos:])
+        self.pos += bytes_read
+        return val
+
+    def kvpair(self, serializers):
+        key = self.deserialize(serializers)
+        val = self.deserialize(serializers[1:])
+        return (key, val)
+
+    def list(self, serializers):
+        if self.pos + 4 > len(self.buf):
+            raise NoDataLeftError()
+        size = self.uint32()
+        if self.pos + size > len(self.buf):
+            raise NoDataLeftError()
+        return [self.deserialize(serializers) for _ in range(0, size)]
+
+    def map(self, serializers):
+        if self.pos + 4 > len(self.buf):
+            raise NoDataLeftError()
+        size = self.uint32()
+        if self.pos + size > len(self.buf):
+            raise NoDataLeftError()
+        return {
+            self.deserialize(serializers): self.deserialize(serializers[1:])
+            for _ in range(0, size)
+        }
+
+    def optional(self, serializers):
+        if not self.bool():
+            return None
+        return self.deserialize(serializers)
+
+    def oneof(self, msgs):
+        if self.pos + 4 > len(self.buf):
+            raise NoDataLeftError()
+        id = self.uint32()
+        if id not in msgs.values():
+            raise CmfDeserializeError(f'Invalid msg id for oneof: {id}')
+        for name, msg_id in msgs.items():
+            if msg_id == id:
+                return self.msg(name)

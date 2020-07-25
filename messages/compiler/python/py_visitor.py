@@ -37,6 +37,7 @@ def deserialize_start():
     def deserialize(cls, buf):
         \'\'\' Take bytes of a serialized CMF message, deserialize it, and return a new instance of this class. \'\'\'
         deserializer = CMFDeserializer(buf)
+        obj = cls()
 '''
 
 
@@ -48,7 +49,7 @@ def serialize_field(field_name, serializers):
 
 def deserialize_field(field_name, serializers):
     return f'''\
-        self.{field_name} = deserializer.deserialize({serializers})
+        obj.{field_name} = deserializer.deserialize({serializers})
 '''
 
 
@@ -96,6 +97,7 @@ class PyVisitor(Visitor):
 
     def msg_end(self):
         self.serialize += '        return serializer.buf'
+        self.deserialize += '        return obj, deserializer.pos\n'
         self.output += '\n'.join(
             [self.msg_class, self.serialize, self.deserialize])
         self._reset()
@@ -144,7 +146,7 @@ class PyVisitor(Visitor):
         self.serializers.append('bytes')
 
     def msgname_ref(self, name):
-        self.serializers.append('msg')
+        self.serializers.append(('msg', name))
 
     def kvpair_start(self):
         self.serializers.append('kvpair')
