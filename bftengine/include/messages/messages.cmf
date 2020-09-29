@@ -1,0 +1,35 @@
+Msg ClientReq 1 {
+    uint32 client_id
+
+    # bit 0 == isReadOnly, bit 1 = preProcess, bits 2-7 are reserved
+    uint8 flags
+
+    uint64 seq_num
+    uint64 timeout_milli
+    bytes span
+    bytes correlation_id
+    bytes data
+}
+
+Msg ClientRpy 2 {
+   uint64 seq_num
+   optional uint32 primary
+   bytes span
+   bytes data
+   bytes replica_specific_info
+}
+
+Msg PrePrepare 3 {
+    uint64 view
+    uint64 seq_num
+
+    # bit 0: 0=null , 1=non-null
+    # bit 1: 0=not ready , 1=ready
+    # bits 2-3: represent the first commit path that should be tried (00 = OPTIMISTIC_FAST, 01 = FAST_WITH_THRESHOLD,
+    # 10 = SLOW) bits 4-15: zero
+    uint16 flags
+
+    bytes span
+    list bytes requests
+    bytes digest_of_requests
+}
