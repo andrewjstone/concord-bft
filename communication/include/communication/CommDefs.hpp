@@ -180,7 +180,8 @@ class TlsTCPCommunication : public ICommunication {
 
  private:
   class TlsTcpImpl;
-  std::shared_ptr<TlsTcpImpl> _ptrImpl = nullptr;
+  friend class AsyncTlsConnection;
+  std::unique_ptr<TlsTcpImpl> impl_;
 
   explicit TlsTCPCommunication(const TlsTcpConfig &config);
 };
