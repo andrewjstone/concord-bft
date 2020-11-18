@@ -338,6 +338,12 @@ PreProcessReplyMsgSharedPtr preProcessNonPrimary(NodeIdType replicaId, const bft
   return preProcessReplyMsg;
 }
 
+void clearDiagnosticsHandlers() {
+  auto& registrar = concord::diagnostics::RegistrarSingleton::getInstance();
+  registrar.perf.clear();
+  registrar.status.clear();
+}
+
 TEST(requestPreprocessingState_test, notEnoughRepliesReceived) {
   RequestProcessingState reqState(replicaConfig.numReplicas,
                                   clientId,
@@ -352,6 +358,7 @@ TEST(requestPreprocessingState_test, notEnoughRepliesReceived) {
   }
   reqState.handlePrimaryPreProcessed(buf, bufLen);
   ConcordAssert(reqState.definePreProcessingConsensusResult() == CONTINUE);
+  clearDiagnosticsHandlers();
 }
 
 TEST(requestPreprocessingState_test, allRepliesReceivedButNotEnoughSameHashesCollected) {
@@ -387,6 +394,7 @@ TEST(requestPreprocessingState_test, enoughSameRepliesReceived) {
   }
   reqState.handlePrimaryPreProcessed(buf, bufLen);
   ConcordAssert(reqState.definePreProcessingConsensusResult() == COMPLETE);
+  clearDiagnosticsHandlers();
 }
 
 TEST(requestPreprocessingState_test, primaryReplicaPreProcessingRetrySucceeds) {
@@ -408,6 +416,7 @@ TEST(requestPreprocessingState_test, primaryReplicaPreProcessingRetrySucceeds) {
   memset(buf, '4', bufLen);
   reqState.handlePrimaryPreProcessed(buf, bufLen);
   ConcordAssert(reqState.definePreProcessingConsensusResult() == COMPLETE);
+  clearDiagnosticsHandlers();
 }
 
 TEST(requestPreprocessingState_test, primaryReplicaDidNotCompletePreProcessingWhileNonPrimariesDid) {
@@ -445,6 +454,7 @@ TEST(requestPreprocessingState_test, requestTimedOut) {
   usleep(replicaConfig.preExecReqStatusCheckTimerMillisec * 1000);
   timers.evaluate();
   ConcordAssert(preProcessor.getOngoingReqIdForClient(clientId) == 0);
+  clearDiagnosticsHandlers();
 }
 
 TEST(requestPreprocessingState_test, primaryCrashDetected) {
@@ -465,6 +475,7 @@ TEST(requestPreprocessingState_test, primaryCrashDetected) {
   usleep(reqWaitTimeoutMilli * 1000);
   timers.evaluate();
   ConcordAssert(preProcessor.getOngoingReqIdForClient(clientId) == 0);
+  clearDiagnosticsHandlers();
 }
 
 TEST(requestPreprocessingState_test, primaryCrashNotDetected) {
@@ -490,6 +501,7 @@ TEST(requestPreprocessingState_test, primaryCrashNotDetected) {
   msgHandlerCallback(preProcessReqMsg);
   usleep(reqWaitTimeoutMilli * 1000 / 2);  // Wait for the pre-execution completion
   ConcordAssert(preProcessor.getOngoingReqIdForClient(clientId) == 0);
+  clearDiagnosticsHandlers();
 }
 
 }  // end namespace
