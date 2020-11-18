@@ -155,7 +155,7 @@ void ReplicaImp::onMessage<ClientRequestMsg>(ClientRequestMsg *m) {
 
   SCOPED_MDC_PRIMARY(std::to_string(currentPrimary()));
   SCOPED_MDC_CID(m->getCid());
-  LOG_DEBUG(GL, KVLOG(clientId, reqSeqNum, senderId) << " flags: " << std::bitset<8>(flags));
+  LOG_DEBUG(MSGS, KVLOG(clientId, reqSeqNum, senderId) << " flags: " << std::bitset<8>(flags));
 
   const auto &span_context = m->spanContext<std::remove_pointer<decltype(m)>::type>();
   auto span = concordUtils::startChildSpanFromContext(span_context, "bft_client_request");
@@ -625,7 +625,7 @@ void ReplicaImp::onMessage<PrePrepareMsg>(PrePrepareMsg *msg) {
 
   SCOPED_MDC_PRIMARY(std::to_string(currentPrimary()));
   SCOPED_MDC_SEQ_NUM(std::to_string(msgSeqNum));
-  LOG_DEBUG(GL, KVLOG(msg->senderId(), msg->size()));
+  LOG_DEBUG(MSGS, KVLOG(msg->senderId(), msg->size()));
   auto span = concordUtils::startChildSpanFromContext(msg->spanContext<std::remove_pointer<decltype(msg)>::type>(),
                                                       "handle_bft_preprepare");
   span.setTag("rid", config_.getreplicaId());
@@ -928,7 +928,7 @@ void ReplicaImp::sendPreparePartial(SeqNumInfo &seqNumInfo) {
 
     ConcordAssertNE(pp, nullptr);
 
-    LOG_DEBUG(GL, "Sending PreparePartialMsg. " << KVLOG(pp->seqNumber()));
+    LOG_DEBUG(MSGS, "Sending PreparePartialMsg. " << KVLOG(pp->seqNumber()));
 
     const auto &span_context = pp->spanContext<std::remove_pointer<decltype(pp)>::type>();
     PreparePartialMsg *p = PreparePartialMsg::create(curView,
@@ -990,7 +990,7 @@ void ReplicaImp::onMessage<PartialCommitProofMsg>(PartialCommitProofMsg *msg) {
   ConcordAssert(repsInfo->isIdOfPeerReplica(msgSender));
   ConcordAssert(repsInfo->isCollectorForPartialProofs(msgView, msgSeqNum));
 
-  LOG_DEBUG(GL, KVLOG(msgSender, msg->size()));
+  LOG_DEBUG(MSGS, KVLOG(msgSender, msg->size()));
 
   auto span = concordUtils::startChildSpanFromContext(msg->spanContext<std::remove_pointer<decltype(msg)>::type>(),
                                                       "bft_handle_partial_commit_proof_msg");
@@ -1203,7 +1203,7 @@ void ReplicaImp::onMessage<PreparePartialMsg>(PreparePartialMsg *msg) {
 
     sendAckIfNeeded(msg, msgSender, msgSeqNum);
 
-    LOG_DEBUG(GL, "Received relevant PreparePartialMsg." << KVLOG(msgSender));
+    LOG_DEBUG(MSGS, "Received relevant PreparePartialMsg." << KVLOG(msgSender));
 
     controller->onMessage(msg);
 
@@ -1227,7 +1227,7 @@ void ReplicaImp::onMessage<PreparePartialMsg>(PreparePartialMsg *msg) {
   }
 
   if (!msgAdded) {
-    LOG_DEBUG(GL,
+    LOG_DEBUG(MSGS,
               "Node " << config_.getreplicaId() << " ignored the PreparePartialMsg from node " << msgSender
                       << " (seqNumber " << msgSeqNum << ")");
     delete msg;
@@ -1253,7 +1253,7 @@ void ReplicaImp::onMessage<CommitPartialMsg>(CommitPartialMsg *msg) {
 
     sendAckIfNeeded(msg, msgSender, msgSeqNum);
 
-    LOG_DEBUG(GL, "Received CommitPartialMsg from node " << msgSender);
+    LOG_DEBUG(MSGS, "Received CommitPartialMsg from node " << msgSender);
 
     SeqNumInfo &seqNumInfo = mainLog->get(msgSeqNum);
 
@@ -1291,7 +1291,7 @@ void ReplicaImp::onMessage<PrepareFullMsg>(PrepareFullMsg *msg) {
   if (relevantMsgForActiveView(msg)) {
     sendAckIfNeeded(msg, msgSender, msgSeqNum);
 
-    LOG_DEBUG(GL, "received PrepareFullMsg");
+    LOG_DEBUG(MSGS, "received PrepareFullMsg");
 
     SeqNumInfo &seqNumInfo = mainLog->get(msgSeqNum);
 
@@ -1313,7 +1313,7 @@ void ReplicaImp::onMessage<PrepareFullMsg>(PrepareFullMsg *msg) {
   }
 
   if (!msgAdded) {
-    LOG_DEBUG(GL, "Ignored PrepareFullMsg." << KVLOG(msgSender));
+    LOG_DEBUG(MSGS, "Ignored PrepareFullMsg." << KVLOG(msgSender));
     delete msg;
   }
 }
@@ -1332,7 +1332,7 @@ void ReplicaImp::onMessage<CommitFullMsg>(CommitFullMsg *msg) {
   if (relevantMsgForActiveView(msg)) {
     sendAckIfNeeded(msg, msgSender, msgSeqNum);
 
-    LOG_DEBUG(GL, "Received CommitFullMsg" << KVLOG(msgSender));
+    LOG_DEBUG(MSGS, "Received CommitFullMsg" << KVLOG(msgSender));
 
     SeqNumInfo &seqNumInfo = mainLog->get(msgSeqNum);
 
@@ -1352,7 +1352,7 @@ void ReplicaImp::onMessage<CommitFullMsg>(CommitFullMsg *msg) {
   }
 
   if (!msgAdded) {
-    LOG_DEBUG(GL,
+    LOG_DEBUG(MSGS,
               "Node " << config_.getreplicaId() << " ignored the CommitFullMsg from node " << msgSender
                       << " (seqNumber " << msgSeqNum << ")");
     delete msg;
@@ -1792,7 +1792,7 @@ void ReplicaImp::onRetransmissionsProcessingResults(SeqNum relatedLastStableSeqN
         PrePrepareMsg *msgToSend = seqNumInfo.getSelfPrePrepareMsg();
         ConcordAssertNE(msgToSend, nullptr);
         sendRetransmittableMsgToReplica(msgToSend, s.replicaId, s.msgSeqNum);
-        LOG_DEBUG(GL,
+        LOG_DEBUG(MSGS,
                   "Replica " << myId << " retransmits to replica " << s.replicaId << " PrePrepareMsg with seqNumber "
                              << s.msgSeqNum);
       } break;
@@ -1801,7 +1801,7 @@ void ReplicaImp::onRetransmissionsProcessingResults(SeqNum relatedLastStableSeqN
         PartialCommitProofMsg *msgToSend = seqNumInfo.partialProofs().getSelfPartialCommitProof();
         ConcordAssertNE(msgToSend, nullptr);
         sendRetransmittableMsgToReplica(msgToSend, s.replicaId, s.msgSeqNum);
-        LOG_DEBUG(GL,
+        LOG_DEBUG(MSGS,
                   "Replica " << myId << " retransmits to replica " << s.replicaId
                              << " PartialCommitProofMsg with seqNumber " << s.msgSeqNum);
       } break;
@@ -1811,7 +1811,7 @@ void ReplicaImp::onRetransmissionsProcessingResults(SeqNum relatedLastStableSeqN
         StartSlowCommitMsg *msgToSend = new StartSlowCommitMsg(myId, curView, s.msgSeqNum);
         sendRetransmittableMsgToReplica(msgToSend, s.replicaId, s.msgSeqNum);
         delete msgToSend;
-        LOG_DEBUG(GL,
+        LOG_DEBUG(MSGS,
                   "Replica " << myId << " retransmits to replica " << s.replicaId
                              << " StartSlowCommitMsg with seqNumber " << s.msgSeqNum);
       } break;
@@ -1820,7 +1820,7 @@ void ReplicaImp::onRetransmissionsProcessingResults(SeqNum relatedLastStableSeqN
         PreparePartialMsg *msgToSend = seqNumInfo.getSelfPreparePartialMsg();
         ConcordAssertNE(msgToSend, nullptr);
         sendRetransmittableMsgToReplica(msgToSend, s.replicaId, s.msgSeqNum);
-        LOG_DEBUG(GL,
+        LOG_DEBUG(MSGS,
                   "Replica " << myId << " retransmits to replica " << s.replicaId
                              << " PreparePartialMsg with seqNumber " << s.msgSeqNum);
       } break;
@@ -1829,7 +1829,7 @@ void ReplicaImp::onRetransmissionsProcessingResults(SeqNum relatedLastStableSeqN
         PrepareFullMsg *msgToSend = seqNumInfo.getValidPrepareFullMsg();
         ConcordAssertNE(msgToSend, nullptr);
         sendRetransmittableMsgToReplica(msgToSend, s.replicaId, s.msgSeqNum);
-        LOG_DEBUG(GL,
+        LOG_DEBUG(MSGS,
                   "Replica " << myId << " retransmits to replica " << s.replicaId << " PrepareFullMsg with seqNumber "
                              << s.msgSeqNum);
       } break;
@@ -1839,7 +1839,7 @@ void ReplicaImp::onRetransmissionsProcessingResults(SeqNum relatedLastStableSeqN
         CommitPartialMsg *msgToSend = seqNumInfo.getSelfCommitPartialMsg();
         ConcordAssertNE(msgToSend, nullptr);
         sendRetransmittableMsgToReplica(msgToSend, s.replicaId, s.msgSeqNum);
-        LOG_DEBUG(GL,
+        LOG_DEBUG(MSGS,
                   "Replica " << myId << " retransmits to replica " << s.replicaId << " CommitPartialMsg with seqNumber "
                              << s.msgSeqNum);
       } break;
@@ -1872,7 +1872,7 @@ void ReplicaImp::onMessage<ReplicaStatusMsg>(ReplicaStatusMsg *msg) {
   const ViewNum msgViewNum = msg->getViewNumber();
   ConcordAssertEQ(msgLastStable % checkpointWindowSize, 0);
 
-  LOG_DEBUG(GL, KVLOG(msgSenderId));
+  LOG_DEBUG(MSGS, KVLOG(msgSenderId));
 
   /////////////////////////////////////////////////////////////////////////
   // Checkpoints
@@ -3010,7 +3010,7 @@ void ReplicaImp::onMessage<SimpleAckMsg>(SimpleAckMsg *msg) {
   SCOPED_MDC_SEQ_NUM(std::to_string(msg->seqNumber()));
   uint16_t relatedMsgType = (uint16_t)msg->ackData();  // TODO(GG): does this make sense ?
   if (retransmissionsLogicEnabled) {
-    LOG_DEBUG(GL, KVLOG(msg->senderId(), relatedMsgType));
+    LOG_DEBUG(MSGS, KVLOG(msg->senderId(), relatedMsgType));
     retransmissionsManager->onAck(msg->senderId(), msg->seqNumber(), relatedMsgType);
   } else {
     LOG_WARN(GL, "Received Ack, but retransmissions not enabled. " << KVLOG(msg->senderId(), relatedMsgType));
@@ -3769,7 +3769,7 @@ void ReplicaImp::executeRequestsInPrePrepareMsg(concordUtils::SpanWrapper &paren
   // TODO(GG): Explain what happens in recovery mode
   //////////////////////////////////////////////////////////////////////
 
-  LOG_DEBUG(GL, "Finalized execution. " << KVLOG(lastExecutedSeqNum + 1, curView, lastStableSeqNum));
+  LOG_DEBUG(CNSUS, "Finalized execution. " << KVLOG(lastExecutedSeqNum + 1, curView, lastStableSeqNum));
 
   if (ps_) {
     ps_->beginWriteTran();
