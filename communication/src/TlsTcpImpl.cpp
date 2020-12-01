@@ -10,10 +10,13 @@
 // terms and conditions of the subcomponent's license, as noted in the
 // LICENSE file.
 
+#include <set>
 #include <boost/filesystem.hpp>
 
 #include "assertUtils.hpp"
 #include "TlsTcpImpl.h"
+
+using namespace concord::diagnostics;
 
 namespace bft::communication {
 
@@ -132,27 +135,34 @@ int TlsTCPCommunication::TlsTcpImpl::sendAsyncMessage(const NodeNum destination,
     LOG_ERROR(logger_, "Msg Dropped. Size exceeds max message size: " << KVLOG(len, max_size));
     return -1;
   }
+
+  std::shared_ptr<AsyncTlsConnection> conn = nullptr;
   auto start = std::chrono::steady_clock::now();
-  uint32_t msg_size = htonl(static_cast<uint32_t>(len));
-  std::lock_guard<std::mutex> lock(connections_guard_);
-  auto temp = connections_.find(destination);
-  if (temp != connections_.end()) {
+  // No need to hold the connections lock while sending.
+  {
+    std::lock_guard<std::mutex> lock(connections_guard_);
+    auto temp = connections_.find(destination);
+    if (temp != connections_.end()) {
+      conn = temp->second;
+    }
+  }
+  if (conn) {
+    uint32_t msg_size = htonl(static_cast<uint32_t>(len));
     std::vector<char> owned(len + AsyncTlsConnection::MSG_HEADER_SIZE);
     std::memcpy(owned.data(), &msg_size, AsyncTlsConnection::MSG_HEADER_SIZE);
     std::memcpy(owned.data() + AsyncTlsConnection::MSG_HEADER_SIZE, msg, len);
-    temp->second->send(std::move(owned));
+    conn->send(std::move(owned));
     histograms_.send_enqueue_time->record(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count());
+        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count());
     status_->total_messages_sent++;
     LOG_DEBUG(logger_, "Sent message from: " << config_.selfId << ", to: " << destination << "with size: " << len);
-
   } else {
     LOG_DEBUG(logger_, "Connection NOT found, from: " << config_.selfId << ", to: " << destination);
     status_->total_messages_dropped++;
     return -1;
   }
   return 0;
-}
+}  // namespace bft::communication
 
 void setSocketOptions(boost::asio::ip::tcp::socket& socket) { socket.set_option(boost::asio::ip::tcp::no_delay(true)); }
 
@@ -161,6 +171,7 @@ void TlsTCPCommunication::TlsTcpImpl::closeConnection(NodeNum id) {
   std::lock_guard<std::mutex> lock(connections_guard_);
   auto conn = std::move(connections_.at(id));
   connections_.erase(id);
+  active_connections_.erase(id);
   status_->num_connections = connections_.size();
   if (config_.statusCallback && isReplica(id)) {
     PeerConnectivityStatus pcs{};
@@ -192,15 +203,19 @@ void TlsTCPCommunication::TlsTcpImpl::onConnectionAuthenticated(std::shared_ptr<
   // discard it. In this case it was likely that connecting end of the connection thinks there is
   // something wrong. This is a vector for a denial of service attack on the accepting side. We can
   // track the number of connections from the node and mark it malicious if necessary.
-  std::lock_guard<std::mutex> lock(connections_guard_);
-  auto it = connections_.find(conn->getPeerId().value());
-  if (it != connections_.end()) {
-    LOG_INFO(logger_,
-             "New connection accepted from same peer. Closing existing connection to " << conn->getPeerId().value());
-    closeConnection(std::move(it->second));
+  TimeRecorder scoped_timer(*histograms_.on_connection_authenticated);
+  {
+    std::lock_guard<std::mutex> lock(connections_guard_);
+    auto it = connections_.find(conn->getPeerId().value());
+    if (it != connections_.end()) {
+      LOG_INFO(logger_,
+               "New connection accepted from same peer. Closing existing connection to " << conn->getPeerId().value());
+      closeConnection(std::move(it->second));
+    }
+    connections_.insert_or_assign(conn->getPeerId().value(), conn);
+    status_->num_connections = connections_.size();
   }
-  connections_.insert_or_assign(conn->getPeerId().value(), conn);
-  status_->num_connections = connections_.size();
+  active_connections_.insert(conn->getPeerId().value());
   conn->readMsgSizeHeader();
 }
 
@@ -314,10 +329,10 @@ void TlsTCPCommunication::TlsTcpImpl::connect(NodeNum i, boost::asio::ip::tcp::e
 }
 
 void TlsTCPCommunication::TlsTcpImpl::connect() {
-  std::lock_guard<std::mutex> lock(connections_guard_);
+  TimeRecorder scoped_timer(*histograms_.connect_callback);
   auto end = std::min<size_t>(config_.selfId, config_.maxServerId + 1);
   for (auto i = 0u; i < end; i++) {
-    if (connections_.count(i) == 0 && connecting_.count(i) == 0 && resolving_.count(i) == 0 &&
+    if (active_connections_.count(i) == 0 && connecting_.count(i) == 0 && resolving_.count(i) == 0 &&
         connected_waiting_for_handshake_.count(i) == 0) {
       resolve(i);
     }

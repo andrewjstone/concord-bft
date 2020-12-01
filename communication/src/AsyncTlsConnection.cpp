@@ -54,12 +54,8 @@ void AsyncTlsConnection::readMsgSizeHeader(std::optional<size_t> bytes_already_r
           return dispose();
         }
 
-        if (!bytes_already_read) {
-          startReadTimer();
-        }
-
         if (bytes_transferred != bytes_remaining) {
-          LOG_DEBUG(
+          LOG_ERROR(
               logger_,
               "Short read on messsage header occurred" << KVLOG(peer_id_.value(), bytes_remaining, bytes_transferred));
           readMsgSizeHeader(MSG_HEADER_SIZE - (bytes_remaining - bytes_transferred));
@@ -73,6 +69,10 @@ void AsyncTlsConnection::readMsgSizeHeader(std::optional<size_t> bytes_already_r
           }
 
           readMsg();
+        }
+
+        if (!bytes_already_read) {
+          startReadTimer();
         }
       });
 }
@@ -135,13 +135,15 @@ void AsyncTlsConnection::readMsg() {
                  TimeRecorder scoped_timer(*tlsTcpImpl_.histograms_.read_enqueue_time);
                  receiver_->onNewMessage(peer_id_.value(), read_msg_.data(), bytes_transferred);
                }
+               readMsgSizeHeader();
+
+               // This is expensive. Kick off an async_read via `readMsgSizeHeader` before calling it.
                if (tlsTcpImpl_.config_.statusCallback && tlsTcpImpl_.isReplica(peer_id_.value())) {
                  PeerConnectivityStatus pcs{};
                  pcs.peerId = peer_id_.value();
                  pcs.statusType = StatusType::MessageReceived;
                  tlsTcpImpl_.config_.statusCallback(pcs);
                }
-               readMsgSizeHeader();
              });
 }
 
@@ -194,24 +196,31 @@ void AsyncTlsConnection::dispose() {
 }
 
 void AsyncTlsConnection::send(std::vector<char>&& raw_msg) {
-  LOG_DEBUG(logger_, KVLOG(peer_id_.value()));
-  std::lock_guard<std::mutex> guard(write_lock_);
-  auto size = raw_msg.size();
-  if (queued_size_in_bytes_ + size > MAX_QUEUE_SIZE_IN_BYTES) {
-    LOG_WARN(logger_, "Outgoing Queue is full. Dropping message with size: " << raw_msg.size());
-    return;
+  bool start_writing_in_io_thread = false;
+  {
+    LOG_DEBUG(logger_, KVLOG(peer_id_.value()));
+    std::lock_guard<std::mutex> guard(write_lock_);
+    auto size = raw_msg.size();
+    if (queued_size_in_bytes_ + size > MAX_QUEUE_SIZE_IN_BYTES) {
+      LOG_WARN(logger_, "Outgoing Queue is full. Dropping message with size: " << raw_msg.size());
+      return;
+    }
+    out_queue_.push_back(OutgoingMsg(std::move(raw_msg)));
+    queued_size_in_bytes_ += size;
+
+    tlsTcpImpl_.histograms_.write_queue_len->record(out_queue_.size());
+    tlsTcpImpl_.histograms_.write_queue_size_in_bytes->record(queued_size_in_bytes_);
+
+    // If out_queue_.size() > 1 then the io_thread is already writing. We don't want to initiate two
+    // simultaneous async_write calls to the same socket. We also must ensure that this write call
+    // runs in a strand in io_service_ because the async_write it contains cannot safely run in
+    // another thread. WE use io_service_.post() for this.
+
+    if (out_queue_.size() == 1) {
+      start_writing_in_io_thread = true;
+    }
   }
-  out_queue_.push_back(OutgoingMsg(std::move(raw_msg)));
-  queued_size_in_bytes_ += size;
-
-  tlsTcpImpl_.histograms_.write_queue_len->record(out_queue_.size());
-  tlsTcpImpl_.histograms_.write_queue_size_in_bytes->record(queued_size_in_bytes_);
-
-  // If out_queue_.size() > 1 then the io_thread is already writing. We don't want to initiate two
-  // simultaneous async_write calls to the same socket. We also must ensure that this write call
-  // runs in a strand in io_service_ because the async_write it contains cannot safely run in
-  // another thread. WE use io_service_.post() for this.
-  if (out_queue_.size() == 1) {
+  if (start_writing_in_io_thread) {
     auto self = shared_from_this();
     io_service_.post([this, self]() { write(); });
   }
@@ -224,39 +233,17 @@ void AsyncTlsConnection::send(std::vector<char>&& raw_msg) {
   }
 }
 
-// Invariant: write_lock_ is held
-void AsyncTlsConnection::dropStaleMsgs() {
-  ConcordAssert(!out_queue_.empty());
-  while (out_queue_.front().send_time + STALE_MESSAGE_TIMEOUT < std::chrono::steady_clock::now()) {
-    auto diff = std::chrono::steady_clock::now() - out_queue_.front().send_time;
-    LOG_WARN(logger_,
-             "Message queued for peer " << peer_id_.value() << " for "
-                                        << std::chrono::duration_cast<std::chrono::seconds>(diff).count()
-                                        << " seconds, with size: " << out_queue_.front().msg.size()
-                                        << " dropped. Message is stale: Exceeded threshold of "
-                                        << STALE_MESSAGE_TIMEOUT.count() << " seconds.");
-    queued_size_in_bytes_ -= out_queue_.front().msg.size();
-    tlsTcpImpl_.histograms_.send_time_in_queue->record(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(diff).count());
-    out_queue_.pop_front();
-    if (out_queue_.empty()) {
-      return;
-    }
-  }
-}
-
+// At this point, we only operate within the single io thread. The front of the queue will only be
+// mutated by thread. Therefore we don't need to hold a write lock. We lose the lock in the
+// async_write callback anyway. Since asio will try to write to the socket directly if possible,
+// holding the lock induces unnecsessary overhead.delay.
 void AsyncTlsConnection::write() {
-  std::lock_guard<std::mutex> guard(write_lock_);
-  dropStaleMsgs();
-  if (out_queue_.empty()) return;
-
   // We don't want to include tcp transmission time.
   auto diff = std::chrono::steady_clock::now() - out_queue_.front().send_time;
   tlsTcpImpl_.histograms_.send_time_in_queue->record(
-      std::chrono::duration_cast<std::chrono::nanoseconds>(diff).count());
+      std::chrono::duration_cast<std::chrono::microseconds>(diff).count());
 
   auto self = shared_from_this();
-  startWriteTimer();
   LOG_DEBUG(logger_, "Before async write: " << KVLOG(peer_id_.value(), out_queue_.front().msg.size()));
   boost::asio::async_write(
       *socket_,
@@ -283,7 +270,7 @@ void AsyncTlsConnection::write() {
         LOG_DEBUG(logger_,
                   "Successful async write: " << KVLOG(peer_id_.value(), out_queue_.front().msg.size(), bytes_written));
         auto size = out_queue_.front().msg.size();
-        // Minimize time holding lock. We also can't hold the lock when we call write.
+        // Minimize time holding lock.
         bool continue_writing = false;
         {
           std::lock_guard<std::mutex> guard(write_lock_);
@@ -296,6 +283,7 @@ void AsyncTlsConnection::write() {
           write();
         }
       });
+  startWriteTimer();
 }
 
 void AsyncTlsConnection::createSSLSocket(boost::asio::ip::tcp::socket&& socket) {

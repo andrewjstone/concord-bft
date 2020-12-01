@@ -104,7 +104,9 @@ struct Recorders {
                                       send_enqueue_time,
                                       send_time_in_queue,
                                       read_enqueue_time,
-                                      time_between_reads});
+                                      time_between_reads,
+                                      connect_callback,
+                                      on_connection_authenticated});
   }
 
   std::shared_ptr<Recorder> write_queue_size_in_bytes;
@@ -115,6 +117,8 @@ struct Recorders {
   DEFINE_SHARED_RECORDER(send_time_in_queue, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(read_enqueue_time, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(time_between_reads, 1, MAX_US, 3, Unit::MICROSECONDS);
+  DEFINE_SHARED_RECORDER(connect_callback, 1, MAX_US, 3, Unit::MICROSECONDS);
+  DEFINE_SHARED_RECORDER(on_connection_authenticated, 1, MAX_US, 3, Unit::MICROSECONDS);
 };
 
 }  // namespace bft::communication

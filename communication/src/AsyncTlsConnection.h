@@ -43,7 +43,8 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
 
   // A outgoing message that has been queued for STALE_MESSAGE_TIMEOUT is likely pretty useless. If it takes this long
   // to send the message, the connection or receiver is overloaded, and so we want to drop the message to shed load.
-  static constexpr std::chrono::seconds STALE_MESSAGE_TIMEOUT = std::chrono::seconds(5);
+  // The timeout is quite high right now to limit affecting current setups.
+  static constexpr std::chrono::seconds STALE_MESSAGE_TIMEOUT = std::chrono::seconds(60);
 
   // We require a factory function because we can't call shared_from_this() in the constructor.
   //
@@ -130,7 +131,6 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
   void startWriteTimer();
 
   void write();
-  void dropStaleMsgs();
 
   void createSSLSocket(boost::asio::ip::tcp::socket&&);
   void initClientSSLContext(NodeNum destination);

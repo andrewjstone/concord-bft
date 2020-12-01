@@ -248,6 +248,11 @@ class TlsTCPCommunication::TlsTcpImpl {
   mutable std::mutex connections_guard_;
   std::map<NodeNum, std::shared_ptr<AsyncTlsConnection>> connections_;
 
+  // This is a cache of the connected nodes in `connections_`. It's used to determine who to try to connect to in the
+  // connect callback in the io thread so that `connections_guard` does not have to be locked. We only need to lock
+  // `connections_guard` in the io thread when a connection is authenticated or disposed.
+  std::set<NodeNum> active_connections_;
+
   // Diagnostics
   std::shared_ptr<TlsStatus> status_;
   Recorders histograms_;
