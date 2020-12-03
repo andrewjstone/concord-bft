@@ -54,7 +54,9 @@ using namespace detail;
 constexpr auto MAX_BLOCK_ID = std::numeric_limits<BlockId>::max();
 
 // Converts the updates as returned by the merkle tree to key/value pairs suitable for the DB.
-SetOfKeyValuePairs batchToDbUpdates(const sparse_merkle::UpdateBatch &batch, BlockId blockId) {
+SetOfKeyValuePairs batchToDbUpdates(ReaderLRUCache &internal_nodes_cache,
+                                    const sparse_merkle::UpdateBatch &batch,
+                                    BlockId blockId) {
   TimeRecorder scoped_timer(*histograms.dba_batch_to_db_updates);
   SetOfKeyValuePairs updates;
   const Sliver emptySliver;
@@ -75,6 +77,7 @@ SetOfKeyValuePairs batchToDbUpdates(const sparse_merkle::UpdateBatch &batch, Blo
   for (const auto &[intKey, intNode] : batch.internal_nodes) {
     const auto key = DBKeyManipulator::genInternalDbKey(intKey);
     TimeRecorder scoped(*histograms.dba_serialize_internal);
+    internal_nodes_cache.add(intKey.path(), intNode);
     updates[key] = serialize(intNode);
   }
 
@@ -129,7 +132,8 @@ DBAdapter::DBAdapter(const std::shared_ptr<IDBClient> &db,
       smTree_{std::make_shared<Reader>(*this)},
       commitSizeSummary_{concordMetrics::StatisticsFactory::get().createSummary(
           "merkleTreeCommitSizeSummary", {{0.25, 0.1}, {0.5, 0.1}, {0.75, 0.1}, {0.9, 0.1}})},
-      nonProvableKeySet_{nonProvableKeySet} {
+      nonProvableKeySet_{nonProvableKeySet},
+      internal_nodes_cache_(MAX_INTERNAL_CACHE_SIZE) {
   if (linkTempSTChain) {
     // Make sure that if linkSTChainFrom() has been interrupted (e.g. a crash or an abnormal shutdown), all DBAdapter
     // methods will return the correct values. For example, if state transfer had completed and linkSTChainFrom() was
@@ -145,6 +149,7 @@ std::pair<Value, BlockId> DBAdapter::getValue(const Key &key, const BlockId &blo
   auto stateRootVersion = Version{};
   if (nonProvableKeySet_.find(key) != std::cend(nonProvableKeySet_)) {
     const auto &blockKey = DBKeyManipulator::genNonProvableBlockDbKey(blockVersion, key);
+    TimeRecorder scoped_timer(*histograms.dba_get_value_seek_block_non_provable);
     auto iter = db_->getIteratorGuard();
     const auto [foundBlockKey, foundBlockValue] = iter->seekAtMost(blockKey);
     if (!foundBlockKey.empty() && DBKeyManipulator::getDBKeyType(foundBlockKey) == EDBKeyType::Key &&
@@ -156,6 +161,7 @@ std::pair<Value, BlockId> DBAdapter::getValue(const Key &key, const BlockId &blo
   // version from it.
   {
     const auto blockKey = DBKeyManipulator::genBlockDbKey(blockVersion);
+    TimeRecorder scoped_timer(*histograms.dba_get_value_seek_block);
     auto iter = db_->getIteratorGuard();
     const auto [foundBlockKey, foundBlockValue] = iter->seekAtMost(blockKey);
     if (!foundBlockKey.empty() && DBKeyManipulator::getDBKeyType(foundBlockKey) == EDBKeyType::Block) {
@@ -376,7 +382,7 @@ SetOfKeyValuePairs DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePai
     // Key updates.
     const auto updateBatch =
         smTree_.update(provable_kvs, KeysVector{std::cbegin(actuallyDeleted), std::cend(actuallyDeleted)});
-    const auto batchDbUpdates = batchToDbUpdates(updateBatch, blockId);
+    const auto batchDbUpdates = batchToDbUpdates(internal_nodes_cache_, updateBatch, blockId);
     dbUpdates.insert(std::cbegin(batchDbUpdates), std::cend(batchDbUpdates));
   }
 
@@ -423,6 +429,17 @@ BatchedInternalNode DBAdapter::Reader::get_latest_root() const {
 }
 
 BatchedInternalNode DBAdapter::Reader::get_internal(const InternalNodeKey &key) const {
+  // We don't want to overwrite a later cache version, as the cache is only supposed to store the latest version of each
+  // node.
+  bool should_cache = true;
+  if (auto node = adapter_.getInternalNodesCache().get(key.path())) {
+    if (node->version() == key.version()) {
+      return *node;
+    } else if (node->version() > key.version()) {
+      should_cache = false;
+    }
+  }
+
   Sliver res;
   auto status = concordUtils::Status::OK();
   {
@@ -432,17 +449,26 @@ BatchedInternalNode DBAdapter::Reader::get_internal(const InternalNodeKey &key) 
   if (!status.isOK()) {
     throw std::runtime_error{"Failed to get the requested merkle tree internal node"};
   }
+  BatchedInternalNode node;
   {
     TimeRecorder scoped_timer(*histograms.dba_deserialize_internal);
-    return deserialize<BatchedInternalNode>(res);
+    node = deserialize<BatchedInternalNode>(res);
   }
+  if (should_cache) {
+    adapter_.getInternalNodesCache().add(key.path(), node);
+  }
+  return node;
 }
 
 BlockId DBAdapter::addBlock(const SetOfKeyValuePairs &updates, const OrderedKeysSet &deletes) {
   const auto addedBlockId = getLastReachableBlockId() + 1;
-  const auto status = db_->multiPut(lastReachableBlockDbUpdates(updates, deletes, addedBlockId));
-  if (!status.isOK()) {
-    throw std::runtime_error{"Failed to add block, reason: " + status.toString()};
+  const auto write_batch = lastReachableBlockDbUpdates(updates, deletes, addedBlockId);
+  {
+    TimeRecorder scoped_timer(*histograms.dba_add_block_multiput);
+    const auto status = db_->multiPut(write_batch);
+    if (!status.isOK()) {
+      throw std::runtime_error{"Failed to add block, reason: " + status.toString()};
+    }
   }
 
   // We've successfully added a block - increment the last reachable block ID.
@@ -455,7 +481,8 @@ BlockId DBAdapter::addBlock(const SetOfKeyValuePairs &updates, const OrderedKeys
   if (genesisBlockId_ == 0) {
     genesisBlockId_ = INITIAL_GENESIS_BLOCK_ID;
   }
-
+  auto stats = internal_nodes_cache_.getStats();
+  LOG_INFO(logger_, "Internal Cache stats: " << KVLOG(stats.adds, stats.hits, stats.misses));
   return addedBlockId;
 }
 

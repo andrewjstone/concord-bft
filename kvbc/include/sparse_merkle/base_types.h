@@ -40,6 +40,7 @@ class Version {
   bool operator==(const Version& other) const { return value_ == other.value_; }
   bool operator!=(const Version& other) const { return value_ != other.value_; }
   bool operator<(const Version& other) const { return value_ < other.value_; }
+  bool operator>(const Version& other) const { return value_ > other.value_; }
   Version operator+(const Version& other) const { return Version(value_ + other.value_); }
   Version operator+(const int other) const {
     ConcordAssert(other > 0);
@@ -340,3 +341,12 @@ std::ostream& operator<<(std::ostream& os, const NibblePath& path);
 }  // namespace sparse_merkle
 }  // namespace kvbc
 }  // namespace concord
+
+namespace std {
+template <>
+struct hash<concord::kvbc::sparse_merkle::NibblePath> {
+  std::size_t operator()(const concord::kvbc::sparse_merkle::NibblePath& p) const {
+    return std::hash<std::string_view>{}(std::string_view((const char*)p.data().data(), p.data().size()));
+  }
+};
+}  // namespace std

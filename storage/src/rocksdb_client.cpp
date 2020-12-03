@@ -11,13 +11,15 @@
  * navigate through the RocksDB Database.
  */
 
-#ifdef USE_ROCKSDB
+//#ifdef USE_ROCKSDB
 
 #include <rocksdb/client.h>
 #include <rocksdb/transaction.h>
 #include <rocksdb/env.h>
+#include <rocksdb/filter_policy.h>
 #include <rocksdb/utilities/options_util.h>
 #include <rocksdb/table.h>
+#include <rocksdb/slice_transform.h>
 #include "assertUtils.hpp"
 #include "Logger.hpp"
 #include <atomic>
@@ -32,7 +34,7 @@ namespace rocksdb {
 // Counter for number of read requests
 static unsigned int g_rocksdb_called_read = 0;
 static bool g_rocksdb_print_measurements = false;
-const unsigned int background_threads = 16;
+// const unsigned int background_threads = 16;
 /**
  * @brief Converts a Sliver object to a RocksDB Slice object.
  *
@@ -99,22 +101,45 @@ std::optional<std::vector<::rocksdb::ColumnFamilyHandle *>> Client::initDB(bool 
   ::rocksdb::BlockBasedTableOptions table_options;
 
   // Setting default rocksdb options
-  options.enable_pipelined_write = true;
-  options.IncreaseParallelism(background_threads);
-  options.write_buffer_size = 1024 * 1024 * 512;
-  options.max_write_buffer_number = 16;
-  options.min_write_buffer_number_to_merge = 4;
-  options.max_bytes_for_level_base = (uint64_t)1024 * 1024 * 2048;
-  options.target_file_size_base = 1024 * 1024 * 256;
-  options.max_background_flushes = 2;
-  options.max_background_compactions = 48;
-  options.max_subcompactions = 48;
-  options.level0_file_num_compaction_trigger = 1;
-  options.level0_slowdown_writes_trigger = 48;
-  options.level0_stop_writes_trigger = 56;
-  options.bytes_per_sync = 1024 * 2048;
+  /*  options.enable_pipelined_write = true;
+    options.IncreaseParallelism(background_threads);
+    options.write_buffer_size = 1024 * 1024 * 64;
+    options.max_write_buffer_number = 4;
+    options.min_write_buffer_number_to_merge = 4;
+    options.max_bytes_for_level_base = (uint64_t)1024 * 1024 * 256;
+    options.target_file_size_base = 1024 * 1024 * 256;
+    options.max_background_flushes = 2;
+    options.max_background_compactions = 48;
+    options.max_subcompactions = 48;
+    options.level0_file_num_compaction_trigger = 1;
+    options.level0_slowdown_writes_trigger = 48;
+    options.level0_stop_writes_trigger = 56;
+    options.bytes_per_sync = 1024 * 2048;
 
-  table_options.block_size = 4 * 4096;
+*/
+
+  // AJS OPTIONS
+
+  // Recommended by Rocksdb Advisor
+  //  options.max_bytes_for_level_base = 1024 * 1024 * 1024ul;  // Default is 256MB
+  table_options.filter_policy.reset(::rocksdb::NewBloomFilterPolicy(10, false));
+
+  // Define a prefix. In this way, a fixed length prefix extractor. A recommended one to use.
+  options.prefix_extractor.reset(::rocksdb::NewCappedPrefixTransform(3));
+
+  // My thoughts...
+  options.memtable_whole_key_filtering = true;
+  options.compression = ::rocksdb::kLZ4Compression;
+  table_options.block_cache = ::rocksdb::NewLRUCache(1024 * 1024 * 1024 * 4);
+
+  // These should make point lookups faster
+  table_options.format_version = 4;
+  /*  table_options.data_block_index_type = ::rocksdb::BlockBasedTableOptions::kDataBlockBinaryAndHash;
+    table_options.data_block_hash_table_util_ratio = 0.6;
+    table_options.cache_index_and_filter_blocks = true;
+    table_options.pin_l0_filter_and_index_blocks_in_cache = true;
+    */
+
   options.table_factory.reset(NewBlockBasedTableFactory(table_options));
 
   // Try to read the stored options configuration file
@@ -139,7 +164,8 @@ std::optional<std::vector<::rocksdb::ColumnFamilyHandle *>> Client::initDB(bool 
   }
   options.sst_file_manager.reset(::rocksdb::NewSstFileManager(::rocksdb::Env::Default()));
   options.statistics = ::rocksdb::CreateDBStatistics();
-  options.statistics->set_stats_level(::rocksdb::StatsLevel::kExceptHistogramOrTimers);
+  options.statistics->set_stats_level(::rocksdb::StatsLevel::kExceptDetailedTimers);
+  options.stats_dump_period_sec = 30;
 
   options.write_buffer_size = 512 << 20;  // set default memtable size to 512mb to improve perf
 
@@ -628,4 +654,4 @@ Status ClientIterator::getStatus() { return m_status; }
 }  // namespace rocksdb
 }  // namespace storage
 }  // namespace concord
-#endif
+//#endif

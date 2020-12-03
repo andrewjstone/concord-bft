@@ -18,6 +18,7 @@
 #include "kv_types.hpp"
 #include "Logger.hpp"
 #include "merkle_tree_block.h"
+#include "merkle_tree_reader_cache.h"
 #include "sliver.hpp"
 #include "sparse_merkle/tree.h"
 #include "storage/db_interface.h"
@@ -30,6 +31,8 @@
 #include <utility>
 
 namespace concord::kvbc::v2MerkleTree {
+
+inline constexpr size_t MAX_INTERNAL_CACHE_SIZE = 100000u;  // TODO: Make configurable
 
 // The DBAdapter class provides facilities for managing a key/value blockchain on top of a key/value store in the form
 // of a sparse merkle tree.
@@ -169,6 +172,8 @@ class DBAdapter : public IDbAdapter {
   std::pair<sparse_merkle::UpdateBatch, sparse_merkle::detail::UpdateCache> updateTree(
       const SetOfKeyValuePairs &updates, const OrderedKeysSet &deletes);
 
+  ReaderLRUCache &getInternalNodesCache() const { return internal_nodes_cache_; }
+
  private:
   concordUtils::Sliver createBlockNode(const SetOfKeyValuePairs &updates,
                                        const OrderedKeysSet &deletes,
@@ -229,6 +234,8 @@ class DBAdapter : public IDbAdapter {
   sparse_merkle::Tree smTree_;
   std::unique_ptr<concordMetrics::ISummary> commitSizeSummary_;
   const NonProvableKeySet nonProvableKeySet_;
+
+  mutable ReaderLRUCache internal_nodes_cache_;
 };
 
 namespace detail {
