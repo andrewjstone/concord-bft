@@ -32,6 +32,7 @@ void AsyncTlsConnection::readMsgSizeHeader(std::optional<size_t> bytes_already_r
   const size_t bytes_remaining = MSG_HEADER_SIZE - offset;
   auto buf = boost::asio::buffer(read_size_buf_.data() + offset, bytes_remaining);
   const auto start_read = std::chrono::steady_clock::now();
+  tlsTcpImpl_.status_->msg_size_header_read_attempts++;
 
   socket_->async_read_some(
       buf,
@@ -83,6 +84,7 @@ void AsyncTlsConnection::readMsg() {
   auto msg_size = getReadMsgSize();
   LOG_DEBUG(logger_, KVLOG(peer_id_.value(), msg_size, (void*)read_msg_.data()));
   auto self = shared_from_this();
+  tlsTcpImpl_.status_->msg_reads++;
   async_read(*socket_,
              boost::asio::buffer(read_msg_.data(), msg_size),
              [this, self, msg_size](const boost::system::error_code& error_code, auto bytes_transferred) {
@@ -151,13 +153,16 @@ void AsyncTlsConnection::startReadTimer() {
   LOG_DEBUG(logger_, KVLOG(peer_id_.value()));
   auto self = shared_from_this();
   read_timer_.expires_from_now(READ_TIMEOUT);
+  tlsTcpImpl_.status_->read_timer_started++;
   read_timer_.async_wait([this, self](const boost::system::error_code& ec) {
     if (ec == boost::asio::error::operation_aborted || disposed_) {
       // The socket has already been cleaned up and any references are invalid. Just return.
       LOG_DEBUG(logger_, "Operation aborted: " << KVLOG(peer_id_.value(), disposed_));
+      tlsTcpImpl_.status_->read_timer_stopped++;
       return;
     }
     LOG_WARN(logger_, "Read timeout from node " << peer_id_.value() << ": " << ec.message());
+    tlsTcpImpl_.status_->read_timer_expired++;
     dispose();
   });
 }
@@ -165,13 +170,16 @@ void AsyncTlsConnection::startReadTimer() {
 void AsyncTlsConnection::startWriteTimer() {
   auto self = shared_from_this();
   write_timer_.expires_from_now(WRITE_TIMEOUT);
+  tlsTcpImpl_.status_->write_timer_started++;
   write_timer_.async_wait([this, self](const boost::system::error_code& ec) {
     if (ec == boost::asio::error::operation_aborted || disposed_) {
       // The socket has already been cleaned up and any references are invalid. Just return.
       LOG_DEBUG(logger_, "Operation aborted: " << KVLOG(peer_id_.value(), disposed_));
+      tlsTcpImpl_.status_->write_timer_stopped++;
       return;
     }
     LOG_WARN(logger_, "Write timeout to node " << peer_id_.value() << ": " << ec.message());
+    tlsTcpImpl_.status_->write_timer_expired++;
     dispose();
   });
 }
@@ -199,7 +207,11 @@ void AsyncTlsConnection::send(std::vector<char>&& raw_msg) {
   bool start_writing_in_io_thread = false;
   {
     LOG_DEBUG(logger_, KVLOG(peer_id_.value()));
+    auto start = std::chrono::steady_clock::now();
     std::lock_guard<std::mutex> guard(write_lock_);
+    auto diff = std::chrono::steady_clock::now() - start;
+    tlsTcpImpl_.histograms_.time_waiting_for_write_lock->record(
+        std::chrono::duration_cast<std::chrono::microseconds>(diff).count());
     auto size = raw_msg.size();
     if (queued_size_in_bytes_ + size > MAX_QUEUE_SIZE_IN_BYTES) {
       LOG_WARN(logger_, "Outgoing Queue is full. Dropping message with size: " << raw_msg.size());

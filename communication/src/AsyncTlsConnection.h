@@ -23,6 +23,7 @@
 
 #include "Logger.hpp"
 #include "communication/CommDefs.hpp"
+#include "WriteQueue.h"
 
 namespace bft::communication {
 
@@ -33,18 +34,8 @@ typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket> SSL_SOCKET;
 class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnection> {
  public:
   static constexpr size_t MSG_HEADER_SIZE = 4;
-  // Any message attempted to be put on the queue that causes the total size of the queue to exceed
-  // this value will be dropped. This is to prevent indefinite backups and useless stale messages.
-  // The number is very large right now so as not to affect current setups. In the future we will
-  // have better admission control.
-  static constexpr size_t MAX_QUEUE_SIZE_IN_BYTES = 1024 * 1024 * 1024;  // 1 GB
   static constexpr std::chrono::seconds READ_TIMEOUT = std::chrono::seconds(10);
   static constexpr std::chrono::seconds WRITE_TIMEOUT = READ_TIMEOUT;
-
-  // A outgoing message that has been queued for STALE_MESSAGE_TIMEOUT is likely pretty useless. If it takes this long
-  // to send the message, the connection or receiver is overloaded, and so we want to drop the message to shed load.
-  // The timeout is quite high right now to limit affecting current setups.
-  static constexpr std::chrono::seconds STALE_MESSAGE_TIMEOUT = std::chrono::seconds(60);
 
   // We require a factory function because we can't call shared_from_this() in the constructor.
   //
@@ -55,8 +46,9 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
                                                     boost::asio::ip::tcp::socket&& socket,
                                                     IReceiver* receiver,
                                                     TlsTCPCommunication::TlsTcpImpl& impl,
+                                                    WriteQueue& write_queue,
                                                     size_t max_buffer_size) {
-    auto conn = std::make_shared<AsyncTlsConnection>(io_service, receiver, impl, max_buffer_size);
+    auto conn = std::make_shared<AsyncTlsConnection>(io_service, receiver, impl, write_queue, max_buffer_size);
     conn->initServerSSLContext();
     conn->createSSLSocket(std::move(socket));
     return conn;
@@ -66,9 +58,11 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
                                                     boost::asio::ip::tcp::socket&& socket,
                                                     IReceiver* receiver,
                                                     TlsTCPCommunication::TlsTcpImpl& impl,
+                                                    WriteQueue& write_queue,
                                                     size_t max_buffer_size,
                                                     NodeNum destination) {
-    auto conn = std::make_shared<AsyncTlsConnection>(io_service, receiver, impl, max_buffer_size, destination);
+    auto conn =
+        std::make_shared<AsyncTlsConnection>(io_service, receiver, impl, write_queue, max_buffer_size, destination);
     conn->initClientSSLContext(destination);
     conn->createSSLSocket(std::move(socket));
     return conn;
@@ -78,12 +72,14 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
   AsyncTlsConnection(boost::asio::io_service& io_service,
                      IReceiver* receiver,
                      TlsTCPCommunication::TlsTcpImpl& impl,
+                     WriteQueue& write_queue,
                      size_t max_buffer_size)
       : logger_(logging::getLogger("concord-bft.tls.conn")),
         io_service_(io_service),
         ssl_context_(boost::asio::ssl::context::tlsv12_server),
         receiver_(receiver),
         tlsTcpImpl_(impl),
+        write_queue_(write_queue),
         read_timer_(io_service_),
         write_timer_(io_service_),
         read_msg_(max_buffer_size) {}
@@ -92,6 +88,7 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
   AsyncTlsConnection(boost::asio::io_service& io_service,
                      IReceiver* receiver,
                      TlsTCPCommunication::TlsTcpImpl& impl,
+                     WriteQueue& write_queue,
                      size_t max_buffer_size,
                      NodeNum peer_id)
       : logger_(logging::getLogger("concord-bft.tls.conn")),
@@ -100,11 +97,11 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
         peer_id_(peer_id),
         receiver_(receiver),
         tlsTcpImpl_(impl),
+        write_queue_(write_queue),
         read_timer_(io_service_),
         write_timer_(io_service_),
         read_msg_(max_buffer_size) {}
 
-  void send(std::vector<char>&& msg);
   void setPeerId(NodeNum peer_id) { peer_id_ = peer_id; }
   std::optional<NodeNum> getPeerId() { return peer_id_; }
   SSL_SOCKET& getSocket() { return *socket_.get(); }
@@ -113,6 +110,9 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
   // `bytes_already_read` == `std::nullopt` if this is the first read call.
   void readMsgSizeHeader();
   void readMsgSizeHeader(std::optional<size_t> bytes_already_read);
+
+  // This should only be called in the io thread.
+  void write();
 
  private:
   // Clean up the connection
@@ -129,8 +129,6 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
 
   void startReadTimer();
   void startWriteTimer();
-
-  void write();
 
   void createSSLSocket(boost::asio::ip::tcp::socket&&);
   void initClientSSLContext(NodeNum destination);
@@ -182,20 +180,10 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
   // Last read message
   std::vector<char> read_msg_;
 
-  // We must maintain ownership of the in_flight_message until the asio::buffer wrapping it has actually been sent by
-  // the underlying io_service. We will know this is the case when the write completion handler gets called.
-  struct OutgoingMsg {
-    OutgoingMsg(std::vector<char>&& msg) : msg(std::move(msg)), send_time(std::chrono::steady_clock::now()) {}
+  // Message being currently written.
+  std::optional<OutgoingMsg> write_msg;
 
-    std::vector<char> msg;
-    std::chrono::steady_clock::time_point send_time;
-  };
-
-  std::mutex write_lock_;
-  std::deque<OutgoingMsg> out_queue_;
-
-  // This includes in_flight_message_;
-  size_t queued_size_in_bytes_ = 0;
+  WriteQueue& write_queue_;
 };
 
 }  // namespace bft::communication
