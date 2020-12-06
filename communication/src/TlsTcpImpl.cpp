@@ -143,8 +143,6 @@ int TlsTCPCommunication::TlsTcpImpl::sendAsyncMessage(const NodeNum destination,
   }
 
   auto& queue = write_queues_.at(destination);
-
-  // TODO: Add send enqueue time histogram using AsyncTimeRecorder, since we only want to record if the push succeeds.
   auto queue_size_after_push = queue.push(msg, len);
   if (!queue_size_after_push) {
     LOG_DEBUG(logger_, "Connection NOT found or queue full, from: " << config_.selfId << ", to: " << destination);
@@ -152,26 +150,31 @@ int TlsTCPCommunication::TlsTcpImpl::sendAsyncMessage(const NodeNum destination,
     return -1;
   }
 
-  // If queue_size_after_push > 1 then the io_thread is already writing. We don't want to initiate two
-  // simultaneous async_write calls to the same socket. We also must ensure that this write call
-  // runs in a strand in io_service_ because the async_write it contains cannot safely run in
-  // another thread. We use io_service_.post() for this.
+  auto conn = queue.getConn();
+
+  // If queue_size_after_push > 1 then the io_thread is already writing. It's somewhat expensive to
+  // call `io_serivce.post`, and so we only write if we know there's a good chance no other write is
+  // going on. Note that due to the fact that the current message being sent is popped off the write
+  // queue, it's possible there's an inflight write going on and this thread doesn't know about it.
+  // Therefore, we may call post every time a message is sent if the queue never grows beyond 1.
   if (queue_size_after_push.value() == 1) {
-    auto conn = queue.getConn();
     if (conn) {
       io_service_.post([conn]() { conn->write(); });
-      LOG_DEBUG(logger_, "Sent message from: " << config_.selfId << ", to: " << destination << "with size: " << len);
-      status_->total_messages_sent++;
-
-      if (config_.statusCallback && isReplica()) {
-        PeerConnectivityStatus pcs{};
-        pcs.peerId = tlsTcpImpl_.config_.selfId;
-        pcs.statusType = StatusType::MessageSent;
-        tlsTcpImpl_.config_.statusCallback(pcs);
-      }
-
-      return 0;
     }
+  }
+
+  if (conn) {
+    LOG_DEBUG(logger_, "Sent message from: " << config_.selfId << ", to: " << destination << "with size: " << len);
+    status_->total_messages_sent++;
+
+    if (config_.statusCallback && isReplica()) {
+      PeerConnectivityStatus pcs{};
+      pcs.peerId = config_.selfId;
+      pcs.statusType = StatusType::MessageSent;
+      config_.statusCallback(pcs);
+    }
+    return 0;
+  } else {
     status_->total_messages_dropped++;
     return -1;
   }
@@ -197,7 +200,7 @@ void TlsTCPCommunication::TlsTcpImpl::closeConnection(NodeNum id) {
 }
 
 void TlsTCPCommunication::TlsTcpImpl::closeConnection(std::shared_ptr<AsyncTlsConnection> conn) {
-  dispose();
+  conn->dispose();
   conn->getSocket().lowest_layer().cancel();
   conn->getSocket().async_shutdown([this, conn](const auto& ec) {
     if (ec) {
@@ -218,6 +221,8 @@ void TlsTCPCommunication::TlsTcpImpl::onConnectionAuthenticated(std::shared_ptr<
   // discard it. In this case it was likely that connecting end of the connection thinks there is
   // something wrong. This is a vector for a denial of service attack on the accepting side. We can
   // track the number of connections from the node and mark it malicious if necessary.
+
+  auto& queue = write_queues_.at(conn->getPeerId().value());
   TimeRecorder scoped_timer(*histograms_.on_connection_authenticated);
   {
     std::lock_guard<std::mutex> lock(connections_guard_);
@@ -227,10 +232,11 @@ void TlsTCPCommunication::TlsTcpImpl::onConnectionAuthenticated(std::shared_ptr<
                "New connection accepted from same peer. Closing existing connection to " << conn->getPeerId().value());
       closeConnection(std::move(it->second));
     }
+    conn->setWriteQueue(&queue);
     connections_.insert_or_assign(conn->getPeerId().value(), conn);
     status_->num_connections = connections_.size();
   }
-  write_queues_.at(conn->getPeerId().value()).connect(conn);
+  queue.connect(conn);
   active_connections_.insert(conn->getPeerId().value());
   conn->readMsgSizeHeader();
 }

@@ -204,56 +204,44 @@ void AsyncTlsConnection::dispose() {
   tlsTcpImpl_.closeConnection(peer_id_.value());
 }
 
-// At this point, we only operate within the single io thread. The front of the queue will only be
-// mutated by thread. Therefore we don't need to hold a write lock. We lose the lock in the
-// async_write callback anyway. Since asio will try to write to the socket directly if possible,
-// holding the lock induces unnecsessary overhead.delay.
 void AsyncTlsConnection::write() {
+  if (disposed_ || write_msg_.has_value()) return;
+
+  write_msg_ = write_queue_->pop();
+  ConcordAssert(write_msg_.has_value());
+
   // We don't want to include tcp transmission time.
-  auto diff = std::chrono::steady_clock::now() - out_queue_.front().send_time;
+  auto diff = std::chrono::steady_clock::now() - write_msg_->send_time;
   tlsTcpImpl_.histograms_.send_time_in_queue->record(
       std::chrono::duration_cast<std::chrono::microseconds>(diff).count());
 
   auto self = shared_from_this();
-  LOG_DEBUG(logger_, "Before async write: " << KVLOG(peer_id_.value(), out_queue_.front().msg.size()));
-  boost::asio::async_write(
-      *socket_,
-      boost::asio::buffer(out_queue_.front().msg),
-      [this, self](const boost::system::error_code& ec, auto bytes_written) {
-        if (disposed_) {
-          return;
-        }
-        if (ec) {
-          if (ec == boost::asio::error::operation_aborted) {
-            // The socket has already been cleaned up and any references are invalid. Just return.
-            LOG_DEBUG(logger_, "Operation aborted: " << KVLOG(peer_id_.value(), disposed_));
-            return;
-          }
-          LOG_WARN(logger_,
-                   "Write failed to node " << peer_id_.value() << " for message with size "
-                                           << out_queue_.front().msg.size() << ": " << ec.message());
-          return dispose();
-        }
-        // The write succeeded.
-        boost::system::error_code _ec;
-        write_timer_.cancel(_ec);
+  boost::asio::async_write(*socket_,
+                           boost::asio::buffer(write_msg_->msg),
+                           [this, self](const boost::system::error_code& ec, auto bytes_written) {
+                             if (disposed_) return;
+                             if (ec) {
+                               if (ec == boost::asio::error::operation_aborted) {
+                                 // The socket has already been cleaned up and any references are invalid. Just return.
+                                 LOG_DEBUG(logger_, "Operation aborted: " << KVLOG(peer_id_.value(), disposed_));
+                                 return;
+                               }
+                               LOG_WARN(logger_,
+                                        "Write failed to node " << peer_id_.value() << " for message with size "
+                                                                << write_msg_->msg.size() << ": " << ec.message());
+                               return dispose();
+                             }
 
-        LOG_DEBUG(logger_,
-                  "Successful async write: " << KVLOG(peer_id_.value(), out_queue_.front().msg.size(), bytes_written));
-        auto size = out_queue_.front().msg.size();
-        // Minimize time holding lock.
-        bool continue_writing = false;
-        {
-          std::lock_guard<std::mutex> guard(write_lock_);
-          out_queue_.pop_front();
-          continue_writing = !out_queue_.empty();
-          queued_size_in_bytes_ -= size;
-        }
-        tlsTcpImpl_.histograms_.sent_msg_size->record(size);
-        if (continue_writing) {
-          write();
-        }
-      });
+                             // The write succeeded.
+                             boost::system::error_code _ec;
+                             write_timer_.cancel(_ec);
+
+                             tlsTcpImpl_.histograms_.sent_msg_size->record(write_msg_->msg.size());
+                             write_msg_ = write_queue_->pop();
+                             if (write_msg_.has_value()) {
+                               write();
+                             }
+                           });
   startWriteTimer();
 }
 

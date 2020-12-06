@@ -116,13 +116,11 @@ struct Recorders {
                                       write_queue_size_in_bytes,
                                       sent_msg_size,
                                       received_msg_size,
-                                      send_enqueue_time,
                                       send_time_in_queue,
                                       read_enqueue_time,
                                       time_between_reads,
                                       connect_callback,
                                       on_connection_authenticated,
-                                      time_waiting_for_write_lock,
                                       time_waiting_for_connections_lock});
   }
 
@@ -130,13 +128,11 @@ struct Recorders {
   std::shared_ptr<Recorder> sent_msg_size;
   std::shared_ptr<Recorder> received_msg_size;
   DEFINE_SHARED_RECORDER(write_queue_len, 1, MAX_QUEUE_LENGTH, 3, Unit::COUNT);
-  DEFINE_SHARED_RECORDER(send_enqueue_time, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(send_time_in_queue, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(read_enqueue_time, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(time_between_reads, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(connect_callback, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(on_connection_authenticated, 1, MAX_US, 3, Unit::MICROSECONDS);
-  DEFINE_SHARED_RECORDER(time_waiting_for_write_lock, 1, MAX_NS, 3, Unit::NANOSECONDS);
   DEFINE_SHARED_RECORDER(time_waiting_for_connections_lock, 1, MAX_NS, 3, Unit::NANOSECONDS);
 };
 

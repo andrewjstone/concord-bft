@@ -24,9 +24,9 @@
 #include "Logger.hpp"
 #include "TlsDiagnostics.h"
 
-class AsyncTlsConnection;
-
 namespace bft::communication {
+
+class AsyncTlsConnection;
 
 // Any message attempted to be put on the queue that causes the total size of the queue to exceed
 // this value will be dropped. This is to prevent indefinite backups and useless stale messages.
@@ -56,8 +56,8 @@ struct OutgoingMsg {
 class WriteQueue {
  public:
   WriteQueue(NodeNum destination, Recorders& recorders)
-      : destination_(destination),
-        connected_(false),
+      : connected_(false),
+        destination_(destination),
         logger_(logging::getLogger("concord-bft.tls")),
         recorders_(recorders) {}
 
@@ -83,15 +83,16 @@ class WriteQueue {
     }
     auto msg = OutgoingMsg(raw_msg, len);
     std::lock_guard<std::mutex> guard(lock_);
-    if (queued_size_in_bytes > MAX_QUEUE_SIZE_IN_BYTES) {
+    if (queued_size_in_bytes_ > MAX_QUEUE_SIZE_IN_BYTES) {
       LOG_WARN(logger_, "Queue full. Dropping message." << KVLOG(destination_, len));
       return std::nullopt;
     }
-    queued_size_in_bytes_ += msg.size();
+    queued_size_in_bytes_ += msg.msg.size();
     msgs_.push_back(std::move(msg));
+    return msgs_.size();
   }
 
-  std::option<OutgoingMsg> pop() {
+  std::optional<OutgoingMsg> pop() {
     std::lock_guard<std::mutex> guard(lock_);
     recorders_.write_queue_len->record(msgs_.size());
     recorders_.write_queue_size_in_bytes->record(queued_size_in_bytes_);
@@ -100,7 +101,7 @@ class WriteQueue {
     }
     auto msg = std::move(msgs_.front());
     msgs_.pop_front();
-    queued_size_in_bytes -= msg.size();
+    queued_size_in_bytes_ -= msg.msg.size();
     return msg;
   }
 
@@ -124,6 +125,9 @@ class WriteQueue {
     std::lock_guard<std::mutex> guard(lock_);
     return conn_;
   }
+
+  WriteQueue(const WriteQueue&) = delete;
+  WriteQueue& operator=(const WriteQueue&) = delete;
 
  private:
   // Protects `msgs_`, `queued_size_in_bytes_`, and `conn_`

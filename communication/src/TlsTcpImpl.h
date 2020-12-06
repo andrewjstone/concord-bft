@@ -119,16 +119,16 @@ class TlsTCPCommunication::TlsTcpImpl {
         accepting_socket_(io_service_),
         connect_timer_(io_service_),
         status_(std::make_shared<TlsStatus>()),
-        histograms_(Recorders(
-            std::to_string(config.selfId), config.bufferLength, AsyncTlsConnection::MAX_QUEUE_SIZE_IN_BYTES)) {
+        histograms_(Recorders(std::to_string(config.selfId), config.bufferLength, MAX_QUEUE_SIZE_IN_BYTES)) {
     auto &registrar = concord::diagnostics::RegistrarSingleton::getInstance();
     concord::diagnostics::StatusHandler handler(
         "tls" + std::to_string(config.selfId), "TlsTcpImpl status", [this]() { return status_->status(); });
     registrar.status.registerHandler(handler);
     write_queues_.reserve(config_.nodes.size() - 1);
-    for (const auto &node : config_.nodes) {
+    for (const auto node : config_.nodes) {
       if (node.first != config_.selfId) {
-        write_queues_.emplace(node.first, node.first);
+        NodeNum id = node.first;
+        write_queues_.try_emplace(id, id, histograms_);
       }
     }
   }
