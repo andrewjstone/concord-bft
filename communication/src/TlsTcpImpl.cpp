@@ -142,13 +142,7 @@ int TlsTCPCommunication::TlsTcpImpl::sendAsyncMessage(const NodeNum destination,
     return -1;
   }
 
-  auto it = write_queues_.find(destination);
-  if (it == write_queues.end()) {
-    status_->total_messages_dropped++;
-    LOG_ERROR(logger_, "Attempting to send message to unknown destination: " << KVLOG(destination, len));
-    return -1;
-  }
-  auto& queue = it->second;
+  auto& queue = write_queues_.at(destination);
 
   // TODO: Add send enqueue time histogram using AsyncTimeRecorder, since we only want to record if the push succeeds.
   auto queue_size_after_push = queue.push(msg, len);
@@ -203,6 +197,7 @@ void TlsTCPCommunication::TlsTcpImpl::closeConnection(NodeNum id) {
 }
 
 void TlsTCPCommunication::TlsTcpImpl::closeConnection(std::shared_ptr<AsyncTlsConnection> conn) {
+  dispose();
   conn->getSocket().lowest_layer().cancel();
   conn->getSocket().async_shutdown([this, conn](const auto& ec) {
     if (ec) {

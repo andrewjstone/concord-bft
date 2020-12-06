@@ -23,7 +23,7 @@
 
 #include "Logger.hpp"
 #include "communication/CommDefs.hpp"
-#include "WriteQueue.h"
+#include "TlsWriteQueue.h"
 
 namespace bft::communication {
 
@@ -74,7 +74,7 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
                      TlsTCPCommunication::TlsTcpImpl& impl,
                      WriteQueue& write_queue,
                      size_t max_buffer_size)
-      : logger_(logging::getLogger("concord-bft.tls.conn")),
+      : logger_(logging::getLogger("concord-bft.tls")),
         io_service_(io_service),
         ssl_context_(boost::asio::ssl::context::tlsv12_server),
         receiver_(receiver),
@@ -91,7 +91,7 @@ class AsyncTlsConnection : public std::enable_shared_from_this<AsyncTlsConnectio
                      WriteQueue& write_queue,
                      size_t max_buffer_size,
                      NodeNum peer_id)
-      : logger_(logging::getLogger("concord-bft.tls.conn")),
+      : logger_(logging::getLogger("concord-bft.tls")),
         io_service_(io_service),
         ssl_context_(boost::asio::ssl::context::tlsv12_client),
         peer_id_(peer_id),

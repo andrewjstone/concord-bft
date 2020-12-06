@@ -12,8 +12,17 @@
 
 #pragma once
 
+#include <arpa/inet.h>
+#include <atomic>
+#include <cstring>
 #include <deque>
 #include <mutex>
+#include <optional>
+#include <vector>
+
+#include "communication/CommDefs.hpp"
+#include "Logger.hpp"
+#include "TlsDiagnostics.h"
 
 class AsyncTlsConnection;
 
@@ -27,11 +36,11 @@ static constexpr size_t MAX_QUEUE_SIZE_IN_BYTES = 1024 * 1024 * 1024;  // 1 GB
 static constexpr size_t MSG_HEADER_SIZE = 4;
 
 struct OutgoingMsg {
-  OutgoingMsg(const char* msg, const size_t len)
+  OutgoingMsg(const char* raw_msg, const size_t len)
       : msg(len + MSG_HEADER_SIZE), send_time(std::chrono::steady_clock::now()) {
     uint32_t msg_size = htonl(static_cast<uint32_t>(len));
     std::memcpy(msg.data(), &msg_size, MSG_HEADER_SIZE);
-    std::memcpy(msg.data() + MSG_HEADER_SIZE, msg, len);
+    std::memcpy(msg.data() + MSG_HEADER_SIZE, raw_msg, len);
   }
   std::vector<char> msg;
   std::chrono::steady_clock::time_point send_time;
@@ -46,7 +55,11 @@ struct OutgoingMsg {
 // short.
 class WriteQueue {
  public:
-  WriteQueue(NodeNum destination) : destination_(destination) {}
+  WriteQueue(NodeNum destination, Recorders& recorders)
+      : destination_(destination),
+        connected_(false),
+        logger_(logging::getLogger("concord-bft.tls")),
+        recorders_(recorders) {}
 
   void connect(const std::shared_ptr<AsyncTlsConnection>& conn) {
     std::lock_guard<std::mutex> guard(lock_);
@@ -64,14 +77,14 @@ class WriteQueue {
 
   // Only add onto the queue if there is an active connection. Return the size of the queue after
   // the push completes or std::nullopt if there is no connection, or the queue is full.
-  std::option<size_t> push(const char* raw_msg, const size_t len) {
+  std::optional<size_t> push(const char* raw_msg, const size_t len) {
     if (!connected_) {
       return std::nullopt;
     }
     auto msg = OutgoingMsg(raw_msg, len);
     std::lock_guard<std::mutex> guard(lock_);
     if (queued_size_in_bytes > MAX_QUEUE_SIZE_IN_BYTES) {
-      // TODO: Log this as a warning
+      LOG_WARN(logger_, "Queue full. Dropping message." << KVLOG(destination_, len));
       return std::nullopt;
     }
     queued_size_in_bytes_ += msg.size();
@@ -80,6 +93,8 @@ class WriteQueue {
 
   std::option<OutgoingMsg> pop() {
     std::lock_guard<std::mutex> guard(lock_);
+    recorders_.write_queue_len->record(msgs_.size());
+    recorders_.write_queue_size_in_bytes->record(queued_size_in_bytes_);
     if (msgs_.empty()) {
       return std::nullopt;
     }
@@ -113,14 +128,17 @@ class WriteQueue {
  private:
   // Protects `msgs_`, `queued_size_in_bytes_`, and `conn_`
   mutable std::mutex lock_;
-  std::mutex std::deque<OutgoingMsg> msgs_;
+  std::deque<OutgoingMsg> msgs_;
   size_t queued_size_in_bytes_ = 0;
-  std::shared_ptr<AsyncTlsConnection> > conn_;
+  std::shared_ptr<AsyncTlsConnection> conn_;
 
   // We purposefully do not take any locks to check this. It is an optimistic check. It's ok to drop
   // a message if a connection just occurred. It's also simultaneously ok to put a message onto the
   // queue if a connection has just dropped.
-  std::atomic_bool connected_ = false;
+  std::atomic_bool connected_;
+  NodeNum destination_;
+  logging::Logger logger_;
+  Recorders& recorders_;
 };
 
 }  // namespace bft::communication

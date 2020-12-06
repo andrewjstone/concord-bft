@@ -194,6 +194,7 @@ uint32_t AsyncTlsConnection::getReadMsgSize() {
 }
 
 void AsyncTlsConnection::dispose() {
+  if (disposed_) return;
   ConcordAssert(!disposed_);
   LOG_WARN(logger_, "Closing connection to node " << peer_id_.value());
   disposed_ = true;
@@ -201,48 +202,6 @@ void AsyncTlsConnection::dispose() {
   read_timer_.cancel(_);
   write_timer_.cancel(_);
   tlsTcpImpl_.closeConnection(peer_id_.value());
-}
-
-void AsyncTlsConnection::send(std::vector<char>&& raw_msg) {
-  bool start_writing_in_io_thread = false;
-  {
-    LOG_DEBUG(logger_, KVLOG(peer_id_.value()));
-    auto start = std::chrono::steady_clock::now();
-    std::lock_guard<std::mutex> guard(write_lock_);
-    auto diff = std::chrono::steady_clock::now() - start;
-    tlsTcpImpl_.histograms_.time_waiting_for_write_lock->record(
-        std::chrono::duration_cast<std::chrono::microseconds>(diff).count());
-    auto size = raw_msg.size();
-    if (queued_size_in_bytes_ + size > MAX_QUEUE_SIZE_IN_BYTES) {
-      LOG_WARN(logger_, "Outgoing Queue is full. Dropping message with size: " << raw_msg.size());
-      return;
-    }
-    out_queue_.push_back(OutgoingMsg(std::move(raw_msg)));
-    queued_size_in_bytes_ += size;
-
-    tlsTcpImpl_.histograms_.write_queue_len->record(out_queue_.size());
-    tlsTcpImpl_.histograms_.write_queue_size_in_bytes->record(queued_size_in_bytes_);
-
-    // If out_queue_.size() > 1 then the io_thread is already writing. We don't want to initiate two
-    // simultaneous async_write calls to the same socket. We also must ensure that this write call
-    // runs in a strand in io_service_ because the async_write it contains cannot safely run in
-    // another thread. WE use io_service_.post() for this.
-
-    if (out_queue_.size() == 1) {
-      start_writing_in_io_thread = true;
-    }
-  }
-  if (start_writing_in_io_thread) {
-    auto self = shared_from_this();
-    io_service_.post([this, self]() { write(); });
-  }
-
-  if (tlsTcpImpl_.config_.statusCallback && tlsTcpImpl_.isReplica()) {
-    PeerConnectivityStatus pcs{};
-    pcs.peerId = tlsTcpImpl_.config_.selfId;
-    pcs.statusType = StatusType::MessageSent;
-    tlsTcpImpl_.config_.statusCallback(pcs);
-  }
 }
 
 // At this point, we only operate within the single io thread. The front of the queue will only be

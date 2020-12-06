@@ -24,7 +24,7 @@
 #include "Logger.hpp"
 #include "AsyncTlsConnection.h"
 #include "TlsDiagnostics.h"
-#include "WriteQueue.h"
+#include "TlsWriteQueue.h"
 
 #pragma once
 
