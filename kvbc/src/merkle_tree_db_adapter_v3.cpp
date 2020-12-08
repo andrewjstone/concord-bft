@@ -48,6 +48,7 @@ using ::concord::storage::v2MerkleTree::detail::EBFTSubtype;
 using ::concord::storage::rocksdb::NativeClient;
 using ::concord::storage::rocksdb::WriteBatch;
 using ::concord::storage::rocksdb::delInBatch;
+using ::concord::storage::rocksdb::putInBatch;
 
 using ::bftEngine::bcst::computeBlockDigest;
 
@@ -374,9 +375,9 @@ std::future<BlockDigest> DBAdapter::computeParentBlockDigest(BlockId blockId) co
   });
 }
 
-SetOfKeyValuePairs DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePairs &updates,
-                                                          const OrderedKeysSet &deletes,
-                                                          BlockId blockId) {
+WriteBatch DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePairs &updates,
+                                                  const OrderedKeysSet &deletes,
+                                                  BlockId blockId) {
   TimeRecorder scoped_timer(*histograms.dba_last_reachable_block_db_updates);
   // Compute the parent block digest in parallel with the tree update.
   auto parentBlockDigestFuture = computeParentBlockDigest(blockId);
@@ -394,7 +395,7 @@ SetOfKeyValuePairs DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePai
     }
   }
 
-  auto dbUpdates = SetOfKeyValuePairs{};
+  auto batch = rocksdb_->getBatch();
 
   // Keep a list of actually deleted keys so that we can add these in the block node. We don't add non-existent keys in
   // the block node.
@@ -413,7 +414,7 @@ SetOfKeyValuePairs DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePai
       dbLeafValue.deletedInBlockId = blockId;
       {
         TimeRecorder scoped(*histograms.dba_serialize_leaf);
-        dbUpdates[foundKv.value().first] = serialize(dbLeafValue);
+        batch.put(foundKv.value().first, serialize(dbLeafValue));
       }
       actuallyDeleted.insert(key);
     }
@@ -426,35 +427,32 @@ SetOfKeyValuePairs DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePai
     // Key updates.
     const auto updateBatch =
         smTree_.update(provableKvPairs, KeysVector{std::cbegin(actuallyDeleted), std::cend(actuallyDeleted)});
-    const auto batchDbUpdates = batchToDbUpdates(updateBatch, blockId);
-    dbUpdates.insert(std::cbegin(batchDbUpdates), std::cend(batchDbUpdates));
+    putInBatch(batch, batchToDbUpdates(updateBatch, blockId));
   }
 
   // Block node with updates and actually deleted keys.
-  dbUpdates[DBKeyManipulator::genBlockDbKey(blockId)] =
-      createBlockNode(updates, actuallyDeleted, blockId, parentBlockDigestFuture.get());
+  batch.put(BlockFamily::NAME,
+            BlockFamily::serializeKey(blockId),
+            createBlockNode(updates, actuallyDeleted, blockId, parentBlockDigestFuture.get()));
 
   for (const auto &[k, v] : nonProvableKvPairs) {
-    dbUpdates[DBKeyManipulator::genNonProvableDbKey(blockId, k)] = v;
+    batch.put(DBKeyManipulator::genNonProvableDbKey(blockId, k), v);
     if (blockId > INITIAL_GENESIS_BLOCK_ID) {
       const auto &staleKv = getValueForNonProvableKey(k, blockId - 1);
       // Marking non-provable keys as stale
       if (staleKv) {
         const auto &nonProvableKey = DBKeyManipulator::genNonProvableDbKey(staleKv.value().second, k);
         const auto &nonProvableStaleKey = DBKeyManipulator::genNonProvableStaleDbKey(nonProvableKey, blockId);
-        dbUpdates[nonProvableStaleKey] = Value{};
+        batch.put(nonProvableStaleKey, Value{});
       }
     }
   }
 
   // update metrics
-  uint64_t sizeOfUpdatesInBytes = 0;
-  for (auto &kv : dbUpdates) {
-    sizeOfUpdatesInBytes += kv.first.length() + kv.second.length();
-  }
+  uint64_t sizeOfUpdatesInBytes = batch.getDataSize();
   histograms.dba_size_of_updates->record(sizeOfUpdatesInBytes);
   commitSizeSummary_->Observe(sizeOfUpdatesInBytes);
-  return dbUpdates;
+  return batch;
 }
 
 std::pair<sparse_merkle::UpdateBatch, sparse_merkle::detail::UpdateCache> DBAdapter::updateTree(
@@ -497,10 +495,7 @@ BatchedInternalNode DBAdapter::Reader::get_internal(const InternalNodeKey &key) 
 
 BlockId DBAdapter::addBlock(const SetOfKeyValuePairs &updates, const OrderedKeysSet &deletes) {
   const auto addedBlockId = getLastReachableBlockId() + 1;
-  const auto status = db_->multiPut(lastReachableBlockDbUpdates(updates, deletes, addedBlockId));
-  if (!status.isOK()) {
-    throw std::runtime_error{"Failed to add block, reason: " + status.toString()};
-  }
+  rocksdb_->write(lastReachableBlockDbUpdates(updates, deletes, addedBlockId));
 
   // We've successfully added a block - increment the last reachable block ID.
   lastReachableBlockId_ = addedBlockId;
@@ -547,23 +542,12 @@ void DBAdapter::linkSTChainFrom(BlockId blockId) {
   latestSTTempBlockId_.reset();
 }
 
+// Deleting the ST block and adding the block to the blockchain via the merkle tree should be done atomically. We
+// implement that by using a WriteBatch.
 void DBAdapter::writeSTLinkTransaction(const Key &sTBlockKey, const Sliver &block, BlockId blockId) {
-  // Deleting the ST block and adding the block to the blockchain via the merkle tree should be done atomically. We
-  // implement that by using a transaction.
-  auto txn = std::unique_ptr<concord::storage::ITransaction>{db_->beginTransaction()};
-
-  // Delete the ST block key in the transaction.
-  txn->del(sTBlockKey);
-
-  // Put the block DB updates in the transaction.
-  const auto addDbUpdates =
-      lastReachableBlockDbUpdates(getBlockData(block), block::detail::getDeletedKeys(block), blockId);
-  for (const auto &[key, value] : addDbUpdates) {
-    txn->put(key, value);
-  }
-
-  // Commit the transaction.
-  txn->commit();
+  auto batch = lastReachableBlockDbUpdates(getBlockData(block), block::detail::getDeletedKeys(block), blockId);
+  batch.del(sTBlockKey);
+  rocksdb_->write(std::move(batch));
 
   // Update the last reachable block ID cache after the transaction commits as that is equivalent to adding a block.
   lastReachableBlockId_ = blockId;

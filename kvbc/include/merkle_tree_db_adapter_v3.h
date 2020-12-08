@@ -167,9 +167,9 @@ class DBAdapter : public IDbAdapter {
 
   // Returns a set of key/value pairs that represent the needed DB updates for adding a block as part of the
   // blockchain. This method is made public for testing purposes only. It is meant to be used internally.
-  SetOfKeyValuePairs lastReachableBlockDbUpdates(const SetOfKeyValuePairs &updates,
-                                                 const OrderedKeysSet &deletes,
-                                                 BlockId blockId);
+  concord::storage::rocksdb::WriteBatch lastReachableBlockDbUpdates(const SetOfKeyValuePairs &updates,
+                                                                    const OrderedKeysSet &deletes,
+                                                                    BlockId blockId);
 
   // Execute an update to the tree without persisting the result. This method is made public for testing purposes
   // only.

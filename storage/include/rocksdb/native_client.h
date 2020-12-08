@@ -79,6 +79,8 @@ class WriteBatch {
   template <typename BeginSpan, typename EndSpan>
   void delRange(const BeginSpan &beginKey, const EndSpan &endKey);
 
+  size_t getDataSize();
+
  private:
   std::shared_ptr<const NativeClient> client_;
   ::rocksdb::WriteBatch batch_;
@@ -287,6 +289,8 @@ template <typename BeginSpan, typename EndSpan>
 void WriteBatch::delRange(const BeginSpan &beginKey, const EndSpan &endKey) {
   delRange(client_->defaultColumnFamily(), beginKey, endKey);
 }
+
+size_t WriteBatch::getDataSize() { return batch_.GetDataSize(); }
 
 template <typename Container>
 void putInBatch(WriteBatch &batch, const std::string &cFamily, const Container &cont) {
