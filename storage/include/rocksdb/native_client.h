@@ -290,7 +290,7 @@ void WriteBatch::delRange(const BeginSpan &beginKey, const EndSpan &endKey) {
   delRange(client_->defaultColumnFamily(), beginKey, endKey);
 }
 
-size_t WriteBatch::getDataSize() { return batch_.GetDataSize(); }
+inline size_t WriteBatch::getDataSize() { return batch_.GetDataSize(); }
 
 template <typename Container>
 void putInBatch(WriteBatch &batch, const std::string &cFamily, const Container &cont) {
@@ -412,7 +412,7 @@ inline std::shared_ptr<NativeClient> NativeClient::newClient(const std::string &
   return std::shared_ptr<NativeClient>{new NativeClient{path, readOnly, opts}};
 }
 
-std::shared_ptr<NativeClient> NativeClient::fromIDBClient(const std::shared_ptr<IDBClient> &idb) {
+inline std::shared_ptr<NativeClient> NativeClient::fromIDBClient(const std::shared_ptr<IDBClient> &idb) {
   auto rocksDbClient = std::dynamic_pointer_cast<Client>(idb);
   if (!rocksDbClient) {
     throw std::bad_cast{};
@@ -439,7 +439,7 @@ inline NativeClient::NativeClient(const std::string &path, bool readOnly, const 
   client_->initDB(readOnly, options, applyOptimizationsOnDefaultOpts_);
 }
 
-NativeClient::NativeClient(const std::shared_ptr<Client> &client) : client_{client} {}
+inline NativeClient::NativeClient(const std::shared_ptr<Client> &client) : client_{client} {}
 
 inline std::shared_ptr<IDBClient> NativeClient::asIDBClient() const { return client_; }
 

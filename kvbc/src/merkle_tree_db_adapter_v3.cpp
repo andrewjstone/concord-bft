@@ -152,14 +152,14 @@ DBAdapter::DBAdapter(const std::shared_ptr<IDBClient> &db,
       // smTree_ .
       db_{db},
       rocksdb_{NativeClient::fromIDBClient(db)},
-      genesisBlockId_{loadGenesisBlockId()},
-      lastReachableBlockId_{loadLastReachableBlockId()},
-      latestSTTempBlockId_{loadLatestTempSTBlockId()},
       smTree_{std::make_shared<Reader>(*this)},
       commitSizeSummary_{concordMetrics::StatisticsFactory::get().createSummary(
           "merkleTreeCommitSizeSummary", {{0.25, 0.1}, {0.5, 0.1}, {0.75, 0.1}, {0.9, 0.1}})},
       nonProvableKeySet_{nonProvableKeySet} {
   createColumnFamilies(rocksdb_.get());
+  genesisBlockId_ = loadGenesisBlockId();
+  lastReachableBlockId_ = loadLastReachableBlockId();
+  latestSTTempBlockId_ = loadLatestTempSTBlockId();
   if (!nonProvableKeySet_.empty()) {
     const auto length = nonProvableKeySet_.begin()->length();
     for (const auto &k : nonProvableKeySet_) {
@@ -433,7 +433,7 @@ WriteBatch DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePairs &upda
   // Block node with updates and actually deleted keys.
   batch.put(BlockFamily::NAME,
             BlockFamily::serializeKey(blockId),
-            createBlockNode(updates, actuallyDeleted, blockId, parentBlockDigestFuture.get()));
+            createBlockNode(updates, deletes, blockId, parentBlockDigestFuture.get()));
 
   for (const auto &[k, v] : nonProvableKvPairs) {
     batch.put(DBKeyManipulator::genNonProvableDbKey(blockId, k), v);
@@ -495,15 +495,19 @@ BatchedInternalNode DBAdapter::Reader::get_internal(const InternalNodeKey &key) 
 
 BlockId DBAdapter::addBlock(const SetOfKeyValuePairs &updates, const OrderedKeysSet &deletes) {
   const auto addedBlockId = getLastReachableBlockId() + 1;
-  rocksdb_->write(lastReachableBlockDbUpdates(updates, deletes, addedBlockId));
+  auto batch = lastReachableBlockDbUpdates(updates, deletes, addedBlockId);
+  {
+    TimeRecorder scoped_timer(*histograms.dba_add_block_rocksdb_write);
+    rocksdb_->write(std::move(batch));
+  }
 
   // We've successfully added a block - increment the last reachable block ID.
   lastReachableBlockId_ = addedBlockId;
 
   // We don't allow deletion of the genesis block if it is the only one left in the system. We do allow deleting it as
   // last reachable, though, to support replica state sync. Therefore, if we couldn't load the genesis block ID on
-  // startup, it means there are no blocks in storage and we are now adding the first one. Make sure we set the genesis
-  // block ID cache to reflect that.
+  // startup, it means there are no blocks in storage and we are now adding the first one. Make sure we set the
+  // genesis block ID cache to reflect that.
   if (genesisBlockId_ == 0) {
     genesisBlockId_ = INITIAL_GENESIS_BLOCK_ID;
   }
@@ -537,8 +541,8 @@ void DBAdapter::linkSTChainFrom(BlockId blockId) {
     writeSTLinkTransaction(sTBlockKey, block, i);
   }
 
-  // Linking has fully completed and we should not have any more ST temporary blocks left. Therefore, make sure we don't
-  // have any value for the latest ST temporary block ID cache.
+  // Linking has fully completed and we should not have any more ST temporary blocks left. Therefore, make sure we
+  // don't have any value for the latest ST temporary block ID cache.
   latestSTTempBlockId_.reset();
 }
 
@@ -548,7 +552,6 @@ void DBAdapter::writeSTLinkTransaction(const Key &sTBlockKey, const Sliver &bloc
   auto batch = lastReachableBlockDbUpdates(getBlockData(block), block::detail::getDeletedKeys(block), blockId);
   batch.del(sTBlockKey);
   rocksdb_->write(std::move(batch));
-
   // Update the last reachable block ID cache after the transaction commits as that is equivalent to adding a block.
   lastReachableBlockId_ = blockId;
 }
@@ -619,8 +622,8 @@ void DBAdapter::deleteBlock(const BlockId &blockId) {
       LOG_ERROR(logger_, msg);
       throw std::runtime_error{msg};
     }
-    // Since we support receiving state transfer blocks in arbitrary order, we don't have a way of knowing which is the
-    // next latest block after deleting one of them. Therefore, we load the latest one from DB.
+    // Since we support receiving state transfer blocks in arbitrary order, we don't have a way of knowing which is
+    // the next latest block after deleting one of them. Therefore, we load the latest one from DB.
     latestSTTempBlockId_ = loadLatestTempSTBlockId();
     return;
   }
@@ -686,8 +689,8 @@ KeysVector DBAdapter::staleIndexNonProvableKeysForBlock(BlockId blockId) const {
 }
 
 KeysVector DBAdapter::staleIndexProvableKeysForVersion(const Version &version) const {
-  // Rely on the fact that stale keys are ordered lexicographically by version and keys with a version only precede any
-  // real ones (as they are longer). Note that version-only keys don't exist in the DB and we just use them as a
+  // Rely on the fact that stale keys are ordered lexicographically by version and keys with a version only precede
+  // any real ones (as they are longer). Note that version-only keys don't exist in the DB and we just use them as a
   // placeholder for the search. See stale key generation code.
   return keysForVersion(
       db_, DBKeyManipulator::genStaleDbKey(version), version, EKeySubtype::ProvableStale, [](const Key &key) {
