@@ -10,6 +10,8 @@
 // terms and conditions of the sub-component's license, as noted in the
 // LICENSE file.
 
+#pragma once
+
 #include <vector>
 #include <cstddef>
 #include <optional>

@@ -22,6 +22,14 @@ inline const auto IMMUTABLE_KV_CF_SUFFIX = std::string{"_immutable"};
 inline const auto BLOCKS_CF = std::string{"blocks"};
 inline const auto ST_CHAIN_CF = std::string{"st_chain"};
 
+<<<<<<< HEAD
 inline const auto CAT_ID_TYPE_CF = std::string{"cat_id_type"};
+=======
+inline const auto MERKLE_INTERNAL_NODES_CF = std::string{"merkle_internal_nodes"};
+inline const auto MERKLE_LEAF_NODES_CF = std::string{"merkle_leaf_nodes"};
+inline const auto MERKLE_STALE_CF = std::string{"merkle_stale"};
+inline const auto MERKLE_KEY_VERSIONS_CF = std::string{"merkle_key_versions"};
+inline const auto MERKLE_KEYS_CF = std::string{"merkle_keys"};
+>>>>>>> wip
 
 }  // namespace concord::kvbc::categorization::detail
