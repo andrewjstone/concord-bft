@@ -22,6 +22,7 @@ add_library(kvbc  src/ClientImp.cpp
 
 if (BUILD_ROCKSDB_STORAGE)
     target_sources(kvbc PRIVATE src/categorization/shared_kv_category.cpp)
+    target_sources(kvbc PRIVATE src/categorization/merkle_category.cpp)
 endif (BUILD_ROCKSDB_STORAGE)
 
 target_link_libraries(kvbc PUBLIC corebft )
@@ -41,4 +42,3 @@ add_subdirectory(benchmark)
 add_subdirectory(tools)
 find_package(CMFC REQUIRED)
 add_subdirectory(cmf)
-

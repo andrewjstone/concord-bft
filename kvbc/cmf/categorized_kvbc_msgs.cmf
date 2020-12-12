@@ -125,3 +125,56 @@ Msg KeyVersionsPerCategory 4002 {
     map string list uint64 data
 }
 
+# Merkle Tree Data
+
+Msg MerkleBlockValue 5000 {
+    fixedlist uint8 32 root_hash
+    list KeyHash hashed_added_keys
+    list KeyHash hashed_deleted_keys
+}
+
+Msg KeyVersions 5001 {
+    # The versions here are block ids, and not tree versions
+    list uint64 data
+}
+
+Msg NibblePath 5002 {
+    uint8 length
+    list uint8 data
+}
+
+Msg BatchedInternalNodeKey 5003 {
+    # The version of this key is the *tree* version, not block version
+    uint64 version
+    NibblePath path
+}
+
+Msg StaleBlockNodes 5004 {
+    # The versions of these keys are *tree* versions,
+    # which may be different from block versions due to pruning
+    list BatchedInternalNodeKey internal_keys
+    list VersionedKey leaf_keys
+}
+
+Msg LeafChild 5005 {
+    fixedlist uint8 32 hash
+    VersionedKey key
+}
+
+Msg InternalChild 5006 {
+    fixedlist uint8 32 hash
+    uint64 version
+}
+
+Msg BatchedInternalNodeChild 5007 {
+    oneof {
+        LeafChild
+        InternalChild
+    } child
+}
+
+Msg BatchedInternalNode 5008 {
+    # Contains a 1 where a child node is present, 0 otherwise
+    uint32 bitmask
+    list BatchedInternalNodeChild children
+}

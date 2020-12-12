@@ -22,4 +22,10 @@ inline const auto SHARED_KV_KEY_VERSIONS_CF = std::string{"shared_kv_key_version
 
 inline const auto BLOCKS_CF = std::string{"blocks"};
 
+inline const auto MERKLE_INTERNAL_NODES_CF = std::string{"merkle_internal_nodes"};
+inline const auto MERKLE_LEAF_NODES_CF = std::string{"merkle_leaf_nodes"};
+inline const auto MERKLE_STALE_CF = std::string{"merkle_stale"};
+inline const auto MERKLE_KEY_VERSIONS_CF = std::string{"merkle_key_versions"};
+inline const auto MERKLE_KEYS_CF = std::string{"merkle_keys"};
+
 }  // namespace concord::kvbc::categorization::detail
