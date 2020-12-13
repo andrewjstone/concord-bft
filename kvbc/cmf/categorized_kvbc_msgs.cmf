@@ -133,48 +133,68 @@ Msg MerkleBlockValue 5000 {
     list KeyHash hashed_deleted_keys
 }
 
-Msg KeyVersions 5001 {
-    # The versions here are block ids, and not tree versions
-    list uint64 data
-}
-
-Msg NibblePath 5002 {
+Msg NibblePath 5001 {
     uint8 length
     list uint8 data
 }
 
-Msg BatchedInternalNodeKey 5003 {
+Msg BatchedInternalNodeKey 5002 {
     # The version of this key is the *tree* version, not block version
     uint64 version
     NibblePath path
 }
 
-Msg StaleBlockNodes 5004 {
-    # The versions of these keys are *tree* versions,
-    # which may be different from block versions due to pruning
-    list BatchedInternalNodeKey internal_keys
-    list VersionedKey leaf_keys
-}
-
-Msg LeafChild 5005 {
+Msg LeafChild 5003 {
     fixedlist uint8 32 hash
     VersionedKey key
 }
 
-Msg InternalChild 5006 {
+Msg InternalChild 5004 {
     fixedlist uint8 32 hash
     uint64 version
 }
 
-Msg BatchedInternalNodeChild 5007 {
+Msg BatchedInternalNodeChild 5005 {
     oneof {
         LeafChild
         InternalChild
     } child
 }
 
-Msg BatchedInternalNode 5008 {
+Msg BatchedInternalNode 5006 {
     # Contains a 1 where a child node is present, 0 otherwise
     uint32 bitmask
     list BatchedInternalNodeChild children
+}
+
+Msg StaleBlockNodes 5007 {
+    # The versions of these keys are *tree* versions,
+    # which may be different from block versions due to pruning
+    list BatchedInternalNodeKey internal_keys
+    list VersionedKey leaf_keys
+}
+
+Msg Tombstone 5008 {
+    uint64 block_id
+}
+
+Msg KeyVersion 5009 {
+    oneof {
+        BlockKey
+        Tombstone
+    } data
+}
+
+Msg KeyVersions 5010 {
+    # The versions here are block ids, and not tree versions
+    list KeyVersion data
+}
+
+Msg StaleKeys 5011 {
+    list VersionedKey keys
+}
+
+Msg StaleData 5012 {
+    StaleBlockNodes nodes
+    StaleKeys keys
 }
