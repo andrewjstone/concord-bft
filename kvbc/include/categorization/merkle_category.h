@@ -33,6 +33,8 @@ namespace concord::kvbc::categorization::detail {
 //
 // The latter is necessary for maintaining proof guarantees after a block is pruned.
 class MerkleCategory {
+  using Hash = Hasher::Digest;
+
  public:
   MerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>&);
 
@@ -56,6 +58,17 @@ class MerkleCategory {
   //
   // This is useful for fast conflict detection.
   bool keyExists(const std::string& key, BlockId start, BlockId end) const;
+
+ private:
+  std::map<Hash, KeyVersions> getKeyVersions(std::vector<KeyHash>& added, std::vector<KeyHash>& deleted);
+
+  // We move all the values out of MerkleUpdatesData then return the stale keys.
+  StaleKeys putKeys(NativeWriteBatch& batch,
+                    uint64_t block_id,
+                    const std::vector<KeyHash>& hashed_added_keys,
+                    const std::vector<KeyHash>& hashed_deleted_keys,
+                    MerkleUpdatesData& updates,
+                    std::map<Hash, KeyVersions>&& versions);
 
  private:
   class Reader : public sparse_merkle::IDBReader {
