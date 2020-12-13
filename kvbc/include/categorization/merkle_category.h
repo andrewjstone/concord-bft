@@ -33,8 +33,6 @@ namespace concord::kvbc::categorization::detail {
 //
 // The latter is necessary for maintaining proof guarantees after a block is pruned.
 class MerkleCategory {
-  using Hash = Hasher::Digest;
-
  public:
   MerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>&);
 
@@ -62,13 +60,23 @@ class MerkleCategory {
  private:
   std::map<Hash, KeyVersions> getKeyVersions(std::vector<KeyHash>& added, std::vector<KeyHash>& deleted);
 
-  // We move all the values out of MerkleUpdatesData then return the stale keys.
-  StaleKeys putKeys(NativeWriteBatch& batch,
+  void putKeyVersions(storage::rocksdb::NativeWriteBatch& batch, const std::map<Hash, KeyVersions>& key_versions);
+
+  StaleKeys putKeys(storage::rocksdb::NativeWriteBatch& batch,
                     uint64_t block_id,
                     const std::vector<KeyHash>& hashed_added_keys,
                     const std::vector<KeyHash>& hashed_deleted_keys,
                     MerkleUpdatesData& updates,
-                    std::map<Hash, KeyVersions>&& versions);
+                    std::map<Hash, KeyVersions>& versions);
+
+  void putStale(storage::rocksdb::NativeWriteBatch& batch,
+                const std::vector<uint8_t>& block_key,
+                sparse_merkle::StaleNodeIndexes&& staleNodes,
+                StaleKeys&& stale_keys);
+
+  std::vector<uint8_t> serializeBatchedInternalNode(sparse_merkle::BatchedInternalNode&& node);
+
+  void putMerkleNodes(storage::rocksdb::NativeWriteBatch& batch, sparse_merkle::UpdateBatch&& update_batch);
 
  private:
   class Reader : public sparse_merkle::IDBReader {
