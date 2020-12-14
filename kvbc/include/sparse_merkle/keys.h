@@ -49,6 +49,7 @@ class InternalNodeKey {
   Version version() const { return version_; }
 
   const NibblePath& path() const { return path_; }
+  NibblePath& path() { return path_; }
 
  private:
   Version version_;

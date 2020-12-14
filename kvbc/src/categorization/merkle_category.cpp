@@ -63,6 +63,15 @@ MerkleUpdatesInfo updatesDataToUpdatesInfo(const MerkleUpdatesData& updates) {
   return info;
 }
 
+VersionedKey leafKeyToVersionedKey(const sparse_merkle::LeafKey& leaf_key) {
+  return VersionedKey{KeyHash{leaf_key.hash().dataArray()}, leaf_key.version().value()};
+}
+
+BatchedInternalNodeKey toBatchedInternalNodeKey(sparse_merkle::InternalNodeKey&& key) {
+  auto path = NibblePath{static_cast<uint8_t>(key.path().length()), key.path().move_data()};
+  return BatchedInternalNodeKey{key.version().value(), std::move(path)};
+}
+
 MerkleCategory::MerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>& db)
     : db_{db}, tree_{std::make_shared<Reader>(*db_)} {
   createColumnFamilyIfNotExisting(MERKLE_INTERNAL_NODES_CF, *db);
@@ -86,7 +95,7 @@ MerkleUpdatesInfo MerkleCategory::add(BlockId block_id, MerkleUpdatesData&& upda
   auto tree_update_batch = tree_.update(SetOfKeyValuePairs{{merkle_key, ser_value_sliver}});
 
   auto tree_version = tree_update_batch.stale.stale_since_version.value();
-  putStale(batch, block_key, std::move(tree_update_batch.stale), std::move(stale_keys));
+  putStale(batch, block_key, tree_update_batch.stale, std::move(stale_keys));
   putMerkleNodes(batch, std::move(tree_update_batch));
   putKeyVersions(batch, key_versions);
 
@@ -181,15 +190,15 @@ StaleKeys MerkleCategory::putKeys(NativeWriteBatch& batch,
 
 void MerkleCategory::putStale(NativeWriteBatch& batch,
                               const std::vector<uint8_t>& block_key,
-                              sparse_merkle::StaleNodeIndexes&& staleNodes,
+                              sparse_merkle::StaleNodeIndexes& stale_nodes,
                               StaleKeys&& stale_keys) {
   StaleBlockNodes stale_block_nodes{};
-  for (auto&& k : staleNodes.internal_keys) {
-    stale_block_nodes.internal_keys.emplace_back(BatchedInternalNodeKey{
-        k.version().value(), NibblePath{static_cast<uint8_t>(k.path().length()), k.path().data()}});
+  auto& s = stale_nodes.internal_keys;
+  while (!s.empty()) {
+    stale_block_nodes.internal_keys.push_back(toBatchedInternalNodeKey(std::move(s.extract(s.begin()).value())));
   }
-  for (auto&& k : staleNodes.leaf_keys) {
-    stale_block_nodes.leaf_keys.emplace_back(VersionedKey{KeyHash{k.hash().dataArray()}, k.version().value()});
+  for (auto& k : stale_nodes.leaf_keys) {
+    stale_block_nodes.leaf_keys.push_back(leafKeyToVersionedKey(k));
   }
   StaleData stale_data{std::move(stale_block_nodes), std::move(stale_keys)};
   batch.put(MERKLE_STALE_CF, block_key, serialize(stale_data));
@@ -204,28 +213,26 @@ std::vector<uint8_t> MerkleCategory::serializeBatchedInternalNode(sparse_merkle:
     if (child) {
       cmf_node.bitmask |= (1 << i);
       if (auto leaf_child = std::get_if<sparse_merkle::LeafChild>(&child.value())) {
-        cmf_node.children.emplace_back(BatchedInternalNodeChild{
-            LeafChild{leaf_child->hash.dataArray(),
-                      VersionedKey{KeyHash{leaf_child->key.hash().dataArray()}, leaf_child->key.version().value()}}});
+        cmf_node.children.push_back(
+            BatchedInternalNodeChild{LeafChild{leaf_child->hash.dataArray(), leafKeyToVersionedKey(leaf_child->key)}});
       } else {
         auto internal_child = std::get<sparse_merkle::InternalChild>(child.value());
-        cmf_node.children.emplace_back(
+        cmf_node.children.push_back(
             BatchedInternalNodeChild{InternalChild{internal_child.hash.dataArray(), internal_child.version.value()}});
       }
     }
   }
   return serialize(cmf_node);
-}  // namespace concord::kvbc::categorization::detail
+}
 
 void MerkleCategory::putMerkleNodes(NativeWriteBatch& batch, sparse_merkle::UpdateBatch&& update_batch) {
   for (const auto& [leaf_key, leaf_val] : update_batch.leaf_nodes) {
-    auto ser_key = serialize(VersionedKey{KeyHash{leaf_key.hash().dataArray()}, leaf_key.version().value()});
+    auto ser_key = serialize(leafKeyToVersionedKey(leaf_key));
     batch.put(MERKLE_LEAF_NODES_CF, ser_key, leaf_val.value.string_view());
   }
 
   for (auto& [internal_key, internal_node] : update_batch.internal_nodes) {
-    auto ser_key = serialize(BatchedInternalNodeKey{
-        internal_key.version().value(), NibblePath{(uint8_t)internal_key.path().length(), internal_key.path().data()}});
+    auto ser_key = serialize(toBatchedInternalNodeKey(std::move(internal_key)));
     batch.put(MERKLE_INTERNAL_NODES_CF, ser_key, serializeBatchedInternalNode(std::move(internal_node)));
   }
 }

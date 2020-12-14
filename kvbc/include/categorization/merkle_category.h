@@ -71,7 +71,7 @@ class MerkleCategory {
 
   void putStale(storage::rocksdb::NativeWriteBatch& batch,
                 const std::vector<uint8_t>& block_key,
-                sparse_merkle::StaleNodeIndexes&& staleNodes,
+                sparse_merkle::StaleNodeIndexes& staleNodes,
                 StaleKeys&& stale_keys);
 
   std::vector<uint8_t> serializeBatchedInternalNode(sparse_merkle::BatchedInternalNode&& node);
