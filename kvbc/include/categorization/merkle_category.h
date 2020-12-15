@@ -77,9 +77,9 @@ class MerkleCategory {
                 sparse_merkle::StaleNodeIndexes& staleNodes,
                 StaleKeys&& stale_keys);
 
-  std::vector<uint8_t> serializeBatchedInternalNode(sparse_merkle::BatchedInternalNode&& node);
-
-  void putMerkleNodes(storage::rocksdb::NativeWriteBatch& batch, sparse_merkle::UpdateBatch&& update_batch);
+  void putMerkleNodes(storage::rocksdb::NativeWriteBatch& batch,
+                      sparse_merkle::UpdateBatch&& update_batch,
+                      uint64_t tree_version);
 
  private:
   class Reader : public sparse_merkle::IDBReader {

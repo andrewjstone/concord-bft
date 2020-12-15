@@ -67,9 +67,66 @@ VersionedKey leafKeyToVersionedKey(const sparse_merkle::LeafKey& leaf_key) {
   return VersionedKey{KeyHash{leaf_key.hash().dataArray()}, leaf_key.version().value()};
 }
 
+// If we change the interface of IDBReader to accept r-values we can get rid of this function in
+// favor of the one immediately below it.
+BatchedInternalNodeKey toBatchedInternalNodeKey(const sparse_merkle::InternalNodeKey& key) {
+  auto path = NibblePath{static_cast<uint8_t>(key.path().length()), key.path().data()};
+  return BatchedInternalNodeKey{key.version().value(), std::move(path)};
+}
+
 BatchedInternalNodeKey toBatchedInternalNodeKey(sparse_merkle::InternalNodeKey&& key) {
   auto path = NibblePath{static_cast<uint8_t>(key.path().length()), key.path().move_data()};
   return BatchedInternalNodeKey{key.version().value(), std::move(path)};
+}
+
+std::vector<uint8_t> rootKey(uint64_t version) {
+  auto v = sparse_merkle::Version(version);
+  return serialize(toBatchedInternalNodeKey(sparse_merkle::InternalNodeKey::root(v)));
+}
+
+std::vector<uint8_t> serializeBatchedInternalNode(sparse_merkle::BatchedInternalNode&& node) {
+  BatchedInternalNode cmf_node{};
+  cmf_node.bitmask = 0;
+  const auto& children = node.children();
+  for (auto i = 0u; i < children.size(); ++i) {
+    const auto& child = children[i];
+    if (child) {
+      cmf_node.bitmask |= (1 << i);
+      if (auto leaf_child = std::get_if<sparse_merkle::LeafChild>(&child.value())) {
+        cmf_node.children.push_back(
+            BatchedInternalNodeChild{LeafChild{leaf_child->hash.dataArray(), leafKeyToVersionedKey(leaf_child->key)}});
+      } else {
+        auto internal_child = std::get<sparse_merkle::InternalChild>(child.value());
+        cmf_node.children.push_back(
+            BatchedInternalNodeChild{InternalChild{internal_child.hash.dataArray(), internal_child.version.value()}});
+      }
+    }
+  }
+  return serialize(cmf_node);
+}
+
+sparse_merkle::BatchedInternalNode deserializeBatchedInternalNode(const std::string& buf) {
+  BatchedInternalNode cmf_node{};
+  deserialize(buf, cmf_node);
+  sparse_merkle::BatchedInternalNode::Children children;
+  size_t child_index = 0;
+  for (auto i = 0u; i < sparse_merkle::BatchedInternalNode::MAX_CHILDREN; ++i) {
+    if (cmf_node.bitmask & (1 << i)) {
+      const auto& child = cmf_node.children[child_index].child;
+      ++child_index;
+      if (auto leaf_child = std::get_if<LeafChild>(&child)) {
+        auto sm_hash = sparse_merkle::Hash(leaf_child->hash);
+        auto sm_key =
+            sparse_merkle::LeafKey(sparse_merkle::Hash(leaf_child->key.key_hash.value), leaf_child->key.version);
+        children[i] = sparse_merkle::LeafChild(sm_hash, sm_key);
+      } else {
+        auto internal_child = std::get<InternalChild>(child);
+        auto sm_hash = sparse_merkle::Hash(internal_child.hash);
+        children[i] = sparse_merkle::InternalChild{sm_hash, internal_child.version};
+      }
+    }
+  }
+  return sparse_merkle::BatchedInternalNode(children);
 }
 
 MerkleCategory::MerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>& db)
@@ -96,7 +153,7 @@ MerkleUpdatesInfo MerkleCategory::add(BlockId block_id, MerkleUpdatesData&& upda
 
   auto tree_version = tree_update_batch.stale.stale_since_version.value();
   putStale(batch, block_key, tree_update_batch.stale, std::move(stale_keys));
-  putMerkleNodes(batch, std::move(tree_update_batch));
+  putMerkleNodes(batch, std::move(tree_update_batch), tree_version);
   putKeyVersions(batch, key_versions);
 
   auto info = updatesDataToUpdatesInfo(updates);
@@ -254,28 +311,9 @@ void MerkleCategory::putStale(NativeWriteBatch& batch,
   batch.put(MERKLE_STALE_CF, block_key, serialize(stale_data));
 }
 
-std::vector<uint8_t> MerkleCategory::serializeBatchedInternalNode(sparse_merkle::BatchedInternalNode&& node) {
-  BatchedInternalNode cmf_node{};
-  cmf_node.bitmask = 0;
-  const auto& children = node.children();
-  for (auto i = 0u; i < children.size(); ++i) {
-    const auto& child = children[i];
-    if (child) {
-      cmf_node.bitmask |= (1 << i);
-      if (auto leaf_child = std::get_if<sparse_merkle::LeafChild>(&child.value())) {
-        cmf_node.children.push_back(
-            BatchedInternalNodeChild{LeafChild{leaf_child->hash.dataArray(), leafKeyToVersionedKey(leaf_child->key)}});
-      } else {
-        auto internal_child = std::get<sparse_merkle::InternalChild>(child.value());
-        cmf_node.children.push_back(
-            BatchedInternalNodeChild{InternalChild{internal_child.hash.dataArray(), internal_child.version.value()}});
-      }
-    }
-  }
-  return serialize(cmf_node);
-}
-
-void MerkleCategory::putMerkleNodes(NativeWriteBatch& batch, sparse_merkle::UpdateBatch&& update_batch) {
+void MerkleCategory::putMerkleNodes(NativeWriteBatch& batch,
+                                    sparse_merkle::UpdateBatch&& update_batch,
+                                    uint64_t tree_version) {
   for (const auto& [leaf_key, leaf_val] : update_batch.leaf_nodes) {
     auto ser_key = serialize(leafKeyToVersionedKey(leaf_key));
     batch.put(MERKLE_LEAF_NODES_CF, ser_key, leaf_val.value.string_view());
@@ -285,6 +323,29 @@ void MerkleCategory::putMerkleNodes(NativeWriteBatch& batch, sparse_merkle::Upda
     auto ser_key = serialize(toBatchedInternalNodeKey(std::move(internal_key)));
     batch.put(MERKLE_INTERNAL_NODES_CF, ser_key, serializeBatchedInternalNode(std::move(internal_node)));
   }
+
+  // We always add a root key at version 0 with a value that points to the latest root.
+  batch.put(MERKLE_INTERNAL_NODES_CF, rootKey(0), rootKey(tree_version));
+}
+sparse_merkle::BatchedInternalNode MerkleCategory::Reader::get_latest_root() const {
+  if (auto latest_root_key = db_.get(MERKLE_INTERNAL_NODES_CF, rootKey(0))) {
+    if (auto serialized = db_.get(MERKLE_INTERNAL_NODES_CF, *latest_root_key)) {
+      return deserializeBatchedInternalNode(*serialized);
+    }
+    // TODO: Throw an exception if the latest_root version is larger than 0 but no such key exists? std::terminate?
+    std::terminate();
+  }
+  return sparse_merkle::BatchedInternalNode{};
+}
+
+sparse_merkle::BatchedInternalNode MerkleCategory::Reader::get_internal(
+    const sparse_merkle::InternalNodeKey& key) const {
+  auto ser_key = serialize(toBatchedInternalNodeKey(std::move(key)));
+  if (auto serialized = db_.get(MERKLE_INTERNAL_NODES_CF, ser_key)) {
+    return deserializeBatchedInternalNode(*serialized);
+  }
+  // TODO: Throw exception if the key doesn't exist, panic, etc...
+  std::terminate();
 }
 
 }  // namespace concord::kvbc::categorization::detail
