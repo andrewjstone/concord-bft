@@ -42,6 +42,7 @@ class MerkleCategory {
   // Return the value of `key` at `block_id`.
   // Return std::nullopt if the key doesn't exist at `block_id`.
   std::optional<Value> get(const std::string& key, BlockId block_id) const;
+  std::optional<Value> get(const Hash& hashed_key, BlockId block_id) const;
 
   // Get a the value of key with the highest corresponding block version up until `max_block_id`.
   // Return std;:nullopt if the key doesn't exist in any blocks <= `max_block_id`.
@@ -58,7 +59,9 @@ class MerkleCategory {
   bool keyExists(const std::string& key, BlockId start, BlockId end) const;
 
  private:
-  std::map<Hash, KeyVersions> getKeyVersions(std::vector<KeyHash>& added, std::vector<KeyHash>& deleted);
+  KeyVersions getKeyVersions(const Hash& hashed_key) const;
+  std::map<Hash, KeyVersions> getKeyVersions(const std::vector<KeyHash>& added,
+                                             const std::vector<KeyHash>& deleted) const;
 
   void putKeyVersions(storage::rocksdb::NativeWriteBatch& batch, const std::map<Hash, KeyVersions>& key_versions);
 
@@ -86,7 +89,7 @@ class MerkleCategory {
     // Return the latest root node in the system.
     sparse_merkle::BatchedInternalNode get_latest_root() const override;
 
-    // Retrieve a BatchedInternalNode given an InternalNodeKey.
+    // Retrieve a BatchedInternalNode given an InternalNodeKey.gguuuuu
     //
     // Throws a std::out_of_range exception if the internal node does not exist.
     sparse_merkle::BatchedInternalNode get_internal(const sparse_merkle::InternalNodeKey&) const override;

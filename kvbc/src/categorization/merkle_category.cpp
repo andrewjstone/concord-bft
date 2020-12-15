@@ -105,22 +105,72 @@ MerkleUpdatesInfo MerkleCategory::add(BlockId block_id, MerkleUpdatesData&& upda
   return info;
 }
 
-std::optional<Value> MerkleCategory::get(const std::string& key, BlockId block_id) const { return std::nullopt; }
+std::optional<Value> MerkleCategory::get(const std::string& key, BlockId block_id) const {
+  auto hasher = Hasher{};
+  auto hashed_key = hasher.digest(key.data(), key.size());
+  return get(hashed_key, block_id);
+}
 
-std::optional<Value> MerkleCategory::getUntilBlock(const std::string& key, BlockId max_block_id) const {
+std::optional<Value> MerkleCategory::get(const Hash& hashed_key, BlockId block_id) const {
+  auto key = VersionedKey{KeyHash{hashed_key}, block_id};
+  if (auto val = db_->get(MERKLE_KEYS_CF, serialize(key))) {
+    auto rv = Value{};
+    rv.data = std::move(*val);
+    rv.block_id = block_id;
+    return rv;
+  }
   return std::nullopt;
 }
 
-std::optional<Value> getLatest(const std::string& key) { return std::nullopt; }
+std::optional<Value> MerkleCategory::getUntilBlock(const std::string& key, BlockId max_block_id) const {
+  auto hasher = Hasher{};
+  auto hashed_key = hasher.digest(key.data(), key.size());
+  auto versions = getKeyVersions(hashed_key).data;
+  for (auto it = versions.rbegin(); it != versions.rend(); it++) {
+    if (auto block_key = std::get_if<BlockKey>(&it->data)) {
+      if (block_key->block_id <= max_block_id) {
+        return get(hashed_key, block_key->block_id);
+      }
+    } else {
+      auto tombstone = std::get<Tombstone>(it->data);
+      if (tombstone.block_id <= max_block_id) {
+        return std::nullopt;
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<Value> MerkleCategory::getLatest(const std::string& key) const {
+  auto hasher = Hasher{};
+  auto hashed_key = hasher.digest(key.data(), key.size());
+  auto versions = getKeyVersions(hashed_key).data;
+  if (!versions.empty()) {
+    auto latest = versions[versions.size() - 1];
+    if (auto block_key = std::get_if<BlockKey>(&latest.data)) {
+      return get(hashed_key, block_key->block_id);
+    }
+  }
+  return std::nullopt;
+}
 
 bool keyExists(const std::string& key, BlockId start, BlockId end) { return true; }
 
+KeyVersions MerkleCategory::getKeyVersions(const Hash& hashed_key) const {
+  const auto serialized = db_->get(MERKLE_KEY_VERSIONS_CF, hashed_key);
+  auto versions = KeyVersions{};
+  if (serialized) {
+    deserialize(*serialized, versions);
+  }
+  return versions;
+}
+
 // TODO: Use multiget once its implemented in NativeClient
-std::map<Hash, KeyVersions> MerkleCategory::getKeyVersions(std::vector<KeyHash>& added_keys,
-                                                           std::vector<KeyHash>& deleted_keys) {
+std::map<Hash, KeyVersions> MerkleCategory::getKeyVersions(const std::vector<KeyHash>& added_keys,
+                                                           const std::vector<KeyHash>& deleted_keys) const {
   // Writing sorted keys to rocksdb is faster than unsorted
   std::map<Hash, KeyVersions> versions;
-  for (auto& key : added_keys) {
+  for (const auto& key : added_keys) {
     auto key_versions = KeyVersions{};
     const auto serialized = db_->get(MERKLE_KEY_VERSIONS_CF, key.value);
     if (serialized) {
@@ -128,7 +178,7 @@ std::map<Hash, KeyVersions> MerkleCategory::getKeyVersions(std::vector<KeyHash>&
     }
     versions.emplace(key.value, key_versions);
   }
-  for (auto& key : deleted_keys) {
+  for (const auto& key : deleted_keys) {
     auto key_versions = KeyVersions{};
     const auto serialized = db_->get(MERKLE_KEY_VERSIONS_CF, key.value);
     if (serialized) {
