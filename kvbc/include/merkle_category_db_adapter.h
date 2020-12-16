@@ -162,10 +162,6 @@ class DBAdapter : public IDbAdapter {
                                                                  const OrderedKeysSet &deletes,
                                                                  BlockId blockId);
 
-  // Execute an update to the tree without persisting the result. This method is made public for testing purposes only.
-  std::pair<sparse_merkle::UpdateBatch, sparse_merkle::detail::UpdateCache> updateTree(
-      const SetOfKeyValuePairs &updates, const OrderedKeysSet &deletes);
-
  private:
   concordUtils::Sliver createBlockNode(categorization::MerkleUpdatesInfo &&merkle_output,
                                        BlockId blockId,
@@ -187,9 +183,6 @@ class DBAdapter : public IDbAdapter {
   KeysVector lastReachableBlockKeyDeletes(BlockId blockId) const;
 
   KeysVector genesisBlockKeyDeletes(BlockId blockId) const;
-
-  std::optional<std::pair<Key, Value>> getLeafKeyValAtMostVersion(const Key &key,
-                                                                  const sparse_merkle::Version &version) const;
 
   void deleteGenesisBlock();
 

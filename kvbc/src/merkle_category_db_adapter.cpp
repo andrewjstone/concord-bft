@@ -57,11 +57,6 @@ using namespace v2MerkleTree::detail;
 
 constexpr auto MAX_BLOCK_ID = std::numeric_limits<BlockId>::max();
 
-auto hash(const Sliver &buf) {
-  auto hasher = Hasher{};
-  return hasher.hash(buf.data(), buf.length());
-}
-
 template <typename VersionT, typename VersionExtractorT>
 KeysVector keysForVersion(const std::shared_ptr<IDBClient> &db,
                           const Key &firstKey,
@@ -145,45 +140,14 @@ std::optional<std::pair<Value, BlockId>> DBAdapter::getValueForNonProvableKey(co
   return std::nullopt;
 }
 
-std::pair<Value, BlockId> DBAdapter::getValue(const Key &key, const BlockId &blockVersion) const {
+std::pair<Value, BlockId> DBAdapter::getValue(const Key &key, const BlockId &block_id) const {
   TimeRecorder scoped_timer(*histograms.dba_get_value);
-  auto stateRootVersion = Version{};
-  if (nonProvableKeySet_.find(key) != std::cend(nonProvableKeySet_)) {
-    auto ret = getValueForNonProvableKey(key, blockVersion);
-    if (ret) {
-      return std::move(ret.value());
-    }
-  }
-  // Find a block with an ID that is less than or equal to the requested block version and extract the state root
-  // version from it.
-  {
-    const auto blockKey = DBKeyManipulator::genBlockDbKey(blockVersion);
-    auto iter = db_->getIteratorGuard();
-    const auto [foundBlockKey, foundBlockValue] = iter->seekAtMost(blockKey);
-    if (!foundBlockKey.empty() && DBKeyManipulator::getDBKeyType(foundBlockKey) == EDBKeyType::Block) {
-      TimeRecorder scoped(*histograms.dba_deserialize_block);
-      // stateRootVersion = detail::deserializeStateRootVersion(foundBlockValue);
-    } else {
-      throw NotFoundException{"Couldn't find a value by key and block version = " + std::to_string(blockVersion)};
-    }
+
+  if (auto val = category_.getUntilBlock(key.toString(), block_id)) {
+    return std::make_pair(Sliver(std::move(val->data)), val->block_id);
   }
 
-  // Seek for a leaf key with a version that is less than or equal to the state root version from the found block.
-  // Since leaf keys are ordered lexicographically, first by hash and then by state root version, then if there is a key
-  // having the same hash and a lower version, it should directly precede the found one.
-  const auto foundKv = getLeafKeyValAtMostVersion(key, stateRootVersion);
-  if (foundKv) {
-    TimeRecorder scoped(*histograms.dba_deserialize_leaf);
-    const auto dbLeafVal = detail::deserialize<detail::DatabaseLeafValue>(foundKv.value().second);
-    if (dbLeafVal.deletedInBlockId.has_value() && dbLeafVal.deletedInBlockId.value() <= blockVersion) {
-      throw NotFoundException{"Key already deleted at block version = " +
-                              std::to_string(dbLeafVal.deletedInBlockId.value())};
-    }
-    // Return the value at the block version it was added in, even if the block itself has been deleted.
-    return std::make_pair(dbLeafVal.leafNode.value, dbLeafVal.addedInBlockId);
-  }
-
-  throw NotFoundException{"Couldn't find a value by key and block version = " + std::to_string(blockVersion)};
+  throw NotFoundException{"Couldn't find a value by key and block version = " + std::to_string(block_id)};
 }
 
 BlockId DBAdapter::getGenesisBlockId() const { return genesisBlockId_; }
@@ -237,17 +201,20 @@ std::optional<BlockId> DBAdapter::loadLatestTempSTBlockId() const {
   return std::nullopt;
 }
 
-Sliver DBAdapter::createBlockNode(categorization::MerkleUpdatesData &&merkle_output,
+Sliver DBAdapter::createBlockNode(categorization::MerkleUpdatesInfo &&merkle_output,
                                   BlockId blockId,
                                   const BlockDigest &parentBlockDigest) const {
   TimeRecorder scoped_timer(*histograms.dba_create_block_node);
-  auto node =
-      block::detail::Node{blockId, parentBlockDigest, merkle_output.root_hash, merkle_output.state_root_version};
-  for (auto &[key, flag] : merkle_output) {
-    node.keys.emplace(std::move(key), block::detail::KeyData{flag.deleted});
+  auto node = v2MerkleTree::block::detail::Node{
+      blockId, parentBlockDigest, merkle_output.root_hash, merkle_output.state_root_version};
+
+  while (!merkle_output.keys.empty()) {
+    auto map_node = merkle_output.keys.extract(merkle_output.keys.begin());
+    node.keys.emplace(Sliver(std::move(map_node.key())),
+                      v2MerkleTree::block::detail::KeyData{map_node.mapped().deleted});
   }
 
-  return block::detail::createNode(node);
+  return v2MerkleTree::block::detail::createNode(node);
 }
 
 RawBlock DBAdapter::getRawBlock(const BlockId &blockId) const {
@@ -269,7 +236,7 @@ RawBlock DBAdapter::getRawBlock(const BlockId &blockId) const {
                              " from DB, reason: " + statusNode.toString()};
   }
 
-  const auto blockNode = block::detail::parseNode(blockNodeSliver);
+  const auto blockNode = v2MerkleTree::block::detail::parseNode(blockNodeSliver);
   ConcordAssert(blockId == blockNode.blockId);
 
   auto keyValues = SetOfKeyValuePairs{};
@@ -287,23 +254,19 @@ RawBlock DBAdapter::getRawBlock(const BlockId &blockId) const {
     } else {
       if (!keyData.deleted) {
         Sliver value;
-        if (const auto status = db_->get(DBKeyManipulator::genDataDbKey(key, blockNode.stateRootVersion), value);
-            !status.isOK()) {
-          // If the key is not found, treat as corrupted storage and abort.
-          ConcordAssert(!status.isNotFound());
+        auto val = category_.get(key.toString(), blockId);
+        if (!val) {
           throw std::runtime_error{"Failed to get value by key from DB, block node ID = " + std::to_string(blockId)};
         }
-        TimeRecorder scoped(*histograms.dba_deserialize_leaf);
-        const auto dbLeafVal = detail::deserialize<detail::DatabaseLeafValue>(value);
-        ConcordAssert(dbLeafVal.addedInBlockId == blockId);
-        keyValues[key] = dbLeafVal.leafNode.value;
+        ConcordAssertEQ(val->block_id, blockId);
+        keyValues[key] = Sliver(std::move(val->data));
       } else {
         deletedKeys.insert(key);
       }
     }
   }
 
-  return block::detail::create(keyValues, deletedKeys, blockNode.parentDigest, blockNode.stateHash);
+  return v2MerkleTree::block::detail::create(keyValues, deletedKeys, blockNode.parentDigest, blockNode.stateHash);
 }
 
 std::future<BlockDigest> DBAdapter::computeParentBlockDigest(BlockId blockId) const {
@@ -342,18 +305,18 @@ NativeWriteBatch DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePairs
   if (!provableKvPairs.empty() || !deletes.empty()) {
     categorization::MerkleUpdatesData merkle_input{};
     for (auto &[k, v] : provableKvPairs) {
-      merkle_input.kv.insert(k.toString(), v.toString());
+      merkle_input.kv.emplace(k.toString(), v.toString());
     }
     for (auto &d : deletes) {
-      merkle_input.push_back(d.toString());
+      merkle_input.deletes.push_back(d.toString());
     }
 
-    merkle_output = categorization::detail::MerkleCategory::add(blockId, std::move(merkle_input), batch);
+    merkle_output = category_.add(blockId, std::move(merkle_input), batch);
   }
 
   // Block node with updates and actually deleted keys.
   batch.put(DBKeyManipulator::genBlockDbKey(blockId),
-      createBlockNode(std::move(merkle_output), blockId, parentBlockDigestFuture.get());
+            createBlockNode(std::move(merkle_output), blockId, parentBlockDigestFuture.get()));
 
   for (const auto &[k, v] : nonProvableKvPairs) {
     batch.put(DBKeyManipulator::genNonProvableDbKey(blockId, k), v);
@@ -370,48 +333,8 @@ NativeWriteBatch DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePairs
 
   // update metrics
   histograms.dba_size_of_updates->record(batch.size());
-  commitSizeSummary_->Observe(sizeOfUpdatesInBytes);
+  commitSizeSummary_->Observe(batch.size());
   return batch;
-}
-
-std::pair<sparse_merkle::UpdateBatch, sparse_merkle::detail::UpdateCache> DBAdapter::updateTree(
-    const SetOfKeyValuePairs &updates, const OrderedKeysSet &deletes) {
-  return smTree_.update_with_cache(updates, KeysVector{std::cbegin(deletes), std::cend(deletes)});
-}
-
-BatchedInternalNode DBAdapter::Reader::get_latest_root() const {
-  const auto lastBlock = adapter_.getLastReachableBlockId();
-  if (lastBlock == 0) {
-    return BatchedInternalNode{};
-  }
-
-  auto blockNodeSliver = Sliver{};
-  const auto getStatus = adapter_.getDb()->get(DBKeyManipulator::genBlockDbKey(lastBlock), blockNodeSliver);
-  (void)getStatus;
-  ConcordAssert(getStatus.isOK());
-  const auto stateRootVersion = detail::deserializeStateRootVersion(blockNodeSliver);
-  if (stateRootVersion == 0) {
-    // A version of 0 means that the tree is empty and we return an empty BatchedInternalNode in that case.
-    return BatchedInternalNode{};
-  }
-
-  return get_internal(InternalNodeKey::root(stateRootVersion));
-}
-
-BatchedInternalNode DBAdapter::Reader::get_internal(const InternalNodeKey &key) const {
-  Sliver res;
-  auto status = concordUtils::Status::OK();
-  {
-    TimeRecorder scoped_timer(*histograms.dba_get_internal);
-    status = adapter_.getDb()->get(DBKeyManipulator::genInternalDbKey(key), res);
-  }
-  if (!status.isOK()) {
-    throw std::runtime_error{"Failed to get the requested merkle tree internal node"};
-  }
-  {
-    TimeRecorder scoped_timer(*histograms.dba_deserialize_internal);
-    return deserialize<BatchedInternalNode>(res);
-  }
 }
 
 BlockId DBAdapter::addBlock(const SetOfKeyValuePairs &updates, const OrderedKeysSet &deletes) {
@@ -467,9 +390,10 @@ void DBAdapter::linkSTChainFrom(BlockId blockId) {
 void DBAdapter::writeSTLinkTransaction(const Key &sTBlockKey, const Sliver &block, BlockId blockId) {
   // Deleting the ST block and adding the block to the blockchain via the merkle tree should be done atomically. We
   // implement that by using a NativeWriteBatch.
-  auto batch = lastReachableBlockDbUpdates(getBlockData(block), block::detail::getDeletedKeys(block), blockId);
+  auto batch =
+      lastReachableBlockDbUpdates(getBlockData(block), v2MerkleTree::block::detail::getDeletedKeys(block), blockId);
   batch.del(sTBlockKey);
-  rocksdb_.write(batch);
+  rocksdb_->write(std::move(batch));
 
   // Update the last reachable block ID cache after the transaction commits as that is equivalent to adding a block.
   lastReachableBlockId_ = blockId;
@@ -485,7 +409,7 @@ void DBAdapter::addRawBlock(const RawBlock &block, const BlockId &blockId) {
   } else if (lastReachableBlock + 1 == blockId) {
     // If adding the next block, append to the blockchain via the merkle tree and try to link with the ST temporary
     // chain.
-    addBlock(getBlockData(block), block::detail::getDeletedKeys(block));
+    addBlock(getBlockData(block), v2MerkleTree::block::detail::getDeletedKeys(block));
 
     try {
       linkSTChainFrom(blockId + 1);
@@ -589,7 +513,7 @@ void DBAdapter::deleteGenesisBlock() {
   ++genesisBlockId_;
 }
 
-block::detail::Node DBAdapter::getBlockNode(BlockId blockId) const {
+v2MerkleTree::block::detail::Node DBAdapter::getBlockNode(BlockId blockId) const {
   const auto blockNodeKey = DBKeyManipulator::genBlockDbKey(blockId);
   auto blockNodeSliver = Sliver{};
   const auto status = db_->get(blockNodeKey, blockNodeSliver);
@@ -599,7 +523,7 @@ block::detail::Node DBAdapter::getBlockNode(BlockId blockId) const {
     LOG_ERROR(logger_, msg);
     throw std::runtime_error{msg};
   }
-  return block::detail::parseNode(blockNodeSliver);
+  return v2MerkleTree::block::detail::parseNode(blockNodeSliver);
 }
 
 KeysVector DBAdapter::staleIndexNonProvableKeysForBlock(BlockId blockId) const {
@@ -688,19 +612,6 @@ KeysVector DBAdapter::genesisBlockKeyDeletes(BlockId blockId) const {
   return keysToDelete;
 }
 
-std::optional<std::pair<Key, Value>> DBAdapter::getLeafKeyValAtMostVersion(
-    const Key &key, const sparse_merkle::Version &version) const {
-  TimeRecorder scoped_timer(*histograms.dba_get_leaf_key_val_at_most_version);
-  auto iter = db_->getIteratorGuard();
-  const auto [foundKey, foundValue] = iter->seekAtMost(DBKeyManipulator::genDataDbKey(key, version));
-  if (!foundKey.empty() && DBKeyManipulator::getDBKeyType(foundKey) == EDBKeyType::Key &&
-      DBKeyManipulator::getKeySubtype(foundKey) == EKeySubtype::Leaf &&
-      DBKeyManipulator::extractHashFromLeafKey(foundKey) == hash(key)) {
-    return std::make_pair(foundKey, foundValue);
-  }
-  return std::nullopt;
-}
-
 void DBAdapter::deleteKeysForBlock(const KeysVector &keys, BlockId blockId) const {
   TimeRecorder scoped_timer(*histograms.dba_delete_keys_for_block);
   const auto status = db_->multiDel(keys);
@@ -712,10 +623,12 @@ void DBAdapter::deleteKeysForBlock(const KeysVector &keys, BlockId blockId) cons
   }
 }
 
-SetOfKeyValuePairs DBAdapter::getBlockData(const RawBlock &rawBlock) const { return block::detail::getData(rawBlock); }
+SetOfKeyValuePairs DBAdapter::getBlockData(const RawBlock &rawBlock) const {
+  return v2MerkleTree::block::detail::getData(rawBlock);
+}
 
 BlockDigest DBAdapter::getParentDigest(const RawBlock &rawBlock) const {
-  return block::detail::getParentDigest(rawBlock);
+  return v2MerkleTree::block::detail::getParentDigest(rawBlock);
 }
 
 bool DBAdapter::hasBlock(const BlockId &blockId) const {
