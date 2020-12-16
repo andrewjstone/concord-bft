@@ -5,19 +5,19 @@ add_library(kvbc  src/ClientImp.cpp
     src/ReplicaImp.cpp
     src/replica_state_sync_imp.cpp
     src/block_metadata.cpp
-                  src/direct_kv_db_adapter.cpp
-                  src/merkle_tree_db_adapter.cpp
-                  src/merkle_tree_key_manipulator.cpp
-                  src/direct_kv_block.cpp
-                  src/merkle_tree_block.cpp
-                  src/direct_kv_storage_factory.cpp
-                  src/merkle_tree_storage_factory.cpp
-                  src/sparse_merkle/base_types.cpp
-                  src/sparse_merkle/keys.cpp
-                  src/sparse_merkle/internal_node.cpp
-                  src/sparse_merkle/tree.cpp
-                  src/sparse_merkle/update_cache.cpp
-                  src/sparse_merkle/walker.cpp
+    src/direct_kv_db_adapter.cpp
+    src/merkle_tree_db_adapter.cpp
+    src/merkle_tree_key_manipulator.cpp
+    src/direct_kv_block.cpp
+    src/merkle_tree_block.cpp
+    src/direct_kv_storage_factory.cpp
+    src/merkle_tree_storage_factory.cpp
+    src/sparse_merkle/base_types.cpp
+    src/sparse_merkle/keys.cpp
+    src/sparse_merkle/internal_node.cpp
+    src/sparse_merkle/tree.cpp
+    src/sparse_merkle/update_cache.cpp
+    src/sparse_merkle/walker.cpp
 )
 
 if (BUILD_ROCKSDB_STORAGE)
@@ -26,7 +26,9 @@ if (BUILD_ROCKSDB_STORAGE)
                                 src/categorization/blocks.cpp
                                 src/categorization/blockchain.cpp
                                 src/categorization/shared_kv_category.cpp
-                                src/categorization/merkle_category.cpp)
+                                src/categorization/merkle_category.cpp
+                                src/merkle_category_db_adapter.cpp
+                                src/merkle_category_storage_factory.cpp)
 endif (BUILD_ROCKSDB_STORAGE)
 
 target_link_libraries(kvbc PUBLIC corebft )

@@ -327,6 +327,7 @@ void MerkleCategory::putMerkleNodes(NativeWriteBatch& batch,
   // We always add a root key at version 0 with a value that points to the latest root.
   batch.put(MERKLE_INTERNAL_NODES_CF, rootKey(0), rootKey(tree_version));
 }
+
 sparse_merkle::BatchedInternalNode MerkleCategory::Reader::get_latest_root() const {
   if (auto latest_root_key = db_.get(MERKLE_INTERNAL_NODES_CF, rootKey(0))) {
     if (auto serialized = db_.get(MERKLE_INTERNAL_NODES_CF, *latest_root_key)) {
