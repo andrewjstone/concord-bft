@@ -27,8 +27,7 @@ inline const auto CAT_ID_TYPE_CF = std::string{"cat_id_type"};
 =======
 inline const auto MERKLE_INTERNAL_NODES_CF = std::string{"merkle_internal_nodes"};
 inline const auto MERKLE_LEAF_NODES_CF = std::string{"merkle_leaf_nodes"};
-inline const auto MERKLE_STALE_CF = std::string{"merkle_stale"};
-inline const auto MERKLE_KEY_VERSIONS_CF = std::string{"merkle_key_versions"};
+inline const auto MERKLE_LATEST_KEY_VERSION = std::string{"merkle_latest_key_version"};
 inline const auto MERKLE_KEYS_CF = std::string{"merkle_keys"};
 >>>>>>> wip
 

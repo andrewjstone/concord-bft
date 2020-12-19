@@ -129,13 +129,12 @@ sparse_merkle::BatchedInternalNode deserializeBatchedInternalNode(const std::str
   return sparse_merkle::BatchedInternalNode(children);
 }
 
-MerkleCategory::MerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>& db)
-    : db_{db}, tree_{std::make_shared<Reader>(*db_)} {
+MerkleCategory::MerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>& db) : db_{db} {
   createColumnFamilyIfNotExisting(MERKLE_INTERNAL_NODES_CF, *db);
   createColumnFamilyIfNotExisting(MERKLE_LEAF_NODES_CF, *db);
-  createColumnFamilyIfNotExisting(MERKLE_STALE_CF, *db);
-  createColumnFamilyIfNotExisting(MERKLE_KEY_VERSIONS_CF, *db);
+  createColumnFamilyIfNotExisting(MERKLE_LATEST_KEY_VERSION, *db);
   createColumnFamilyIfNotExisting(MERKLE_KEYS_CF, *db);
+  tree_ = sparse_merkle::Tree{std::make_shared<Reader>(*db_)};
 }
 
 MerkleUpdatesInfo MerkleCategory::add(BlockId block_id, MerkleUpdatesData&& updates, NativeWriteBatch& batch) {
@@ -146,9 +145,9 @@ MerkleUpdatesInfo MerkleCategory::add(BlockId block_id, MerkleUpdatesData&& upda
       putKeys(batch, block_id, merkle_value.hashed_added_keys, merkle_value.hashed_deleted_keys, updates, key_versions);
 
   auto block_key = serialize(BlockKey{block_id});
-  auto merkle_key = Sliver{(const char*)block_key.data(), block_key.size()};
+  auto merkle_key = Sliver::copy((const char*)block_key.data(), block_key.size());
   auto ser_value = serialize(merkle_value);
-  auto ser_value_sliver = Sliver{(const char*)ser_value.data(), ser_value.size()};
+  auto ser_value_sliver = Sliver::copy((const char*)ser_value.data(), ser_value.size());
   auto tree_update_batch = tree_.update(SetOfKeyValuePairs{{merkle_key, ser_value_sliver}});
 
   auto tree_version = tree_update_batch.stale.stale_since_version.value();
@@ -211,15 +210,13 @@ std::optional<Value> MerkleCategory::getLatest(const std::string& key) const {
   return std::nullopt;
 }
 
-bool keyExists(const std::string& key, BlockId start, BlockId end) { return true; }
-
-KeyVersions MerkleCategory::getKeyVersions(const Hash& hashed_key) const {
+KeyVersions MerkleCategory::getLatestVersion(const Hash& hashed_key) const {
   const auto serialized = db_->get(MERKLE_KEY_VERSIONS_CF, hashed_key);
-  auto versions = KeyVersions{};
+  auto version = LatestKeyVersion{};
   if (serialized) {
     deserialize(*serialized, versions);
   }
-  return versions;
+  return version.data;
 }
 
 // TODO: Use multiget once its implemented in NativeClient

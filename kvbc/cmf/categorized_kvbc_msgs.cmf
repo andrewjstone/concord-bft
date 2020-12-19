@@ -159,34 +159,10 @@ Msg BatchedInternalNode 5006 {
     list BatchedInternalNodeChild children
 }
 
-Msg StaleBlockNodes 5007 {
-    # The versions of these keys are *tree* versions,
-    # which may be different from block versions due to pruning
-    list BatchedInternalNodeKey internal_keys
-    list VersionedKey leaf_keys
-}
+# An index to the latest version of a key A sentinel of 0 is used to mark the key as deleted. We
+# don't need tombstones as we never rewrite the same key after it has been deleted. The use of a
+# sentinel is to optimize the size and serialization performance of this index.
 
-Msg Tombstone 5008 {
-    uint64 block_id
-}
-
-Msg KeyVersion 5009 {
-    oneof {
-        BlockKey
-        Tombstone
-    } data
-}
-
-Msg KeyVersions 5010 {
-    # The versions here are block ids, and not tree versions
-    list KeyVersion data
-}
-
-Msg StaleKeys 5011 {
-    list VersionedKey keys
-}
-
-Msg StaleData 5012 {
-    StaleBlockNodes nodes
-    StaleKeys keys
+Msg LatestKeyVersion 5009 {
+    uint64 block_id data
 }

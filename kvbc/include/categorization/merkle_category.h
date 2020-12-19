@@ -44,22 +44,17 @@ class MerkleCategory {
   std::optional<Value> get(const std::string& key, BlockId block_id) const;
   std::optional<Value> get(const Hash& hashed_key, BlockId block_id) const;
 
-  // Get a the value of key with the highest corresponding block version up until `max_block_id`.
-  // Return std;:nullopt if the key doesn't exist in any blocks <= `max_block_id`.
-  std::optional<Value> getUntilBlock(const std::string& key, BlockId max_block_id) const;
-
   // Return the value of `key` at its most recent block version.
   // Return std::nullopt if the key doesn't exist.
   std::optional<Value> getLatest(const std::string& key) const;
 
-  // Return true if there is a version of the key between `start` and `end`, inclusive.
-  // Returns false otherwise.
+  // Returns the latest *block* version of a key.
   //
   // This is useful for fast conflict detection.
-  bool keyExists(const std::string& key, BlockId start, BlockId end) const;
+  BlockId getLatestVersion(const std::string& key) const;
+  BlockId getLatestVersion(const Hash& key) const;
 
  private:
-  KeyVersions getKeyVersions(const Hash& hashed_key) const;
   std::map<Hash, KeyVersions> getKeyVersions(const std::vector<KeyHash>& added,
                                              const std::vector<KeyHash>& deleted) const;
 
@@ -71,11 +66,6 @@ class MerkleCategory {
                     const std::vector<KeyHash>& hashed_deleted_keys,
                     MerkleUpdatesData& updates,
                     std::map<Hash, KeyVersions>& versions);
-
-  void putStale(storage::rocksdb::NativeWriteBatch& batch,
-                const std::vector<uint8_t>& block_key,
-                sparse_merkle::StaleNodeIndexes& staleNodes,
-                StaleKeys&& stale_keys);
 
   void putMerkleNodes(storage::rocksdb::NativeWriteBatch& batch,
                       sparse_merkle::UpdateBatch&& update_batch,

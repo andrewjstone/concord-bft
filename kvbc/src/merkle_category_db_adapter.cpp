@@ -298,7 +298,7 @@ NativeWriteBatch DBAdapter::lastReachableBlockDbUpdates(const SetOfKeyValuePairs
   const auto [provableKvPairs, nonProvableKvPairs] = splitToProvableAndNonProvable(updates, nonProvableKeySet_);
 
   auto batch = rocksdb_->getBatch();
-  categorization::MerkleUpdatesInfo merkle_output;
+  categorization::MerkleUpdatesInfo merkle_output{};
 
   // If there are no updates and no actual deletes, do not update the tree and do create an empty block.
   // UPDATE THE TREE via the category
