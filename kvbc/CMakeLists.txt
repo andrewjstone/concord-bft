@@ -25,10 +25,7 @@ if (BUILD_ROCKSDB_STORAGE)
                                 src/categorization/kv_blockchain.cpp
                                 src/categorization/blocks.cpp
                                 src/categorization/blockchain.cpp
-                                src/categorization/shared_kv_category.cpp
-                                src/categorization/merkle_category.cpp
-                                src/merkle_category_db_adapter.cpp
-                                src/merkle_category_storage_factory.cpp)
+                                src/categorization/block_merkle_category.cpp)
 endif (BUILD_ROCKSDB_STORAGE)
 
 target_link_libraries(kvbc PUBLIC corebft )

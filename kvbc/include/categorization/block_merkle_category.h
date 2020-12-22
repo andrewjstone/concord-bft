@@ -32,40 +32,33 @@ namespace concord::kvbc::categorization::detail {
 //     * The hash of each provable key in the block.
 //
 // The latter is necessary for maintaining proof guarantees after a block is pruned.
-class MerkleCategory {
+class BlockMerkleCategory {
  public:
-  MerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>&);
+  BlockMerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>&);
 
   // Add the given block updates and return the information that needs to be persisted in the block.
   MerkleUpdatesInfo add(BlockId block_id, MerkleUpdatesData&& update, storage::rocksdb::NativeWriteBatch&);
 
   // Return the value of `key` at `block_id`.
   // Return std::nullopt if the key doesn't exist at `block_id`.
-  std::optional<Value> get(const std::string& key, BlockId block_id) const;
-  std::optional<Value> get(const Hash& hashed_key, BlockId block_id) const;
+  std::optional<MerkleValue> get(const std::string& key, BlockId block_id) const;
+  std::optional<MerkleValue> get(const Hash& hashed_key, BlockId block_id) const;
 
   // Return the value of `key` at its most recent block version.
   // Return std::nullopt if the key doesn't exist.
-  std::optional<Value> getLatest(const std::string& key) const;
+  std::optional<MerkleValue> getLatest(const std::string& key) const;
 
   // Returns the latest *block* version of a key.
-  //
-  // This is useful for fast conflict detection.
-  BlockId getLatestVersion(const std::string& key) const;
-  BlockId getLatestVersion(const Hash& key) const;
+  // Returns std::nullopt if the key doesn't exist.
+  std::optional<BlockId> getLatestVersion(const std::string& key) const;
+  std::optional<BlockId> getLatestVersion(const Hash& key) const;
 
  private:
-  std::map<Hash, KeyVersions> getKeyVersions(const std::vector<KeyHash>& added,
-                                             const std::vector<KeyHash>& deleted) const;
-
-  void putKeyVersions(storage::rocksdb::NativeWriteBatch& batch, const std::map<Hash, KeyVersions>& key_versions);
-
-  StaleKeys putKeys(storage::rocksdb::NativeWriteBatch& batch,
-                    uint64_t block_id,
-                    const std::vector<KeyHash>& hashed_added_keys,
-                    const std::vector<KeyHash>& hashed_deleted_keys,
-                    MerkleUpdatesData& updates,
-                    std::map<Hash, KeyVersions>& versions);
+  void putKeys(storage::rocksdb::NativeWriteBatch& batch,
+               uint64_t block_id,
+               const std::vector<KeyHash>& hashed_added_keys,
+               const std::vector<KeyHash>& hashed_deleted_keys,
+               MerkleUpdatesData& updates);
 
   void putMerkleNodes(storage::rocksdb::NativeWriteBatch& batch,
                       sparse_merkle::UpdateBatch&& update_batch,

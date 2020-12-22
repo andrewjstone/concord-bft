@@ -11,7 +11,7 @@
 // terms and conditions of the subcomponent's license, as noted in the LICENSE
 // file.
 
-#include "categorization/merkle_category.h"
+#include "categorization/block_merkle_category.h"
 #include "categorization/column_families.h"
 #include "categorization/details.h"
 
@@ -129,20 +129,18 @@ sparse_merkle::BatchedInternalNode deserializeBatchedInternalNode(const std::str
   return sparse_merkle::BatchedInternalNode(children);
 }
 
-MerkleCategory::MerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>& db) : db_{db} {
-  createColumnFamilyIfNotExisting(MERKLE_INTERNAL_NODES_CF, *db);
-  createColumnFamilyIfNotExisting(MERKLE_LEAF_NODES_CF, *db);
-  createColumnFamilyIfNotExisting(MERKLE_LATEST_KEY_VERSION, *db);
-  createColumnFamilyIfNotExisting(MERKLE_KEYS_CF, *db);
+BlockMerkleCategory::BlockMerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>& db) : db_{db} {
+  createColumnFamilyIfNotExisting(BLOCK_MERKLE_INTERNAL_NODES_CF, *db);
+  createColumnFamilyIfNotExisting(BLOCK_MERKLE_LEAF_NODES_CF, *db);
+  createColumnFamilyIfNotExisting(BLOCK_MERKLE_LATEST_KEY_VERSION, *db);
+  createColumnFamilyIfNotExisting(BLOCK_MERKLE_KEYS_CF, *db);
   tree_ = sparse_merkle::Tree{std::make_shared<Reader>(*db_)};
 }
 
-MerkleUpdatesInfo MerkleCategory::add(BlockId block_id, MerkleUpdatesData&& updates, NativeWriteBatch& batch) {
+MerkleUpdatesInfo BlockMerkleCategory::add(BlockId block_id, MerkleUpdatesData&& updates, NativeWriteBatch& batch) {
   auto merkle_value = hashUpdate(updates);
   auto root_hash = merkle_value.root_hash;
-  auto key_versions = getKeyVersions(merkle_value.hashed_added_keys, merkle_value.hashed_deleted_keys);
-  auto stale_keys =
-      putKeys(batch, block_id, merkle_value.hashed_added_keys, merkle_value.hashed_deleted_keys, updates, key_versions);
+  putKeys(batch, block_id, merkle_value.hashed_added_keys, merkle_value.hashed_deleted_keys, updates);
 
   auto block_key = serialize(BlockKey{block_id});
   auto merkle_key = Sliver::copy((const char*)block_key.data(), block_key.size());
@@ -151,9 +149,7 @@ MerkleUpdatesInfo MerkleCategory::add(BlockId block_id, MerkleUpdatesData&& upda
   auto tree_update_batch = tree_.update(SetOfKeyValuePairs{{merkle_key, ser_value_sliver}});
 
   auto tree_version = tree_update_batch.stale.stale_since_version.value();
-  putStale(batch, block_key, tree_update_batch.stale, std::move(stale_keys));
   putMerkleNodes(batch, std::move(tree_update_batch), tree_version);
-  putKeyVersions(batch, key_versions);
 
   auto info = updatesDataToUpdatesInfo(updates);
   info.root_hash = root_hash;
@@ -161,16 +157,16 @@ MerkleUpdatesInfo MerkleCategory::add(BlockId block_id, MerkleUpdatesData&& upda
   return info;
 }
 
-std::optional<Value> MerkleCategory::get(const std::string& key, BlockId block_id) const {
+std::optional<MerkleValue> BlockMerkleCategory::get(const std::string& key, BlockId block_id) const {
   auto hasher = Hasher{};
   auto hashed_key = hasher.digest(key.data(), key.size());
   return get(hashed_key, block_id);
 }
 
-std::optional<Value> MerkleCategory::get(const Hash& hashed_key, BlockId block_id) const {
+std::optional<MerkleValue> BlockMerkleCategory::get(const Hash& hashed_key, BlockId block_id) const {
   auto key = VersionedKey{KeyHash{hashed_key}, block_id};
-  if (auto val = db_->get(MERKLE_KEYS_CF, serialize(key))) {
-    auto rv = Value{};
+  if (auto val = db_->get(BLOCK_MERKLE_KEYS_CF, serialize(key))) {
+    auto rv = MerkleValue{};
     rv.data = std::move(*val);
     rv.block_id = block_id;
     return rv;
@@ -178,156 +174,78 @@ std::optional<Value> MerkleCategory::get(const Hash& hashed_key, BlockId block_i
   return std::nullopt;
 }
 
-std::optional<Value> MerkleCategory::getUntilBlock(const std::string& key, BlockId max_block_id) const {
+std::optional<MerkleValue> BlockMerkleCategory::getLatest(const std::string& key) const {
   auto hasher = Hasher{};
   auto hashed_key = hasher.digest(key.data(), key.size());
-  auto versions = getKeyVersions(hashed_key).data;
-  for (auto it = versions.rbegin(); it != versions.rend(); it++) {
-    if (auto block_key = std::get_if<BlockKey>(&it->data)) {
-      if (block_key->block_id <= max_block_id) {
-        return get(hashed_key, block_key->block_id);
-      }
-    } else {
-      auto tombstone = std::get<Tombstone>(it->data);
-      if (tombstone.block_id <= max_block_id) {
-        return std::nullopt;
-      }
-    }
+  if (auto block_id = getLatestVersion(hashed_key)) {
+    return get(hashed_key, *block_id);
   }
   return std::nullopt;
 }
 
-std::optional<Value> MerkleCategory::getLatest(const std::string& key) const {
+std::optional<BlockId> BlockMerkleCategory::getLatestVersion(const std::string& key) const {
   auto hasher = Hasher{};
   auto hashed_key = hasher.digest(key.data(), key.size());
-  auto versions = getKeyVersions(hashed_key).data;
-  if (!versions.empty()) {
-    auto latest = versions[versions.size() - 1];
-    if (auto block_key = std::get_if<BlockKey>(&latest.data)) {
-      return get(hashed_key, block_key->block_id);
-    }
-  }
-  return std::nullopt;
+  return getLatestVersion(hashed_key);
 }
 
-KeyVersions MerkleCategory::getLatestVersion(const Hash& hashed_key) const {
-  const auto serialized = db_->get(MERKLE_KEY_VERSIONS_CF, hashed_key);
+std::optional<BlockId> BlockMerkleCategory::getLatestVersion(const Hash& hashed_key) const {
+  const auto serialized = db_->getSlice(BLOCK_MERKLE_LATEST_KEY_VERSION, hashed_key);
+  if (!serialized) {
+    return std::nullopt;
+  }
   auto version = LatestKeyVersion{};
-  if (serialized) {
-    deserialize(*serialized, versions);
+  deserialize(*serialized, version);
+  if (version.block_id == 0) {
+    // 0 is a tombstone sentinel
+    return std::nullopt;
   }
-  return version.data;
+  return version.block_id;
 }
 
-// TODO: Use multiget once its implemented in NativeClient
-std::map<Hash, KeyVersions> MerkleCategory::getKeyVersions(const std::vector<KeyHash>& added_keys,
-                                                           const std::vector<KeyHash>& deleted_keys) const {
-  // Writing sorted keys to rocksdb is faster than unsorted
-  std::map<Hash, KeyVersions> versions;
-  for (const auto& key : added_keys) {
-    auto key_versions = KeyVersions{};
-    const auto serialized = db_->get(MERKLE_KEY_VERSIONS_CF, key.value);
-    if (serialized) {
-      deserialize(*serialized, key_versions);
-    }
-    versions.emplace(key.value, key_versions);
-  }
-  for (const auto& key : deleted_keys) {
-    auto key_versions = KeyVersions{};
-    const auto serialized = db_->get(MERKLE_KEY_VERSIONS_CF, key.value);
-    if (serialized) {
-      deserialize(*serialized, key_versions);
-    }
-    versions.emplace(key.value, key_versions);
-  }
-  return versions;
-}
-
-void MerkleCategory::putKeyVersions(NativeWriteBatch& batch, const std::map<Hash, KeyVersions>& key_versions) {
-  for (const auto& [hash, versions] : key_versions) {
-    batch.put(MERKLE_KEY_VERSIONS_CF, hash, serialize(versions));
-  }
-}
-
-StaleKeys MerkleCategory::putKeys(NativeWriteBatch& batch,
+void BlockMerkleCategory::putKeys(NativeWriteBatch& batch,
                                   uint64_t block_id,
                                   const std::vector<KeyHash>& hashed_added_keys,
                                   const std::vector<KeyHash>& hashed_deleted_keys,
-                                  MerkleUpdatesData& updates,
-                                  std::map<Hash, KeyVersions>& versions) {
-  StaleKeys stale_keys;
+                                  MerkleUpdatesData& updates) {
   auto kv_it = updates.kv.begin();
   for (auto key_it = hashed_added_keys.begin(); key_it != hashed_added_keys.end(); key_it++) {
     // Write the versioned key/value pair used for direct key lookup
-    batch.put(MERKLE_KEYS_CF, serialize(VersionedKey{*key_it, block_id}), std::move(kv_it->second));
+    batch.put(BLOCK_MERKLE_KEYS_CF, serialize(VersionedKey{*key_it, block_id}), std::move(kv_it->second));
 
-    // Is there a version that was just overwritten? If so, we need to create a stale key.
-    auto key_versions = versions.at(key_it->value);
-    if (!key_versions.data.empty()) {
-      auto last_version = key_versions.data[key_versions.data.size() - 1].data;
-      if (auto block_key = std::get_if<BlockKey>(&last_version)) {
-        stale_keys.keys.push_back(VersionedKey{*key_it, block_key->block_id});
-      }
-    }
+    // Put the latest version of the key
+    batch.put(BLOCK_MERKLE_LATEST_KEY_VERSION, key_it->value, serialize(LatestKeyVersion{block_id}));
 
-    // Add the new block_id to the key versions
-    key_versions.data.emplace_back(KeyVersion{BlockKey{block_id}});
     kv_it++;
   }
 
   for (auto key_it = hashed_deleted_keys.begin(); key_it != hashed_deleted_keys.end(); key_it++) {
-    // Is there a version that was just deleted? If so, we need to create a stale key.
-    auto key_versions = versions.at(key_it->value);
-    if (!key_versions.data.empty()) {
-      auto last_version = key_versions.data[key_versions.data.size() - 1].data;
-      if (auto block_key = std::get_if<BlockKey>(&last_version)) {
-        stale_keys.keys.push_back(VersionedKey{*key_it, block_key->block_id});
-      }
-    }
-
-    // Add the new tombstone to the key versions
-    key_versions.data.emplace_back(KeyVersion{Tombstone{block_id}});
+    // Add the new tombstone to the key versions. We use 0 here to avoid the serialization overhead of a
+    // variant/optional.
+    batch.put(BLOCK_MERKLE_LATEST_KEY_VERSION, key_it->value, serialize(LatestKeyVersion{0}));
   }
-
-  return stale_keys;
 }
 
-void MerkleCategory::putStale(NativeWriteBatch& batch,
-                              const std::vector<uint8_t>& block_key,
-                              sparse_merkle::StaleNodeIndexes& stale_nodes,
-                              StaleKeys&& stale_keys) {
-  StaleBlockNodes stale_block_nodes{};
-  auto& s = stale_nodes.internal_keys;
-  while (!s.empty()) {
-    stale_block_nodes.internal_keys.push_back(toBatchedInternalNodeKey(std::move(s.extract(s.begin()).value())));
-  }
-  for (auto& k : stale_nodes.leaf_keys) {
-    stale_block_nodes.leaf_keys.push_back(leafKeyToVersionedKey(k));
-  }
-  StaleData stale_data{std::move(stale_block_nodes), std::move(stale_keys)};
-  batch.put(MERKLE_STALE_CF, block_key, serialize(stale_data));
-}
-
-void MerkleCategory::putMerkleNodes(NativeWriteBatch& batch,
-                                    sparse_merkle::UpdateBatch&& update_batch,
-                                    uint64_t tree_version) {
+void BlockMerkleCategory::putMerkleNodes(NativeWriteBatch& batch,
+                                         sparse_merkle::UpdateBatch&& update_batch,
+                                         uint64_t tree_version) {
   for (const auto& [leaf_key, leaf_val] : update_batch.leaf_nodes) {
     auto ser_key = serialize(leafKeyToVersionedKey(leaf_key));
-    batch.put(MERKLE_LEAF_NODES_CF, ser_key, leaf_val.value.string_view());
+    batch.put(BLOCK_MERKLE_LEAF_NODES_CF, ser_key, leaf_val.value.string_view());
   }
 
   for (auto& [internal_key, internal_node] : update_batch.internal_nodes) {
     auto ser_key = serialize(toBatchedInternalNodeKey(std::move(internal_key)));
-    batch.put(MERKLE_INTERNAL_NODES_CF, ser_key, serializeBatchedInternalNode(std::move(internal_node)));
+    batch.put(BLOCK_MERKLE_INTERNAL_NODES_CF, ser_key, serializeBatchedInternalNode(std::move(internal_node)));
   }
 
   // We always add a root key at version 0 with a value that points to the latest root.
-  batch.put(MERKLE_INTERNAL_NODES_CF, rootKey(0), rootKey(tree_version));
+  batch.put(BLOCK_MERKLE_INTERNAL_NODES_CF, rootKey(0), rootKey(tree_version));
 }
 
-sparse_merkle::BatchedInternalNode MerkleCategory::Reader::get_latest_root() const {
-  if (auto latest_root_key = db_.get(MERKLE_INTERNAL_NODES_CF, rootKey(0))) {
-    if (auto serialized = db_.get(MERKLE_INTERNAL_NODES_CF, *latest_root_key)) {
+sparse_merkle::BatchedInternalNode BlockMerkleCategory::Reader::get_latest_root() const {
+  if (auto latest_root_key = db_.get(BLOCK_MERKLE_INTERNAL_NODES_CF, rootKey(0))) {
+    if (auto serialized = db_.get(BLOCK_MERKLE_INTERNAL_NODES_CF, *latest_root_key)) {
       return deserializeBatchedInternalNode(*serialized);
     }
     // TODO: Throw an exception if the latest_root version is larger than 0 but no such key exists? std::terminate?
@@ -336,10 +254,10 @@ sparse_merkle::BatchedInternalNode MerkleCategory::Reader::get_latest_root() con
   return sparse_merkle::BatchedInternalNode{};
 }
 
-sparse_merkle::BatchedInternalNode MerkleCategory::Reader::get_internal(
+sparse_merkle::BatchedInternalNode BlockMerkleCategory::Reader::get_internal(
     const sparse_merkle::InternalNodeKey& key) const {
   auto ser_key = serialize(toBatchedInternalNodeKey(std::move(key)));
-  if (auto serialized = db_.get(MERKLE_INTERNAL_NODES_CF, ser_key)) {
+  if (auto serialized = db_.get(BLOCK_MERKLE_INTERNAL_NODES_CF, ser_key)) {
     return deserializeBatchedInternalNode(*serialized);
   }
   // TODO: Throw exception if the key doesn't exist, panic, etc...
