@@ -131,6 +131,32 @@ TEST_F(block_merkle_category, multiget) {
   ASSERT_EQ((MerkleValue{{block_id, val1}}), *values[0]);
   ASSERT_EQ((MerkleValue{{block_id, val2}}), *values[1]);
   ASSERT_EQ((MerkleValue{{block_id, val3}}), *values[2]);
+
+  // Retrieving a key with the wrong version causes a nullopt for that key only
+  versions[1] = 2u;
+  cat.multiGet(keys, versions, values);
+  ASSERT_EQ(keys.size(), values.size());
+  ASSERT_EQ((MerkleValue{{block_id, val1}}), *values[0]);
+  ASSERT_EQ(false, values[1].has_value());
+  ASSERT_EQ((MerkleValue{{block_id, val3}}), *values[2]);
+
+  // Retrieving a non-exist key causes a nullopt for that key only
+  keys.push_back("key4");
+  versions.push_back(1u);
+  cat.multiGet(keys, versions, values);
+  ASSERT_EQ(keys.size(), values.size());
+  ASSERT_EQ((MerkleValue{{block_id, val1}}), *values[0]);
+  ASSERT_EQ(false, values[1].has_value());
+  ASSERT_EQ((MerkleValue{{block_id, val3}}), *values[2]);
+  ASSERT_EQ(false, values[3].has_value());
+
+  // Get latest versions
+  auto out_versions = std::vector<std::optional<BlockId>>{};
+  cat.multiGetLatestVersion(keys, out_versions);
+  ASSERT_EQ(1, *out_versions[0]);
+  ASSERT_EQ(1, out_versions[1].has_value());
+  ASSERT_EQ(1, *out_versions[2]);
+  ASSERT_EQ(false, out_versions[3].has_value());
 }
 
 }  // namespace

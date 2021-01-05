@@ -237,6 +237,40 @@ void BlockMerkleCategory::multiGet(const std::vector<std::string>& keys,
   }
 }
 
+void BlockMerkleCategory::multiGetLatestVersion(const std::vector<std::string>& keys,
+                                                std::vector<std::optional<BlockId>>& versions) const {
+  auto slices = std::vector<::rocksdb::PinnableSlice>{};
+  slices.reserve(keys.size());
+  auto statuses = std::vector<::rocksdb::Status>{};
+  statuses.reserve(keys.size());
+  std::vector<Hash> hashed_keys;
+  hashed_keys.reserve(keys.size());
+  std::transform(keys.begin(), keys.end(), std::back_inserter(hashed_keys), [](auto& key) {
+    return Hasher{}.digest(key.data(), key.size());
+  });
+
+  db_->multiGet(BLOCK_MERKLE_LATEST_KEY_VERSION, hashed_keys, slices, statuses);
+  versions.clear();
+  for (auto i = 0ull; i < slices.size(); ++i) {
+    const auto& status = statuses[i];
+    const auto& slice = slices[i];
+    if (status.ok()) {
+      auto version = LatestKeyVersion{};
+      deserialize(slice, version);
+      if (version.block_id == 0) {
+        // 0 is a tombstone sentinel
+        versions.push_back(std::nullopt);
+      } else {
+        versions.push_back(version.block_id);
+      }
+    } else if (status.IsNotFound()) {
+      versions.push_back(std::nullopt);
+    } else {
+      throw std::runtime_error{"BlockMerkleCategory multiGet() failure: " + status.ToString()};
+    }
+  }
+}
+
 void BlockMerkleCategory::putKeys(NativeWriteBatch& batch,
                                   uint64_t block_id,
                                   const std::vector<KeyHash>& hashed_added_keys,
