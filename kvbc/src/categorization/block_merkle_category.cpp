@@ -377,7 +377,8 @@ sparse_merkle::BatchedInternalNode BlockMerkleCategory::Reader::get_latest_root(
     if (auto serialized = db_.get(BLOCK_MERKLE_INTERNAL_NODES_CF, *latest_root_key)) {
       return deserializeBatchedInternalNode(*serialized);
     }
-    // TODO: Throw an exception if the latest_root version is larger than 0 but no such key exists? std::terminate?
+    // TODO: LOG THIS
+    // The merkle tree should never ask for a version that doesn't exist.
     std::terminate();
   }
   return sparse_merkle::BatchedInternalNode{};
@@ -389,7 +390,8 @@ sparse_merkle::BatchedInternalNode BlockMerkleCategory::Reader::get_internal(
   if (auto serialized = db_.get(BLOCK_MERKLE_INTERNAL_NODES_CF, ser_key)) {
     return deserializeBatchedInternalNode(*serialized);
   }
-  // TODO: Throw exception if the key doesn't exist, panic, etc...
+  // TODO: LOG THIS
+  // The merkle tree should never ask for a version that doesn't exist.
   std::terminate();
 }
 
