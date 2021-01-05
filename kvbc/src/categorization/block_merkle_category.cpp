@@ -129,6 +129,26 @@ sparse_merkle::BatchedInternalNode deserializeBatchedInternalNode(const std::str
   return sparse_merkle::BatchedInternalNode(children);
 }
 
+std::vector<Hash> hashedKeys(const std::vector<std::string>& keys) {
+  std::vector<Hash> hashed_keys;
+  hashed_keys.reserve(keys.size());
+  std::transform(keys.begin(), keys.end(), std::back_inserter(hashed_keys), [](auto& key) {
+    return Hasher{}.digest(key.data(), key.size());
+  });
+  return hashed_keys;
+}
+
+std::vector<Buffer> versionedKeys(const std::vector<std::string>& keys, const std::vector<BlockId>& versions) {
+  auto versioned_keys = std::vector<Buffer>{};
+  versioned_keys.reserve(keys.size());
+  std::transform(
+      keys.begin(), keys.end(), versions.begin(), std::back_inserter(versioned_keys), [](auto& key, auto version) {
+        auto key_hash = KeyHash{Hasher{}.digest(key.data(), key.size())};
+        return serialize(VersionedKey{key_hash, version});
+      });
+  return versioned_keys;
+}
+
 BlockMerkleCategory::BlockMerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>& db) : db_{db} {
   createColumnFamilyIfNotExisting(BLOCK_MERKLE_INTERNAL_NODES_CF, *db);
   createColumnFamilyIfNotExisting(BLOCK_MERKLE_LEAF_NODES_CF, *db);
@@ -207,18 +227,17 @@ void BlockMerkleCategory::multiGet(const std::vector<std::string>& keys,
                                    const std::vector<BlockId>& versions,
                                    std::vector<std::optional<MerkleValue>>& values) const {
   ConcordAssertEQ(keys.size(), versions.size());
-  auto slices = std::vector<::rocksdb::PinnableSlice>{};
-  slices.reserve(keys.size());
-  auto statuses = std::vector<::rocksdb::Status>{};
-  statuses.reserve(keys.size());
+  auto versioned_keys = versionedKeys(keys, versions);
+  multiGet(versioned_keys, versions, values);
+}
 
-  auto versioned_keys = std::vector<Buffer>{};
-  versioned_keys.reserve(keys.size());
-  std::transform(
-      keys.begin(), keys.end(), versions.begin(), std::back_inserter(versioned_keys), [](auto& key, auto version) {
-        auto key_hash = KeyHash{Hasher{}.digest(key.data(), key.size())};
-        return serialize(VersionedKey{key_hash, version});
-      });
+void BlockMerkleCategory::multiGet(const std::vector<Buffer>& versioned_keys,
+                                   const std::vector<BlockId>& versions,
+                                   std::vector<std::optional<MerkleValue>>& values) const {
+  auto slices = std::vector<::rocksdb::PinnableSlice>{};
+  slices.reserve(versioned_keys.size());
+  auto statuses = std::vector<::rocksdb::Status>{};
+  statuses.reserve(versioned_keys.size());
 
   db_->multiGet(BLOCK_MERKLE_KEYS_CF, versioned_keys, slices, statuses);
 
@@ -239,15 +258,16 @@ void BlockMerkleCategory::multiGet(const std::vector<std::string>& keys,
 
 void BlockMerkleCategory::multiGetLatestVersion(const std::vector<std::string>& keys,
                                                 std::vector<std::optional<BlockId>>& versions) const {
+  auto hashed_keys = hashedKeys(keys);
+  multiGetLatestVersion(hashed_keys, versions);
+}
+
+void BlockMerkleCategory::multiGetLatestVersion(const std::vector<Hash>& hashed_keys,
+                                                std::vector<std::optional<BlockId>>& versions) const {
   auto slices = std::vector<::rocksdb::PinnableSlice>{};
-  slices.reserve(keys.size());
+  slices.reserve(hashed_keys.size());
   auto statuses = std::vector<::rocksdb::Status>{};
-  statuses.reserve(keys.size());
-  std::vector<Hash> hashed_keys;
-  hashed_keys.reserve(keys.size());
-  std::transform(keys.begin(), keys.end(), std::back_inserter(hashed_keys), [](auto& key) {
-    return Hasher{}.digest(key.data(), key.size());
-  });
+  statuses.reserve(hashed_keys.size());
 
   db_->multiGet(BLOCK_MERKLE_LATEST_KEY_VERSION, hashed_keys, slices, statuses);
   versions.clear();
@@ -269,6 +289,47 @@ void BlockMerkleCategory::multiGetLatestVersion(const std::vector<std::string>& 
       throw std::runtime_error{"BlockMerkleCategory multiGet() failure: " + status.ToString()};
     }
   }
+}
+
+void BlockMerkleCategory::multiGetLatest(const std::vector<std::string>& keys,
+                                         std::vector<std::optional<MerkleValue>>& values) const {
+  auto hashed_keys = hashedKeys(keys);
+  std::vector<std::optional<BlockId>> versions;
+  versions.reserve(keys.size());
+  multiGetLatestVersion(hashed_keys, versions);
+
+  // Generate the set of versioned keys for all keys that have latest versions
+  auto versioned_keys = std::vector<Buffer>{};
+  auto found_versions = std::vector<BlockId>{};
+  for (auto i = 0u; i < hashed_keys.size(); i++) {
+    if (versions[i]) {
+      found_versions.push_back(*versions[i]);
+      versioned_keys.push_back(serialize(VersionedKey{KeyHash{hashed_keys[i]}, *versions[i]}));
+    }
+  }
+
+  values.clear();
+  // Optimize for all keys existing (having latest versions)
+  if (versioned_keys.size() == hashed_keys.size()) {
+    return multiGet(versioned_keys, found_versions, values);
+  }
+
+  // Retrieve only the keys that have latest versions
+  auto retrieved_values = std::vector<std::optional<MerkleValue>>{};
+  retrieved_values.reserve(versioned_keys.size());
+  multiGet(versioned_keys, found_versions, retrieved_values);
+
+  // Merge any keys that didn't have latest versions along with the retrieved keys.
+  auto value_index = 0u;
+  for (auto& version : versions) {
+    if (version) {
+      values.push_back(retrieved_values[value_index]);
+      ++value_index;
+    } else {
+      values.push_back(std::nullopt);
+    }
+  }
+  ConcordAssertEQ(values.size(), keys.size());
 }
 
 void BlockMerkleCategory::putKeys(NativeWriteBatch& batch,

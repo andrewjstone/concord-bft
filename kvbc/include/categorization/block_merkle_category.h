@@ -60,7 +60,6 @@ class BlockMerkleCategory {
   void multiGet(const std::vector<std::string>& keys,
                 const std::vector<BlockId>& versions,
                 std::vector<std::optional<MerkleValue>>& values) const;
-
   // Get the latest values of a list of keys.
   // If a key is missing, std::nullopt is returned for it.
   void multiGetLatest(const std::vector<std::string>& keys, std::vector<std::optional<MerkleValue>>& values) const;
@@ -68,8 +67,13 @@ class BlockMerkleCategory {
   // Get the latest versions of the given keys.
   // If a key is missing, std::nullopt is returned for its version.
   void multiGetLatestVersion(const std::vector<std::string>& keys, std::vector<std::optional<BlockId>>& versions) const;
+  void multiGetLatestVersion(const std::vector<Hash>& keys, std::vector<std::optional<BlockId>>& versions) const;
 
  private:
+  void multiGet(const std::vector<Buffer>& versioned_keys,
+                const std::vector<BlockId>& versions,
+                std::vector<std::optional<MerkleValue>>& values) const;
+
   void putKeys(storage::rocksdb::NativeWriteBatch& batch,
                uint64_t block_id,
                const std::vector<KeyHash>& hashed_added_keys,
