@@ -34,10 +34,11 @@ namespace concord::kvbc::categorization::detail {
 // The latter is necessary for maintaining proof guarantees after a block is pruned.
 class BlockMerkleCategory {
  public:
+  BlockMerkleCategory() = default;  // Gtest usage only
   BlockMerkleCategory(const std::shared_ptr<storage::rocksdb::NativeClient>&);
 
   // Add the given block updates and return the information that needs to be persisted in the block.
-  MerkleUpdatesInfo add(BlockId block_id, MerkleUpdatesData&& update, storage::rocksdb::NativeWriteBatch&);
+  BlockMerkleOutput add(BlockId block_id, BlockMerkleInput&& update, storage::rocksdb::NativeWriteBatch&);
 
   // Return the value of `key` at `block_id`.
   // Return std::nullopt if the key doesn't exist at `block_id`.
@@ -53,12 +54,27 @@ class BlockMerkleCategory {
   std::optional<BlockId> getLatestVersion(const std::string& key) const;
   std::optional<BlockId> getLatestVersion(const Hash& key) const;
 
+  // Get values for keys at specific versions.
+  // `keys` and `versions` must be the same size.
+  // If a key is missing at the specified version, std::nullopt is returned for it.
+  void multiGet(const std::vector<std::string>& keys,
+                const std::vector<BlockId>& versions,
+                std::vector<std::optional<MerkleValue>>& values) const;
+
+  // Get the latest values of a list of keys.
+  // If a key is missing, std::nullopt is returned for it.
+  void multiGetLatest(const std::vector<std::string>& keys, std::vector<std::optional<MerkleValue>>& values) const;
+
+  // Get the latest versions of the given keys.
+  // If a key is missing, std::nullopt is returned for its version.
+  void multiGetLatestVersion(const std::vector<std::string>& keys, std::vector<std::optional<BlockId>>& versions) const;
+
  private:
   void putKeys(storage::rocksdb::NativeWriteBatch& batch,
                uint64_t block_id,
                const std::vector<KeyHash>& hashed_added_keys,
                const std::vector<KeyHash>& hashed_deleted_keys,
-               MerkleUpdatesData& updates);
+               BlockMerkleInput& updates);
 
   void putMerkleNodes(storage::rocksdb::NativeWriteBatch& batch,
                       sparse_merkle::UpdateBatch&& update_batch,
@@ -84,7 +100,7 @@ class BlockMerkleCategory {
   };
 
  private:
-  const std::shared_ptr<storage::rocksdb::NativeClient> db_;
+  std::shared_ptr<storage::rocksdb::NativeClient> db_;
 
   logging::Logger logger_;
   sparse_merkle::Tree tree_;

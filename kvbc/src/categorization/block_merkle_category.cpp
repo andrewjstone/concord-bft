@@ -24,10 +24,10 @@ using concordUtils::Sliver;
 
 namespace concord::kvbc::categorization::detail {
 
-MerkleBlockValue hashUpdate(const MerkleUpdatesData& updates) {
+MerkleBlockValue hashUpdate(const BlockMerkleInput& updates) {
   MerkleBlockValue value;
-  value.hashed_added_keys.resize(updates.kv.size());
-  value.hashed_deleted_keys.resize(updates.kv.size());
+  value.hashed_added_keys.reserve(updates.kv.size());
+  value.hashed_deleted_keys.reserve(updates.deletes.size());
 
   // root_hash = h((h(k1) || h(v1)) || ... || (h(kN) || h(vN) || h(dk1) || ... || h(dkN))
   auto root_hasher = Hasher{};
@@ -52,15 +52,15 @@ MerkleBlockValue hashUpdate(const MerkleUpdatesData& updates) {
   return value;
 }
 
-MerkleUpdatesInfo updatesDataToUpdatesInfo(const MerkleUpdatesData& updates) {
-  MerkleUpdatesInfo info{};
+BlockMerkleOutput inputToOutput(const BlockMerkleInput& updates) {
+  BlockMerkleOutput output{};
   for (const auto& kv : updates.kv) {
-    info.keys.emplace(kv.first, MerkleKeyFlag{false});
+    output.keys.emplace(kv.first, MerkleKeyFlag{false});
   }
   for (const auto& key : updates.deletes) {
-    info.keys.emplace(key, MerkleKeyFlag{true});
+    output.keys.emplace(key, MerkleKeyFlag{true});
   }
-  return info;
+  return output;
 }
 
 VersionedKey leafKeyToVersionedKey(const sparse_merkle::LeafKey& leaf_key) {
@@ -137,7 +137,7 @@ BlockMerkleCategory::BlockMerkleCategory(const std::shared_ptr<storage::rocksdb:
   tree_ = sparse_merkle::Tree{std::make_shared<Reader>(*db_)};
 }
 
-MerkleUpdatesInfo BlockMerkleCategory::add(BlockId block_id, MerkleUpdatesData&& updates, NativeWriteBatch& batch) {
+BlockMerkleOutput BlockMerkleCategory::add(BlockId block_id, BlockMerkleInput&& updates, NativeWriteBatch& batch) {
   auto merkle_value = hashUpdate(updates);
   auto root_hash = merkle_value.root_hash;
   putKeys(batch, block_id, merkle_value.hashed_added_keys, merkle_value.hashed_deleted_keys, updates);
@@ -151,10 +151,10 @@ MerkleUpdatesInfo BlockMerkleCategory::add(BlockId block_id, MerkleUpdatesData&&
   auto tree_version = tree_update_batch.stale.stale_since_version.value();
   putMerkleNodes(batch, std::move(tree_update_batch), tree_version);
 
-  auto info = updatesDataToUpdatesInfo(updates);
-  info.root_hash = root_hash;
-  info.state_root_version = tree_version;
-  return info;
+  auto output = inputToOutput(updates);
+  output.root_hash = root_hash;
+  output.state_root_version = tree_version;
+  return output;
 }
 
 std::optional<MerkleValue> BlockMerkleCategory::get(const std::string& key, BlockId block_id) const {
@@ -203,11 +203,45 @@ std::optional<BlockId> BlockMerkleCategory::getLatestVersion(const Hash& hashed_
   return version.block_id;
 }
 
+void BlockMerkleCategory::multiGet(const std::vector<std::string>& keys,
+                                   const std::vector<BlockId>& versions,
+                                   std::vector<std::optional<MerkleValue>>& values) const {
+  ConcordAssertEQ(keys.size(), versions.size());
+  auto slices = std::vector<::rocksdb::PinnableSlice>{};
+  slices.reserve(keys.size());
+  auto statuses = std::vector<::rocksdb::Status>{};
+  statuses.reserve(keys.size());
+
+  auto versioned_keys = std::vector<Buffer>{};
+  versioned_keys.reserve(keys.size());
+  std::transform(
+      keys.begin(), keys.end(), versions.begin(), std::back_inserter(versioned_keys), [](auto& key, auto version) {
+        auto key_hash = KeyHash{Hasher{}.digest(key.data(), key.size())};
+        return serialize(VersionedKey{key_hash, version});
+      });
+
+  db_->multiGet(BLOCK_MERKLE_KEYS_CF, versioned_keys, slices, statuses);
+
+  values.clear();
+  for (auto i = 0ull; i < slices.size(); ++i) {
+    const auto& status = statuses[i];
+    const auto& slice = slices[i];
+    const auto version = versions[i];
+    if (status.ok()) {
+      values.push_back(MerkleValue{{version, slice.ToString()}});
+    } else if (status.IsNotFound()) {
+      values.push_back(std::nullopt);
+    } else {
+      throw std::runtime_error{"BlockMerkleCategory multiGet() failure: " + status.ToString()};
+    }
+  }
+}
+
 void BlockMerkleCategory::putKeys(NativeWriteBatch& batch,
                                   uint64_t block_id,
                                   const std::vector<KeyHash>& hashed_added_keys,
                                   const std::vector<KeyHash>& hashed_deleted_keys,
-                                  MerkleUpdatesData& updates) {
+                                  BlockMerkleInput& updates) {
   auto kv_it = updates.kv.begin();
   for (auto key_it = hashed_added_keys.begin(); key_it != hashed_added_keys.end(); key_it++) {
     // Write the versioned key/value pair used for direct key lookup

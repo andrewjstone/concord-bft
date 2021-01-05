@@ -1,6 +1,6 @@
 # Updates
 
-Msg MerkleUpdatesData 1 {
+Msg BlockMerkleInput 1 {
     map string string kv
     list string deletes
 }
@@ -11,7 +11,7 @@ Msg ValueWithExpirationData 2 {
     bool stale_on_update
 }
 
-Msg KeyValueUpdatesData 3 {
+Msg KeyValueInput 3 {
     map string ValueWithExpirationData kv
     list string deletes
     bool calculate_root_hash
@@ -22,17 +22,17 @@ Msg ImmutableValueUpdate 4 {
     list string tags
 }
 
-Msg ImmutableUpdatesData 5 {
+Msg ImmutableInput 5 {
     # key -> value, [tag1, tag2...]
     map string ImmutableValueUpdate kv
     bool calculate_root_hash
 }
 
-Msg CategoryUpdatesData 6 {
+Msg CategoryInput 6 {
     map string oneof{
-        MerkleUpdatesData
-        KeyValueUpdatesData
-        ImmutableUpdatesData
+        BlockMerkleInput
+        KeyValueInput
+        ImmutableInput
     } kv
 }
 
@@ -42,7 +42,7 @@ Msg MerkleKeyFlag 1000 {
     bool deleted
 }
 
-Msg MerkleUpdatesInfo 1001 {
+Msg BlockMerkleOutput 1001 {
     map string MerkleKeyFlag keys
     fixedlist uint8 32 root_hash
     uint64 state_root_version
@@ -54,12 +54,12 @@ Msg KVKeyFlag 1002 {
     bool stale_on_update
 }
 
-Msg KeyValueUpdatesInfo 1003 {
+Msg KeyValueOutput 1003 {
     map string KVKeyFlag keys
     optional fixedlist uint8 32 root_hash
 }
 
-Msg ImmutableUpdatesInfo 1004 {
+Msg ImmutableOutput 1004 {
     # key -> [tag1, tag2...]
     map string list string tagged_keys
     optional map string fixedlist uint8 32 tag_root_hashes
@@ -75,16 +75,16 @@ Msg BlockData 2001 {
     uint64 block_id
     fixedlist uint8 32 parent_digest
     map string oneof{
-        MerkleUpdatesInfo
-        KeyValueUpdatesInfo
-        ImmutableUpdatesInfo
+        BlockMerkleOutput
+        KeyValueOutput
+        ImmutableOutput
     } categories_updates_info
 }
 
 
 Msg RawBlockData 2005 {
     fixedlist uint8 32 parent_digest
-    CategoryUpdatesData updates
+    CategoryInput updates
     map string optional fixedlist uint8 32 category_root_hash
 }
 

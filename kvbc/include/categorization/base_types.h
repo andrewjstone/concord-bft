@@ -40,6 +40,10 @@ struct MerkleValue : BasicValue {};
 struct ImmutableValue : BasicValue {};
 struct VersionedValue : BasicValue {};
 
+inline bool operator==(const MerkleValue &lhs, const MerkleValue &rhs) {
+  return (lhs.block_id == rhs.block_id && lhs.data == rhs.data);
+}
+
 using Value = std::variant<MerkleValue, ImmutableValue, VersionedValue>;
 
 struct KeyValueProof {
