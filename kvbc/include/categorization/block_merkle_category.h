@@ -60,6 +60,7 @@ class BlockMerkleCategory {
   void multiGet(const std::vector<std::string>& keys,
                 const std::vector<BlockId>& versions,
                 std::vector<std::optional<MerkleValue>>& values) const;
+
   // Get the latest values of a list of keys.
   // If a key is missing, std::nullopt is returned for it.
   void multiGetLatest(const std::vector<std::string>& keys, std::vector<std::optional<MerkleValue>>& values) const;
