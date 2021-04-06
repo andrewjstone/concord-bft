@@ -1,0 +1,46 @@
+# This is a hypothetical Msg setup
+Enum ComponentId {
+    broadcast,
+    replica,
+    state_transfer,
+    crypto,
+    network,
+    execution_engine
+}
+
+Msg ConsensusMsg 1 {
+    string todo
+}
+
+Msg StateTransferMsg 2 {
+    string todo
+}
+
+Msg NetworkMsg 3 {
+    string todo
+}
+
+Msg CryptoMsg 4 {
+    string todo
+}
+
+Msg ExecutionEngineMsg 5 {
+    string todo
+}
+
+Msg AllMsgs 999 {
+    oneof {
+        ConsensusMsg
+        StateTransferMsg
+        NetworkMsg
+        CryptoMsg
+        ExecutionEngineMsg
+    } msg
+}
+
+# Main wrapper Msg
+Msg Envelope 10000 {
+    ComponentId to
+    ComponentId from
+    AllMsgs all_msgs
+}
