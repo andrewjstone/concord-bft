@@ -19,26 +19,30 @@
 namespace concord::orrery {
 
 // A World is an abstraction that allows an orrery component to interact with other orrery
-// components in the same trust domain.
+// components in the same process.
 class World {
  public:
-  World(Environment env) : env_(env) {}
+  World(Environment env, ComponentId sender) : env_(env), sender_(sender) {}
   // Send a message to a component or all components.
   //
   // This is the common case for normal protocol behavior.
   //
-  // If `envelope.to == broadcast` then the message is broadcast.
-  // TODO (AJS): Should we assert instead?
-  void send(Envelope envelope);
+  // If `to == broadcast` then send to every component.
+  template <typename Msg>
+  void send(ComponentId to, Msg msg);
 
   // Send a message to all components
   //
   // This is mostly useful for things like overload alarms, status, metrics, or shutdown events.
   // It's an explicit form to help readers of the code see that a message is a broadcast.
-  void broadcast(Envelope envelope);
+  //
+  // TODO (AJS): Add a trait to ensure Msg is a variant of `AllMsgs`
+  template <typename Msg>
+  void broadcast(Msg msg);
 
  private:
   Environment env_;
+  ComponentId sender_;
 };
 
 };  // namespace concord::orrery

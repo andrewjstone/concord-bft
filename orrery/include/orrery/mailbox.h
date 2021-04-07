@@ -17,6 +17,11 @@
 
 namespace concord::orrery {
 class Mailbox {
-  void deposit(Envelope envelope);
+ public:
+  void put(Envelope envelope);
+
+ private:
+  //  std::shared_ptr<Queue<Envelope>> queue_;
+  int fixme_;
 };
 }  // namespace concord::orrery

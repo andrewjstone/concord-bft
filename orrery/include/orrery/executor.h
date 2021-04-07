@@ -13,6 +13,10 @@
 
 #pragma once
 
+#include "mailbox.h"
+#include "environment.h"
+#include "component.h"
+
 namespace concord::orrery {
 
 // An executor runs component handler callbacks. It is the actively running thread of control.
@@ -20,7 +24,17 @@ namespace concord::orrery {
 // An executor is always a single thread, although it can proxy work for a thread pool,
 // external process, or even remote compute cluster as necessary.
 class Executor {
-  Executor(World world) {}
+ public:
+  Mailbox& mailbox() { return mailbox_; }
+  void init(const Environment& environment) { environment_ = environment; }
+  void add(ComponentId id, std::unique_ptr<IComponent>&& component) {
+    components_[static_cast<uint8_t>(id)] = std::move(component);
+  }
+
+ private:
+  Mailbox mailbox_;
+  Environment environment_;
+  std::vector<std::unique_ptr<IComponent>> components_;
 };
 
 }  // namespace concord::orrery

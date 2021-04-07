@@ -13,10 +13,12 @@
 
 #pragma once
 
-#include <cstddef f>
+#include <cstddef>
 #include <vector>
 
+#include "assertUtils.hpp"
 #include "mailbox.h"
+#include "orrery_msgs.cmf.hpp"
 
 namespace concord::orrery {
 
@@ -32,6 +34,25 @@ namespace concord::orrery {
 // use a a std::array for the mapping.
 class Environment {
  public:
+  Environment() {
+    // The value doesn't matter. `enumSize` is a generated function that ignores the parameter.
+    ComponentId dummy = ComponentId::broadcast;
+    mailboxes_.resize(enumSize(dummy));
+  }
+
+  void add(ComponentId id, Mailbox& mailbox) {
+    ConcordAssertNE(id, ComponentId::broadcast);
+    size_t index = static_cast<uint8_t>(id);
+    mailboxes_[index] = mailbox;
+  }
+
+  Mailbox& mailbox(ComponentId id) {
+    ConcordAssertNE(id, ComponentId::broadcast);
+    size_t index = static_cast<uint8_t>(id);
+    return mailboxes_[index];
+  }
+
+ private:
   std::vector<Mailbox> mailboxes_;
 };
 

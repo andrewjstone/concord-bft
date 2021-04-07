@@ -24,11 +24,13 @@ namespace concord::orrery {
 
 // A component provides an interface to handle `AllMsgs`
 class IComponent {
+ public:
+  virtual ~IComponent(){};
   virtual void handle(ComponentId from, AllMsgs&&) = 0;
 };
 
 template <typename ComponentImpl>
-class Component : IComponent {
+class Component : public IComponent {
  public:
   // Trait to ensure that a ComponentImpl has a `handle` method that takes a message of type `Msg`.
   template <typename Impl, typename Msg, typename = std::void_t<>>
@@ -38,7 +40,7 @@ class Component : IComponent {
   struct CanHandleMsgT<Impl, Msg, std::void_t<decltype(std::declval<Impl>().handle(std::declval<Msg>()))>>
       : std::true_type {};
 
-  explicit Component(ComponentImpl&& impl) : impl_(std::move(impl)) {}
+  Component(ComponentImpl&& impl) : impl_(std::move(impl)) {}
 
   void handle(ComponentId from, AllMsgs&& msg_variant) override {
     std::visit(

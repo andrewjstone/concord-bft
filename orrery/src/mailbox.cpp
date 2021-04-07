@@ -15,5 +15,6 @@
 
 namespace concord::orrery {
 
-void Mailbox::deposit(Envelope envelope) {}
+void Mailbox::put(Envelope envelope) { fixme_ = 1; }
+
 };  // namespace concord::orrery
