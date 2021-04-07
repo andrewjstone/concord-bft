@@ -13,15 +13,18 @@
 
 #pragma once
 
+#include "queue.h"
+
 #include "orrery_msgs.cmf.hpp"
 
 namespace concord::orrery {
 class Mailbox {
  public:
-  void put(Envelope envelope);
+  void put(Envelope&& envelope);
 
  private:
-  //  std::shared_ptr<Queue<Envelope>> queue_;
-  int fixme_;
+  friend class Executor;
+  explicit Mailbox(const std::shared_ptr<detail::Queue>& queue) : queue_(queue) {}
+  std::shared_ptr<detail::Queue> queue_;
 };
 }  // namespace concord::orrery

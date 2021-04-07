@@ -15,6 +15,6 @@
 
 namespace concord::orrery {
 
-void Mailbox::put(Envelope envelope) { fixme_ = 1; }
+void Mailbox::put(Envelope&& envelope) { queue_->push(std::move(envelope)); }
 
 };  // namespace concord::orrery

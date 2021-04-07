@@ -25,7 +25,7 @@ class StateTransferComponent {
  public:
   ComponentId id{ComponentId::state_transfer};
   void handle(ComponentId from, ConsensusMsg&& msg) {
-    std::cout << "Handling consensus msg with id: " << msg.id << std::endl;
+    std::cout << "Handling state transfer msg with id: " << msg.id << std::endl;
   }
 };
 
@@ -33,7 +33,7 @@ class ReplicaComponent {
  public:
   ComponentId id{ComponentId::replica};
   void handle(ComponentId from, StateTransferMsg&& msg) {
-    std::cout << "Handling state transfer msg with id: " << msg.id << std::endl;
+    std::cout << "Handling consensus msg with id: " << msg.id << std::endl;
   }
 };
 

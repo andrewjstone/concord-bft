@@ -3,6 +3,7 @@ project(liborrery VERSION 0.1.0.0 LANGUAGES CXX)
 
 add_library(orrery
   src/mailbox.cpp
+  src/queue.cpp
 )
 
 target_include_directories(orrery PUBLIC include)

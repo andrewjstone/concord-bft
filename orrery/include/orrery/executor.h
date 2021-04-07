@@ -13,9 +13,10 @@
 
 #pragma once
 
-#include "mailbox.h"
-#include "environment.h"
 #include "component.h"
+#include "environment.h"
+#include "mailbox.h"
+#include "queue.h"
 
 namespace concord::orrery {
 
@@ -23,8 +24,12 @@ namespace concord::orrery {
 //
 // An executor is always a single thread, although it can proxy work for a thread pool,
 // external process, or even remote compute cluster as necessary.
+//
+// An executor owns a mailbox and its underlying queue. It is driven forward by pulling messages off
+// the queue after they are placed in the mailbox.
 class Executor {
  public:
+  Executor() : mailbox_(queue_) {}
   Mailbox& mailbox() { return mailbox_; }
   void init(const Environment& environment) { environment_ = environment; }
   void add(ComponentId id, std::unique_ptr<IComponent>&& component) {
@@ -32,6 +37,7 @@ class Executor {
   }
 
  private:
+  std::shared_ptr<detail::Queue> queue_;
   Mailbox mailbox_;
   Environment environment_;
   std::vector<std::unique_ptr<IComponent>> components_;

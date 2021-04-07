@@ -22,7 +22,7 @@ namespace concord::orrery {
 // components in the same process.
 class World {
  public:
-  World(Environment env, ComponentId sender) : env_(env), sender_(sender) {}
+  World(const Environment& env, ComponentId sender) : env_(env), sender_(sender) {}
   // Send a message to a component or all components.
   //
   // This is the common case for normal protocol behavior.
