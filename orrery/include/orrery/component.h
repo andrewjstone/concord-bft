@@ -42,17 +42,18 @@ class Component : public IComponent {
 
   Component(ComponentImpl&& impl) : impl_(std::move(impl)) {}
 
-  void handle(ComponentId from, AllMsgs&& msg_variant) override {
+  void handle(ComponentId from_id, AllMsgs&& msg_variant) override {
     std::visit(
-        [from, this](auto&& msg) {
+        [from_id, this](auto&& msg) {
           if constexpr (CanHandleMsgT<ComponentImpl, decltype(msg)>::value) {
-            this->impl_.handle(std::forward(msg));
+            this->impl_.handle(from_id, std::forward<decltype(msg)>(msg));
           } else {
-            auto to = impl_.id;
+            size_t to = static_cast<uint8_t>(impl_.id);
+            size_t from = static_cast<uint8_t>(from_id);
             LOG_ERROR(logger, "Component cannot handle message: " << KVLOG(from, to, msg.id));
           }
         },
-        std::move(msg_variant));
+        std::move(msg_variant.msg));
   }
 
  private:

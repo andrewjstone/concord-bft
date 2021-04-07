@@ -24,13 +24,17 @@ namespace concord::orrery::test {
 class StateTransferComponent {
  public:
   ComponentId id{ComponentId::state_transfer};
-  void handle(ConsensusMsg&& msg) { std::cout << "Handling consensus msg with id: " << msg.id << std::endl; }
+  void handle(ComponentId from, ConsensusMsg&& msg) {
+    std::cout << "Handling consensus msg with id: " << msg.id << std::endl;
+  }
 };
 
 class ReplicaComponent {
  public:
   ComponentId id{ComponentId::replica};
-  void handle(StateTransferMsg&& msg) { std::cout << "Handling state transfer msg with id: " << msg.id << std::endl; }
+  void handle(ComponentId from, StateTransferMsg&& msg) {
+    std::cout << "Handling state transfer msg with id: " << msg.id << std::endl;
+  }
 };
 
 // This is what "main" will look like.
