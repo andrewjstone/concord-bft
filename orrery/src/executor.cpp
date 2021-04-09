@@ -35,7 +35,7 @@ std::thread Executor::start() && {
           }
           if (std::holds_alternative<ControlMsg>(envelope->all_msgs.msg)) {
             if (std::get<ControlMsg>(envelope->all_msgs.msg).cmd == ControlCmd::shutdown) {
-              LOG_INFO(executor.logger_, "Shutting down Executor: " << executor.name());
+              LOG_INFO(executor.logger_, "Shutting down executor: " << executor.name());
               return;
             }
           }

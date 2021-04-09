@@ -23,7 +23,9 @@
 
 namespace concord::orrery::test {
 
-std::atomic_size_t msgs_received = 0;
+std::atomic_size_t st_msgs_received = 0;
+std::atomic_size_t replica_msgs_received = 0;
+std::atomic_size_t control_msgs_received = 0;
 
 class StateTransferComponent {
  public:
@@ -32,9 +34,10 @@ class StateTransferComponent {
 
   void handle(ComponentId from, StateTransferMsg&& msg) {
     std::cout << "Handling state transfer msg with id: " << msg.id << std::endl;
-    msgs_received++;
+    st_msgs_received++;
+    world_.send(ComponentId::replica, ConsensusMsg{});
   }
-  void handle(ComponentId from, ControlMsg&& msg) { msgs_received++; }
+  void handle(ComponentId from, ControlMsg&& msg) { control_msgs_received++; }
 
  private:
   World world_;
@@ -47,9 +50,9 @@ class ReplicaComponent {
 
   void handle(ComponentId from, ConsensusMsg&& msg) {
     std::cout << "Handling consensus msg with id: " << msg.id << std::endl;
-    msgs_received++;
+    replica_msgs_received++;
   }
-  void handle(ComponentId from, ControlMsg&& msg) { msgs_received++; }
+  void handle(ComponentId from, ControlMsg&& msg) { control_msgs_received++; }
 
  private:
   World world_;
@@ -92,7 +95,9 @@ TEST(orrery_test, basic) {
   auto mailbox1 = exec1.mailbox();
   auto mailbox2 = exec2.mailbox();
 
-  ASSERT_EQ(0, msgs_received);
+  ASSERT_EQ(0, replica_msgs_received);
+  ASSERT_EQ(0, st_msgs_received);
+  ASSERT_EQ(0, control_msgs_received);
 
   // Simulate sending a message from one component to another
   mailbox1.put(Envelope{ComponentId::replica, ComponentId::state_transfer, AllMsgs{ConsensusMsg{}}});
@@ -103,7 +108,13 @@ TEST(orrery_test, basic) {
   auto thread1 = std::move(exec1).start();
   auto thread2 = std::move(exec2).start();
 
-  ASSERT_TRUE(waitFor([]() { return msgs_received == 1; }));
+  ASSERT_TRUE(waitFor([]() { return replica_msgs_received == 1; }));
+
+  // Send a state transfer message which should trigger the state transfer component sending a message to the replica
+  // component.
+  mailbox2.put(Envelope{ComponentId::state_transfer, ComponentId::replica, AllMsgs{StateTransferMsg{}}});
+  ASSERT_TRUE(waitFor([]() { return st_msgs_received == 1; }));
+  ASSERT_TRUE(waitFor([]() { return replica_msgs_received == 2; }));
 
   // Shutdown both executors with a broadcast
   auto shutdown = Envelope{ComponentId::broadcast, ComponentId::replica, AllMsgs{ControlMsg{ControlCmd::shutdown}}};
@@ -113,7 +124,7 @@ TEST(orrery_test, basic) {
 
   // Ensure both shutdown messages were received by their respective components. Executor's pass
   // shutdown messages to components, in case they need to do any cleanup.
-  ASSERT_TRUE(waitFor([]() { return msgs_received == 3; }));
+  ASSERT_TRUE(waitFor([]() { return control_msgs_received == 2; }));
 
   thread1.join();
   thread2.join();

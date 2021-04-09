@@ -34,10 +34,10 @@ class World {
   template <typename Msg>
   void send(ComponentId to, Msg&& msg) {
     if (to == ComponentId::broadcast) {
-      return broadcast(std::forward(msg));
+      return broadcast(std::forward<decltype(msg)>(msg));
     }
     auto& mailbox = env_.mailbox(to);
-    mailbox.put(Envelope{to, sender_, std::forward(msg)});
+    mailbox.put(Envelope{to, sender_, AllMsgs{std::forward<decltype(msg)>(msg)}});
   }
 
   // Send a message to all components
@@ -48,7 +48,7 @@ class World {
   // Msg must be a top level msg in `Envelope`
   template <typename Msg>
   void broadcast(Msg&& msg) {
-    auto envelope = Envelope{ComponentId::broadcast, sender_, std::forward(msg)};
+    auto envelope = Envelope{ComponentId::broadcast, sender_, AllMsgs{std::forward<decltype(msg)>(msg)}};
     for (auto& [_, mailbox] : env_.executors()) {
       (void)_;
       auto copy = envelope;
