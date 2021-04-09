@@ -22,13 +22,17 @@ class Mailbox {
  public:
   void put(Envelope&& envelope);
 
+  const std::string& executorName() { return name_; }
+
  public:
   // This is public solely for use by std::vector::resize()
   Mailbox(){};
 
  private:
   friend class Executor;
-  explicit Mailbox(const std::shared_ptr<detail::Queue>& queue) : queue_(queue) {}
+  explicit Mailbox(const std::string& name, const std::shared_ptr<detail::Queue>& queue) : name_(name), queue_(queue) {}
+
+  std::string name_;
   std::shared_ptr<detail::Queue> queue_;
 };
 

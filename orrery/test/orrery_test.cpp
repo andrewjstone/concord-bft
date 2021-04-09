@@ -19,6 +19,7 @@
 #include "orrery/executor.h"
 #include "orrery/environment.h"
 #include "orrery_msgs.cmf.hpp"
+#include "orrery/world.h"
 
 namespace concord::orrery::test {
 
@@ -26,16 +27,22 @@ std::atomic_size_t msgs_received = 0;
 
 class StateTransferComponent {
  public:
+  StateTransferComponent(World&& world) : world_(std::move(world)) {}
   ComponentId id{ComponentId::state_transfer};
 
   void handle(ComponentId from, StateTransferMsg&& msg) {
     std::cout << "Handling state transfer msg with id: " << msg.id << std::endl;
+    msgs_received++;
   }
   void handle(ComponentId from, ControlMsg&& msg) { msgs_received++; }
+
+ private:
+  World world_;
 };
 
 class ReplicaComponent {
  public:
+  ReplicaComponent(World&& world) : world_(std::move(world)) {}
   ComponentId id{ComponentId::replica};
 
   void handle(ComponentId from, ConsensusMsg&& msg) {
@@ -43,6 +50,9 @@ class ReplicaComponent {
     msgs_received++;
   }
   void handle(ComponentId from, ControlMsg&& msg) { msgs_received++; }
+
+ private:
+  World world_;
 };
 
 // Retry condition every 1ms, timeout after 5s
@@ -58,8 +68,8 @@ bool waitFor(Predicate pred) {
 }
 
 TEST(orrery_test, basic) {
-  auto exec1 = Executor();
-  auto exec2 = Executor();
+  auto exec1 = Executor("replica_executor");
+  auto exec2 = Executor("state_transfer_executor");
 
   // Assign components to executors/mailboxes
   auto env = Environment();
@@ -70,9 +80,14 @@ TEST(orrery_test, basic) {
   exec1.init(env);
   exec2.init(env);
 
+  auto replica_world = World(env, ComponentId::replica);
+  auto st_world = World(env, ComponentId::state_transfer);
+
   // Create polymorphic versions of components and give ownership to the executors
-  exec1.add(ComponentId::replica, std::make_unique<Component<ReplicaComponent>>(ReplicaComponent{}));
-  exec2.add(ComponentId::state_transfer, std::make_unique<Component<StateTransferComponent>>(StateTransferComponent{}));
+  exec1.add(ComponentId::replica,
+            std::make_unique<Component<ReplicaComponent>>(ReplicaComponent{std::move(replica_world)}));
+  exec2.add(ComponentId::state_transfer,
+            std::make_unique<Component<StateTransferComponent>>(StateTransferComponent{std::move(st_world)}));
 
   auto mailbox1 = exec1.mailbox();
   auto mailbox2 = exec2.mailbox();

@@ -33,23 +33,30 @@ namespace concord::orrery {
 // the queue after they are placed in the mailbox.
 class Executor {
  public:
-  Executor() : queue_(std::make_shared<detail::Queue>()), mailbox_(queue_) {}
+  Executor(const std::string& name) : name_(name), queue_(std::make_shared<detail::Queue>()), mailbox_(name, queue_) {}
+
   Mailbox& mailbox() { return mailbox_; }
+
   void init(const Environment& environment) {
     // The value doesn't matter. `enumSize` is a generated function that ignores the parameter.
     ComponentId dummy = ComponentId::broadcast;
     components_.resize(enumSize(dummy));
     environment_ = environment;
   }
+
   void add(ComponentId id, std::unique_ptr<IComponent>&& component) {
     components_[static_cast<uint8_t>(id)] = std::move(component);
   }
+
   IComponent* get(ComponentId id) { return components_[static_cast<uint8_t>(id)].get(); }
+
+  const std::string& name() const { return name_; }
 
   // Move the executor into a new thread and return the thread so it can be joined.
   std::thread start() &&;
 
  private:
+  std::string name_;
   std::shared_ptr<detail::Queue> queue_;
   Mailbox mailbox_;
   Environment environment_;

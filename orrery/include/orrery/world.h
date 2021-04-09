@@ -23,22 +23,38 @@ namespace concord::orrery {
 class World {
  public:
   World(const Environment& env, ComponentId sender) : env_(env), sender_(sender) {}
+
   // Send a message to a component or all components.
   //
   // This is the common case for normal protocol behavior.
   //
   // If `to == broadcast` then send to every component.
+  //
+  // Msg must be a top level msg in `Envelope`
   template <typename Msg>
-  void send(ComponentId to, Msg msg);
+  void send(ComponentId to, Msg&& msg) {
+    if (to == ComponentId::broadcast) {
+      return broadcast(std::forward(msg));
+    }
+    auto& mailbox = env_.mailbox(to);
+    mailbox.put(Envelope{to, sender_, std::forward(msg)});
+  }
 
   // Send a message to all components
   //
   // This is mostly useful for things like overload alarms, status, metrics, or shutdown events.
   // It's an explicit form to help readers of the code see that a message is a broadcast.
   //
-  // TODO (AJS): Add a trait to ensure Msg is a variant of `AllMsgs`
+  // Msg must be a top level msg in `Envelope`
   template <typename Msg>
-  void broadcast(Msg msg);
+  void broadcast(Msg&& msg) {
+    auto envelope = Envelope{ComponentId::broadcast, sender_, std::forward(msg)};
+    for (auto& [_, mailbox] : env_.executors()) {
+      (void)_;
+      auto copy = envelope;
+      mailbox.put(std::move(copy));
+    }
+  }
 
  private:
   Environment env_;

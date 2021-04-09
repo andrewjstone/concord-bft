@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstddef>
+#include <unordered_map>
 #include <vector>
 
 #include "assertUtils.hpp"
@@ -44,6 +45,7 @@ class Environment {
     ConcordAssertNE(id, ComponentId::broadcast);
     size_t index = static_cast<uint8_t>(id);
     mailboxes_[index] = mailbox;
+    executors_.insert({mailbox.executorName(), mailbox});
   }
 
   Mailbox& mailbox(ComponentId id) {
@@ -52,8 +54,15 @@ class Environment {
     return mailboxes_[index];
   }
 
+  std::unordered_map<std::string, Mailbox>& executors() { return executors_; }
+
  private:
+  // Mailboxes are indexed by ComponentId
   std::vector<Mailbox> mailboxes_;
+
+  // Broadcasts are only sent to distinct mailboxes, as executors distribute them directly to their
+  // components. This limits unnecessary traffic over queues.
+  std::unordered_map<std::string, Mailbox> executors_;
 };
 
 }  // namespace concord::orrery
