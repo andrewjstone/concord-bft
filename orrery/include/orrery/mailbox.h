@@ -22,9 +22,14 @@ class Mailbox {
  public:
   void put(Envelope&& envelope);
 
+ public:
+  // This is public solely for use by std::vector::resize()
+  Mailbox(){};
+
  private:
   friend class Executor;
   explicit Mailbox(const std::shared_ptr<detail::Queue>& queue) : queue_(queue) {}
   std::shared_ptr<detail::Queue> queue_;
 };
+
 }  // namespace concord::orrery

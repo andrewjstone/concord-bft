@@ -28,8 +28,18 @@ Msg ExecutionEngineMsg 5 {
     string todo
 }
 
+Enum ControlCmd {
+    shutdown
+}
+
+# System control message
+Msg ControlMsg 6 {
+    ControlCmd cmd
+}
+
 Msg AllMsgs 999 {
     oneof {
+        ControlMsg
         ConsensusMsg
         StateTransferMsg
         NetworkMsg

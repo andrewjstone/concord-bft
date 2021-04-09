@@ -13,6 +13,10 @@
 
 #pragma once
 
+#include <thread>
+
+#include "Logger.hpp"
+
 #include "component.h"
 #include "environment.h"
 #include "mailbox.h"
@@ -29,18 +33,28 @@ namespace concord::orrery {
 // the queue after they are placed in the mailbox.
 class Executor {
  public:
-  Executor() : mailbox_(queue_) {}
+  Executor() : queue_(std::make_shared<detail::Queue>()), mailbox_(queue_) {}
   Mailbox& mailbox() { return mailbox_; }
-  void init(const Environment& environment) { environment_ = environment; }
+  void init(const Environment& environment) {
+    // The value doesn't matter. `enumSize` is a generated function that ignores the parameter.
+    ComponentId dummy = ComponentId::broadcast;
+    components_.resize(enumSize(dummy));
+    environment_ = environment;
+  }
   void add(ComponentId id, std::unique_ptr<IComponent>&& component) {
     components_[static_cast<uint8_t>(id)] = std::move(component);
   }
+  IComponent* get(ComponentId id) { return components_[static_cast<uint8_t>(id)].get(); }
+
+  // Move the executor into a new thread and return the thread so it can be joined.
+  std::thread start() &&;
 
  private:
   std::shared_ptr<detail::Queue> queue_;
   Mailbox mailbox_;
   Environment environment_;
   std::vector<std::unique_ptr<IComponent>> components_;
+  logging::Logger logger_ = logging::getLogger("orrery.executor");
 };
 
 }  // namespace concord::orrery

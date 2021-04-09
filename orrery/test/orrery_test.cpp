@@ -11,6 +11,7 @@
 // terms and conditions of the subcomponent's license, as noted in the LICENSE
 // file.
 
+#include <atomic>
 #include <iostream>
 
 #include "gtest/gtest.h"
@@ -21,24 +22,42 @@
 
 namespace concord::orrery::test {
 
+std::atomic_size_t msgs_received = 0;
+
 class StateTransferComponent {
  public:
   ComponentId id{ComponentId::state_transfer};
-  void handle(ComponentId from, ConsensusMsg&& msg) {
+
+  void handle(ComponentId from, StateTransferMsg&& msg) {
     std::cout << "Handling state transfer msg with id: " << msg.id << std::endl;
   }
+  void handle(ComponentId from, ControlMsg&& msg) { msgs_received++; }
 };
 
 class ReplicaComponent {
  public:
   ComponentId id{ComponentId::replica};
-  void handle(ComponentId from, StateTransferMsg&& msg) {
+
+  void handle(ComponentId from, ConsensusMsg&& msg) {
     std::cout << "Handling consensus msg with id: " << msg.id << std::endl;
+    msgs_received++;
   }
+  void handle(ComponentId from, ControlMsg&& msg) { msgs_received++; }
 };
 
-// This is what "main" will look like.
-TEST(orrery_test, init) {
+// Retry condition every 1ms, timeout after 5s
+template <typename Predicate>
+bool waitFor(Predicate pred) {
+  for (int i = 0; i < 5000; i++) {
+    if (pred()) {
+      return true;
+    }
+    usleep(1000);
+  }
+  return false;
+}
+
+TEST(orrery_test, basic) {
   auto exec1 = Executor();
   auto exec2 = Executor();
 
@@ -54,6 +73,35 @@ TEST(orrery_test, init) {
   // Create polymorphic versions of components and give ownership to the executors
   exec1.add(ComponentId::replica, std::make_unique<Component<ReplicaComponent>>(ReplicaComponent{}));
   exec2.add(ComponentId::state_transfer, std::make_unique<Component<StateTransferComponent>>(StateTransferComponent{}));
+
+  auto mailbox1 = exec1.mailbox();
+  auto mailbox2 = exec2.mailbox();
+
+  ASSERT_EQ(0, msgs_received);
+
+  // Simulate sending a message from one component to another
+  mailbox1.put(Envelope{ComponentId::replica, ComponentId::state_transfer, AllMsgs{ConsensusMsg{}}});
+
+  // Send an invalid message
+  mailbox1.put(Envelope{ComponentId::replica, ComponentId::state_transfer, AllMsgs{StateTransferMsg{}}});
+
+  auto thread1 = std::move(exec1).start();
+  auto thread2 = std::move(exec2).start();
+
+  ASSERT_TRUE(waitFor([]() { return msgs_received == 1; }));
+
+  // Shutdown both executors with a broadcast
+  auto shutdown = Envelope{ComponentId::broadcast, ComponentId::replica, AllMsgs{ControlMsg{ControlCmd::shutdown}}};
+  auto shutdown2 = shutdown;
+  mailbox1.put(std::move(shutdown));
+  mailbox2.put(std::move(shutdown2));
+
+  // Ensure both shutdown messages were received by their respective components. Executor's pass
+  // shutdown messages to components, in case they need to do any cleanup.
+  ASSERT_TRUE(waitFor([]() { return msgs_received == 3; }));
+
+  thread1.join();
+  thread2.join();
 }
 
 }  // namespace concord::orrery::test
