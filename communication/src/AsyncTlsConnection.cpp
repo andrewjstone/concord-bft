@@ -132,6 +132,7 @@ void AsyncTlsConnection::readMsg() {
                  receiver_->onNewMessage(peer_id_.value(), read_msg_.data(), bytes_transferred);
                }
                if (tlsTcpImpl_.config_.statusCallback && tlsTcpImpl_.isReplica(peer_id_.value())) {
+                 concord::diagnostics::TimeRecorder scoped_timer(*tlsTcpImpl_.histograms_.status_callback);
                  PeerConnectivityStatus pcs{};
                  pcs.peerId = peer_id_.value();
                  pcs.statusType = StatusType::MessageReceived;
@@ -211,7 +212,7 @@ void AsyncTlsConnection::write() {
   // We don't want to include tcp transmission time.
   auto diff = std::chrono::steady_clock::now() - write_msg_->send_time;
   tlsTcpImpl_.histograms_.send_time_in_queue->record(
-      std::chrono::duration_cast<std::chrono::nanoseconds>(diff).count());
+      std::chrono::duration_cast<std::chrono::microseconds>(diff).count());
 
   auto self = shared_from_this();
   boost::asio::async_write(*socket_,

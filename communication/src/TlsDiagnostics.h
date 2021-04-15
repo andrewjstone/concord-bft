@@ -114,22 +114,28 @@ struct Recorders {
     registrar.perf.registerComponent("tls" + selfId,
                                      {write_queue_len,
                                       write_queue_size_in_bytes,
+                                      write_queue_push,
+                                      write_queue_pop,
                                       sent_msg_size,
                                       received_msg_size,
                                       send_time_in_queue,
                                       read_enqueue_time,
                                       connect_callback,
-                                      on_connection_authenticated});
+                                      on_connection_authenticated,
+                                      status_callback});
   }
 
   std::shared_ptr<Recorder> write_queue_size_in_bytes;
   std::shared_ptr<Recorder> sent_msg_size;
   std::shared_ptr<Recorder> received_msg_size;
   DEFINE_SHARED_RECORDER(write_queue_len, 1, MAX_QUEUE_LENGTH, 3, Unit::COUNT);
+  DEFINE_SHARED_RECORDER(write_queue_push, 1, MAX_US, 3, Unit::MICROSECONDS);
+  DEFINE_SHARED_RECORDER(write_queue_pop, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(send_time_in_queue, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(read_enqueue_time, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(connect_callback, 1, MAX_US, 3, Unit::MICROSECONDS);
   DEFINE_SHARED_RECORDER(on_connection_authenticated, 1, MAX_US, 3, Unit::MICROSECONDS);
+  DEFINE_SHARED_RECORDER(status_callback, 1, MAX_US, 3, Unit::MICROSECONDS);
 };
 
 }  // namespace bft::communication

@@ -86,6 +86,7 @@ class WriteQueue {
       return std::nullopt;
     }
 
+    concord::diagnostics::TimeRecorder<true> scoped_timer(*recorders_.write_queue_push);
     std::lock_guard<std::mutex> guard(lock_);
     if (queued_size_in_bytes_ > MAX_QUEUE_SIZE_IN_BYTES) {
       LOG_WARN(logger_, "Queue full. Dropping message." << KVLOG(destination_, msg->payload_size()));
@@ -97,6 +98,7 @@ class WriteQueue {
   }
 
   std::shared_ptr<OutgoingMsg> pop() {
+    concord::diagnostics::TimeRecorder scoped_timer(*recorders_.write_queue_pop);
     std::lock_guard<std::mutex> guard(lock_);
     recorders_.write_queue_len->record(msgs_.size());
     recorders_.write_queue_size_in_bytes->record(queued_size_in_bytes_);
