@@ -8,13 +8,14 @@ Orrery is a C++ framework for reifying a message passing, component based archit
   * Enable local reasoning
   * Create abstractions that do one thing well
   * Isolate technical debt
-  * Allow incremental improvement
   * Enable easy discovery of where to add code
   * Make it easy to test libraries in isolation
   * Make it easier to diagnose and fix bugs
  * Send messsages instead of sharing state
  * Be judicious about dependencies
  * Enable writing components and replicas in other languages
+ * Enable incremental conversion of current code to the new architecture
+  * Stick with and generalize a thread based, message passing architecture
 
 # Abstractions
 
@@ -174,6 +175,49 @@ can only communicate with other components via the use of a world.
   * A world is ergonomic. There is no need to lookup mailboxes or wrap messages into envelopes.
   * Environments are global, whereas worlds are constructed per component. This allows them to automatically wrap the sender id into an envelope.
 
-# Component Scenarios
+# Design Patterns
+
+## Proxy Components
+One key architectural value is to enable an incremental conversion of the current code base to orrery. We don't want to rewrite all of our code, and we want to be able to reuse much of it in its current form. However, we also want to modularize it over time via the introduction of orrery `Component`s.
+
+One straightforward mechanism for achieving our goals is to write `proxy components` as necessary. A proxy component wraps existing functionality in a `Component` such that it can interact with the rest of an orrery based system via message passing, and the non-orrery codebase via legacy APIs. If we took an existing bit of functionality and converted it to an orrery component, but not the existing callers or callees of that functionality, then we would require a proxy component, as shown in the logical diagram below:
+
+![orrery-proxy-component](img/orrery-proxy-component.svg)
+
+One particular place where this is immediately useful is our
+[communication ](https://github.com/vmware/concord-bft/blob/master/communication/include/communication/ICommunication.hpp)
+interfaces. We currently send lots of messages over the network as [packed C
+structs](https://github.com/vmware/concord-bft/tree/master/bftengine/src/bftengine/messages). Our
+Replica and State Transfer code expect to receive these structs and that code is very tedious to
+change due to the low level manipulation and validation of the structs, and the complicated
+ownership model. However, we want to slowly convert these structs to CMF messages instead and use
+CMF messages everywhere. We can enable this conversion by wrapping the communication library into a component, and converting it to handle network related CMF messages that are ports of the existing C structs. The component handler code would then serialize these CMF messages and send them over the network as necessary.
+
+![communication-proxy-component](img/communication-proxy-component.svg)
+
+We would then need to create a proxy component implementing the `ICommunication` interface and using
+the `IReceiver` interface as a callee. Legacy code would send packed structs via `ICommunication`, and
+the proxy component would convert them to CMF messages and forward them to the new communication
+component for serialization and transmission over the network. When serialized CMF messages were
+received from the network they would be deserialized and forwarded to the proxy component who would
+then put them into the original packed structs and dispatch them to the legacy code via the
+[IReceiver](https://github.com/vmware/concord-bft/blob/master/communication/include/communication/ICommunication.hpp#L25-L30)
+interface.
+
+At this point, we have converted the communication libraries to only deal in CMF messages, but we
+haven't yet converted any other system code to use these messages. To do that incrementally we would
+create a component that could handle a subset of the messages, like state transfer messages. The
+state transfer component would then send messages to the new communication component. The
+communication component would also be modified to recognize state transfer messages on network
+receipt and send them directly to the state transfer component instead of the proxy component. We
+could repeat this process incrementally for different subsets of replica messages and client
+messages until eventually all network related messages would dispatched to their proper orrery
+components. At this point we could go ahead and remove the proxy component altogether along with the
+legacy APIs.
+
+It should be noted that currently the state transfer code and replica code interact via the [IReplicaForStateTransfer](https://github.com/vmware/concord-bft/blob/master/bftengine/include/bftengine/IStateTransfer.hpp#L78-L94) and [IStateTransfer](https://github.com/vmware/concord-bft/blob/master/bftengine/include/bftengine/IStateTransfer.hpp#L24-L74) interfaces. The end goal is to have the state transfer and replica components only communicate via messages. We would have two choices here:
+ 1. Maintain the legacy interfaces as we converted over the replica code to an orrery component, treating the state transfer component as a proxy for the legacy interfaces.
+ 2. Implement a state transfer proxy component such that the state transfer is entirely complete as an orrery component before we start converting the replica.
+
 ## Thread pool
 ## IPC
