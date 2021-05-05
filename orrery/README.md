@@ -4,7 +4,7 @@ Orrery is a C++ framework for reifying a message passing, component based archit
 
 # Architectural Values
 
- * Build a modular system
+* Build a modular system
   * Enable local reasoning
   * Create abstractions that do one thing well
   * Isolate technical debt
@@ -30,8 +30,6 @@ The complete set of abstractions included in an orrery based system is listed be
  * World
 
 ## Component
-
-### Overview
 A [component](include/orrery/component.h) is the highest level user abstraction in concord. Components
 are defined in terms of their message handlers and state. It is appropriate also to document, in
 English, the high level behavior of the component and its intention.
@@ -85,7 +83,7 @@ class StateTransferComponent {
 
 ### Implementation Details
 
- A component is actually the `ComponentImpl` template parameter in the [linked implementation](include/orrery/component.h). As described in the next section, only a top-level `AllMsgs` type is passed between components. However, this variant type is destructured automatically into a specific message that a component can handle. If a component cannot handle a given sub-message an error handler is automatically generated.
+ A component is actually the `ComponentImpl` template parameter in the [linked implementation](include/orrery/component.h). As described in the next section, only a top-level `Envelope` type is passed between components. However, this variant type is destructured automatically into a specific message that a component can handle. If a component cannot handle a given sub-message an error handler is automatically generated.
 
 
 ## Message
@@ -142,10 +140,39 @@ Executors return a `std::thread` upon a call to `start` and this thread should b
   * If we wanted to write code in other languages via the use of proxy components, they would have their own production grade schedulers that we could utilize.
 
 ## Mailbox
+Each `Executor` has a `Mailbox` associated with it. `Envelopes` destined for any component assigned
+to that executor are `put` into a Mailbox. The executor is responsble for distributing the envlopes
+to its components.
+
+Mailboxes only provide a public `put` API that allows envelopes to be sent. Only Executors have the "key" to the mailbox and can remove envelopes.
+
+### Rationale
+* Why only provide a public `put` API?
+  * This gives static, compile time guarantees, that only executors will remove envelopes from mailboxes. This is useful since many parts of the system, running in multiple threads, have copies of a mailbox.
+* Why not a queue?
+ * The mailbox abstraction hides any underlying mechanism for distribution allowing readers of the code to focus solely on the abstraction of envelope delivery.
+* Why a value type?
+ * As a mailbox is the primary way for the system to ensure envelope delivery, we wean to make sure it can be used safely and cheaply, without worrying about aliasing concerns. Just go ahead and make a copy.
+
+### Implementation Details
+A maillbox has a shared_ptr wrapping a lock based queue. The queue is created by the executor which is responsible for pulling envelopes and distributing them to components.
 
 
 ## Environment
+An environment is a thin abstraction that maps components to mailboxes. It's sole purpose is to provide a mechanism for routing envelopes to the proper Executor based on ComponentId.
+
+### Implementation Details
+ComponentIds are monotonically increasing. This allows efficient access to mailboxes by storing them
+in a vector rather than a map.
+
 ## World
+A `World` is an abstraction that components use to send messages to other components. Components
+can only communicate with other components via the use of a world.
+
+### Rationale
+* Why have both a `World` and `Environment` abstraction?
+  * A world is ergonomic. There is no need to lookup mailboxes or wrap messages into envelopes.
+  * Environments are global, whereas worlds are constructed per component. This allows them to automatically wrap the sender id into an envelope.
 
 # Component Scenarios
 ## Thread pool
