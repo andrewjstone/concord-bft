@@ -193,7 +193,6 @@ change due to the low level manipulation and validation of the structs, and the 
 ownership model. However, we want to slowly convert these structs to CMF messages instead and use
 CMF messages everywhere. We can enable this conversion by wrapping the communication library into a component, and converting it to handle network related CMF messages that are ports of the existing C structs. The component handler code would then serialize these CMF messages and send them over the network as necessary.
 
-![communication-proxy-component](img/communication-proxy-component.svg)
 
 We would then need to create a proxy component implementing the `ICommunication` interface and using
 the `IReceiver` interface as a callee. Legacy code would send packed structs via `ICommunication`, and
@@ -203,6 +202,8 @@ received from the network they would be deserialized and forwarded to the proxy 
 then put them into the original packed structs and dispatch them to the legacy code via the
 [IReceiver](https://github.com/vmware/concord-bft/blob/master/communication/include/communication/ICommunication.hpp#L25-L30)
 interface.
+
+![communication-proxy-component](img/communication-proxy-component.svg)
 
 At this point, we have converted the communication libraries to only deal in CMF messages, but we
 haven't yet converted any other system code to use these messages. To do that incrementally we would
@@ -218,6 +219,11 @@ legacy APIs.
 It should be noted that currently the state transfer code and replica code interact via the [IReplicaForStateTransfer](https://github.com/vmware/concord-bft/blob/master/bftengine/include/bftengine/IStateTransfer.hpp#L78-L94) and [IStateTransfer](https://github.com/vmware/concord-bft/blob/master/bftengine/include/bftengine/IStateTransfer.hpp#L24-L74) interfaces. The end goal is to have the state transfer and replica components only communicate via messages. We would have two choices here:
  1. Maintain the legacy interfaces as we converted over the replica code to an orrery component, treating the state transfer component as a proxy for the legacy interfaces.
  2. Implement a state transfer proxy component such that the state transfer is entirely complete as an orrery component before we start converting the replica.
+
+ The diagram below shows the incremental step of taking option 1.
+
+![st-and-comm-components](img/st-and-comm-components.svg)
+
 
 ## Thread pool
 ## IPC
