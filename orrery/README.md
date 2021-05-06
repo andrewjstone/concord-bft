@@ -21,7 +21,7 @@ Orrery is a C++ framework for reifying a message passing, component based archit
 
 Orrery is based around a unified set of abstractions to enable robust implementation of concord replicas in C++. Users only implement **components**, which form the high level building blocks of concord, and **messages** which allow interaction between components. All other abstractions are provided by orrery and are usable out of the box.
 
-The complete set of abstractions included in an orrery based system is listed below. The following subsections describe each of these at a high level, followed by a justification for each and implementation details where necesssary.
+The complete set of abstractions included in an orrery based system is listed below.
 
  * Component
  * Message
@@ -29,6 +29,18 @@ The complete set of abstractions included in an orrery based system is listed be
  * Environment
  * Mailbox
  * World
+
+The logical diagram below shows how these components interact with each other. An
+environment contains references to executor mailboxes. Each mailbox reference is
+assigned a component ID, shown above it. Therefore the environment structure maps components to
+individual executors. Each component also has access to a world with a reference to an environment
+embedded in it. This structure allows every component to send messages to every other component.
+
+Colors indicate which components belong to which executors, and their corresponding mailboxes. Each
+abstraction is described in detail in the following subsections.
+
+![orrery-replica](img/orrery.svg)
+
 
 ## Component
 A [component](include/orrery/component.h) is the highest level user abstraction in concord. Components
