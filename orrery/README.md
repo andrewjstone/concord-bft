@@ -1,6 +1,48 @@
 # Introduction
 
-Orrery is a C++ framework for reifying a message passing, component based architecture for concord. Rather than past attempts at describing an abstract architecture, the overarching design goals for concord are made concrete with a description of the capabilities and usage of orrery.
+Orrery is a C++ framework that reifies a message passing, component based architecture for concord. Rather than past attempts at describing an abstract architecture, the overarching design goals for concord are made concrete with a description of the capabilities and usage of orrery.
+
+# Motivation
+Like all distributed algorithms, the [sbft](https://arxiv.org/abs/1804.01626) algorithm implemented in concord is structured around message passing. The main replica thread contains a set of message handlers that farm work out to other parts of the system, including thread pools for signing and networking. Responses come back as messages to the main thread. Pre-execution, whereby execution runs concurrently before consensus, in an optimisitc fashion, also relies on messages to communicate with the main replica thread and other parts of the system.
+
+When originally written, there was no pre-execution, and all storage access was single threaded. Now, due to performance pressures and feature additions, much single threaded code was incrementally made multi-threaded. In many cases this was done through thea addition of locks, and in some cases reuse of existing message passing channels. The boundaries between subsystems have become even harder to reason about than initially, and many ad-hoc changes make it harder and harder to debug the system and add code. Changes are often required in multiple places, and local reasoning suffers.
+
+Further presenting problems is the fact that messages themselves are encoded as heap allocated packed structs that often get passed across thread boundaries including queues, computational thread pools, storage, and networking by casting them to `char*`. Low-level functions such as `memcpy` are littered throughout the code base further obfuscating business logic and complex algorithms, and leaving the reader of the code unclear as to who owns what data and when its safe to delete.
+
+Compounding issues of complex locking mechanisms, unclear memory ownership, and mixed levels of abstraction inside the most critical parts of the code, is the fact that log messages are also peppered through the system making the code even harder to read. Such drastic levels of logs have become necessary to track down complex failures triggered by a deep hierarchy of communicating replicas over many hours or days at a time in heavily loaded systems.
+
+The architecture and usage patterns introduced by orrery proposes to fix the bulk of these issues via:
+ * The use of high level message types based on [CMF](../messages)
+ * The organizing of major subsystems into standardized `Component`s
+ * A standardized mechanism for message passing among components
+ * Separation of thread execution from message handlers and their internal state
+
+With such changes, logging and tracing can largely be performed inside the orrery framework or at
+the boundaries of code, rather than within core logic. All subsystems and message handling threads
+are explicitly enumerated, and subsystems become more easily tested in isolation. Furthermore, the
+use of standardized messages and components enables us to consider rewriting components in other
+languages such that we can have multiple different compatible replicas with mixed and matched code
+interacting such that correlated failures become much less of a problem across clusters. This
+language independence could also potentially allow parts of the consensus code to be formally
+verified. Lastly, the code becomes much more readable, and the structure easier to describe to both
+new members of the team and old hats.
+
+# Limitations
+We fully recognize that we are only building a message passing system between coarse grained
+components, and as such, we are not limiting the code written inside a component to any specific
+paradigm or style. While we encourage small, single-purpose libraries and code reuse, discipline is
+still very much required by programmers to "do the right thing". In many cases, code inside
+compoonents will continue to use locks or thread pools, and new ones may be added.
+
+We do not view this as a negative though. It allows us to write the majority of our code in standard
+C++ style, improving our code base over time, without a wholesale rewrite. This is still a C++ code
+base, and we expect the bulk of it to follow standard idioms, as much as they exist in C++. This
+coarse grain structuring only constrains the interaction among subsystems and defines the highest
+abstraction levels of our code base. This grants individual authors the autonomy they need to be
+creative and use the optimal techniques to solve particular problems for a given feature or
+subsystem. Orrery does not care if your component heavily uses templates, or inheritance, and it
+doesn't care if you use futures or condition variables.
+
 
 # Architectural Values
 
@@ -30,11 +72,12 @@ The complete set of abstractions included in an orrery based system is listed be
  * Mailbox
  * World
 
-The logical diagram below shows how these components interact with each other. An
-environment contains references to executor mailboxes. Each mailbox reference is
-assigned a component ID, shown above it. Therefore the environment structure maps components to
-individual executors. Each component also has access to a world with a reference to an environment
-embedded in it. This structure allows every component to send messages to every other component.
+The logical diagram below shows how components interact with each other. An environment
+contains references to executor mailboxes. Each mailbox reference is assigned a component ID, shown
+above it. Therefore the environment structure maps components to individual executors. Each
+component also has access to a world with a reference to an environment embedded in it. This
+structure allows every component to interact with every other component via message passing.
+
 
 Colors indicate which components belong to which executors, and their corresponding mailboxes. Each
 abstraction is described in detail in the following subsections.
