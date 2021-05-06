@@ -27,7 +27,9 @@ language independence could also potentially allow parts of the consensus code t
 verified. Lastly, the code becomes much more readable, and the structure easier to describe to both
 new members of the team and old hats.
 
-# Limitations
+# Assumptions and Limitations
+
+## Coarse grained abstraction
 We fully recognize that we are only building a message passing system between coarse grained
 components, and as such, we are not limiting the code written inside a component to any specific
 paradigm or style. While we encourage small, single-purpose libraries and code reuse, discipline is
@@ -43,6 +45,19 @@ creative and use the optimal techniques to solve particular problems for a given
 subsystem. Orrery does not care if your component heavily uses templates, or inheritance, and it
 doesn't care if you use futures or condition variables.
 
+## Performance
+The purpose of orrery is not to directly enhance performance. While we expect that much excess data
+copying can be eliminated due to the use of CMF messages, we do not guarantee any massive wins. We
+do, however, anticipate that a logical, and coherent separation of subsystems will allow us to more
+easily measure and isolate any bottlenecks. Furthermore, most bottlenecks should be more easily
+reasoned about and fixed locally without crossing component boundaries.
+
+It is currently unclear whether introduction of more queues will cause problems. We view it as unlikely as the number of messages passing through the system will generally remain the same. As stated above, it will also give us more places to measure usage and saturation.
+
+## Backpressure and Throttling
+Orrery currently takes no position on backpressure, rate limiting or capacity. We already limit messages into the system from the network, and further limit concurrency via consensus setttings. We will continue using this logic for the foreseeable future. Since we also do not want to overly constrain the communication graph between components, all queues between components internal to a replica are unbounded. This is done on purpose to avoid any problems caused by distributed deadlocks. As all internal messages are generated as a result of external messages or timer ticks, this should not be problematic.
+
+It is likely that we will add a more advanced admission controller for messages received from the network at some point to limit any possible queue explosion due to malicious senders. As noted though, we already have a rudimentary form of this feel it is good enough for now.
 
 # Architectural Values
 
