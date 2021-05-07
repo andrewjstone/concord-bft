@@ -5,27 +5,40 @@ Orrery is a C++ framework that reifies a message passing, component based archit
 # Motivation
 Like all distributed algorithms, the [sbft](https://arxiv.org/abs/1804.01626) algorithm implemented in concord is structured around message passing. The main replica thread contains a set of message handlers that farm work out to other parts of the system, including thread pools for signing and networking. Responses come back as messages to the main thread. Pre-execution, whereby execution runs concurrently before consensus, in an optimisitc fashion, also relies on messages to communicate with the main replica thread and other parts of the system.
 
-When originally written, there was no pre-execution, and all storage access was single threaded. Now, due to performance pressures and feature additions, much single threaded code was incrementally made multi-threaded. In many cases this was done through thea addition of locks, and in some cases reuse of existing message passing channels. The boundaries between subsystems have become even harder to reason about than initially, and many ad-hoc changes make it harder and harder to debug the system and add code. Changes are often required in multiple places, and local reasoning suffers.
+When originally written, there was no pre-execution, and all storage access was single threaded. Due
+to performance pressures and feature additions, much single threaded code was incrementally made
+multi-threaded. In many cases this was done through thea addition of locks, and in some cases reuse
+of existing message passing channels. Ad-hoc changes have further blurred the boundaries between
+subsystems making it even harder to debug and add code. Changes are often required in multiple
+places, and local reasoning suffers.
 
-Further presenting problems is the fact that messages themselves are encoded as heap allocated packed structs that often get passed across thread boundaries including queues, computational thread pools, storage, and networking by casting them to `char*`. Low-level functions such as `memcpy` are littered throughout the code base further obfuscating business logic and complex algorithms, and leaving the reader of the code unclear as to who owns what data and when its safe to delete.
+Further presenting problems is the fact that messages themselves are encoded as heap allocated
+packed structs that often get passed across thread boundaries including queues, computational thread
+pools, storage, and networking by casting them to raw `char*`. Low-level functions such as `memcpy` are
+littered throughout the code base further obfuscating business logic and complex algorithms, and
+leaving the reader of the code unclear as to who owns what data and when its safe to delete.
 
-Compounding issues of complex locking mechanisms, unclear memory ownership, and mixed levels of abstraction inside the most critical parts of the code, is the fact that log messages are also peppered through the system making the code even harder to read. Such drastic levels of logs have become necessary to track down complex failures triggered by a deep hierarchy of communicating replicas over many hours or days at a time in heavily loaded systems.
+Compounding issues of ad-hoc locking mechanisms, unclear memory ownership, and mixed levels of
+abstraction inside the most critical parts of the code, is the fact that log messages are also
+peppered through the system making the code even harder to read. Such a drastic level of logging has
+become necessary to track down failures triggered by complex interactions of communicating replicas
+occuring over long periods of time in heavily loaded systems.
 
 The architecture and usage patterns introduced by orrery proposes to fix the bulk of these issues via:
  * The use of high level message types based on [CMF](../messages)
- * The organizing of major subsystems into standardized `Component`s
+ * The organizing of major subsystems into standardized `Components`
  * A standardized mechanism for message passing among components
  * Separation of thread execution from message handlers and their internal state
 
 With such changes, logging and tracing can largely be performed inside the orrery framework or at
 the boundaries of code, rather than within core logic. All subsystems and message handling threads
-are explicitly enumerated, and subsystems become more easily tested in isolation. Furthermore, the
+are explicitly enumerated, and components become more easy to test in isolation. Furthermore, the
 use of standardized messages and components enables us to consider rewriting components in other
 languages such that we can have multiple different compatible replicas with mixed and matched code
-interacting such that correlated failures become much less of a problem across clusters. This
-language independence could also potentially allow parts of the consensus code to be formally
-verified. Lastly, the code becomes much more readable, and the structure easier to describe to both
-new members of the team and old hats.
+interacting so that correlated failures become less of a concern across clusters. This language
+independence could also potentially allow parts of the consensus code to be formally verified.
+Lastly, the code becomes much more readable, and the structure easier to describe to both new
+members of the team and old hats.
 
 # Assumptions and Limitations
 
