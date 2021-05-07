@@ -266,10 +266,10 @@ Mailboxes only provide a public `put` API that allows envelopes to be sent. Only
 * Why not a queue?
   * The mailbox abstraction hides any underlying mechanism for distribution allowing readers of the code to focus solely on the abstraction of envelope delivery.
 * Why a value type?
-  * As a mailbox is the primary way for the system to ensure envelope delivery, we wean to make sure it can be used safely and cheaply, without worrying about aliasing concerns. Just go ahead and make a copy.
+  * As a mailbox is the primary way for the system to ensure envelope delivery, we want to make sure it can be used safely and cheaply, without worrying about aliasing concerns. Just go ahead and make a copy.
 
 ### Implementation Details
-A mailbox has a shared_ptr wrapping a lock based queue. The queue is created by the executor which
+A mailbox has a `shared_ptr` wrapping a lock based queue. The queue is created by the executor which
 is responsible for pulling envelopes and distributing them to components. This queue may be
 suboptimal, but is also easily replaceable inside the Mailbox with any other type of queue or
 distribution mechanism. The point is that a queue interface is not exposed at all to the outside
