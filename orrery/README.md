@@ -60,7 +60,7 @@ members of the team and old hats.
  * Be judicious about dependencies
  * Enable writing components and replicas in other languages
  * Enable incremental conversion of current code to the new architecture
-  * Stick with and generalize a thread based, message passing architecture
+   * Stick with and generalize a thread based, message passing architecture
 
 # Assumptions and Limitations
 
