@@ -297,8 +297,64 @@ can only communicate with other components via the use of a world.
   * A world is ergonomic. There is no need to lookup mailboxes or wrap messages into envelopes.
   * Environments are global, whereas worlds are constructed per component. This allows them to automatically wrap the sender id into an envelope.
 
-# Realistic Example
-So far only an abstract model for an orrery based system has been shown. This section will show
+# Semi-Realistic Example
+So far only an abstract model for an orrery based system has been shown. This section will provide
+an elided interpretation of what a state transfer component would look like. The sequence diagram
+below shows a simplified state transfer flow, where only one block is fetched. It also shows DB
+access happening local to the component. However, this could also be farmed out to a **storage**
+component.
+
+![state-transfer-fetch](img/state-transfer-fetch.svg)
+
+The pseudo-code below shows an elided version of what state transfer fetching could look like.
+
+```C++
+#include <orrery_msgs.cmf.hpp>
+
+namespace concord::orrery {
+
+class StateTransferComponent {
+ public:
+  // Static configuration elided
+  StateTransferComponent(World&& world, DB& db) : world_(std::move(world)), db_(db) {}
+  ComponentId id{ComponentId::state_transfer};
+
+  // We can probably get rid of the need to parse visitors with a recursive vistior in the component
+  // template code In that case we could call handle directly on a StartCollectingStateMsg
+  void handle(ComponentId from, StateTransferApiMsg&& msg) {
+    ConcordAssertEq(ComponentId::replica, from);
+    if (std::holds_alternative<StartCollectingStateMsg>(msg.msg)) {
+      auto block_id = db_.getLatestBlockId();
+      auto source = getBlockSource();
+      // Fetching hashes elided
+      world_.send(ComponentId::network, NetworkMsg{source, StateTransferMsg{FetchBlockMsg{block_id}}});
+    }
+    // ...
+  }
+
+  void handle(ComponentId from, StateTransferMsg&& msg) {
+    ConcordAssertEq(ComponentId::network, from);
+    if (auto msg = std::get_if<BlockMsg>(msg)) {
+      // Check for correct block id elided
+      if (!verifyHash(hash, data)) {
+        // Log error and return
+      }
+      db_.write(std::move(msg));
+      if (stateTransferComplete()) {
+        world_.send(ComponentId::replica, ReplicaNotificationsMsg{StateTransferCompleteMsg{true}});
+      }
+    }
+    // ...
+  }
+
+ private:
+  World world_;
+  DB& db_;
+};
+
+}  // namespace concord::orrery
+```
+
 
 # Proxy Components
 

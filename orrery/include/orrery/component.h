@@ -46,6 +46,7 @@ class Component : public IComponent {
 
   Component(ComponentImpl&& impl) : impl_(std::move(impl)) {}
 
+  // TODO: Recursive visitor to also check for non-top-level messages?
   void handle(ComponentId from_id, AllMsgs&& msg_variant) override {
     std::visit(
         [from_id, this](auto&& msg) {
