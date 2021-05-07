@@ -230,7 +230,7 @@ Msg Envelope 10000 {
 
 ## Executor
 Orrery deliberately separates logic and state from threads of execution. You'll notice that in the
-discussion of components above, that user code only defined message handlers. Yet, how those
+discussion of components above, that user code only defines message handlers. Yet, how those
 handlers were called, and by whom was left unstated. The job of calling component handlers is
 performed  by `Executors`. Components are statically assigned to executors at startup, and executors
 are in charge of receiving and forwarding messages to their respective components.
@@ -319,7 +319,7 @@ class StateTransferComponent {
   StateTransferComponent(World&& world, DB& db) : world_(std::move(world)), db_(db) {}
   ComponentId id{ComponentId::state_transfer};
 
-  // We can probably get rid of the need to parse visitors with a recursive vistior in the component
+  // We can probably get rid of the need to parse variants with a recursive vistior in the component
   // template code In that case we could call handle directly on a StartCollectingStateMsg
   void handle(ComponentId from, StateTransferApiMsg&& msg) {
     ConcordAssertEq(ComponentId::replica, from);
